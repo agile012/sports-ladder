@@ -28,7 +28,7 @@ export default function RatingHistory({ ratingHistory }: { ratingHistory: any[] 
             <YAxis domain={[minRating - 50, maxRating + 50]} />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey="rating" stroke="hsl(var(--primary))">
+            <Line type="monotone" dataKey="rating" stroke="#8884d8" strokeWidth={3}>
               <LabelList dataKey="rating" position="top" />
             </Line>
           </LineChart>
