@@ -1,6 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 export default function useLadders() {
   const [sports, setSports] = useState<any[]>([])
@@ -13,7 +13,7 @@ export default function useLadders() {
       .then(res => setSports(res.data ?? []))
   }, [])
 
-  async function getPlayersForSport(sportId: string, limit?: number) {
+  const getPlayersForSport = useCallback(async (sportId: string, limit?: number) => {
     // Use the view that joins `auth.users` so we can show email/avatar/name
     let query = supabase
       .from('player_profiles_view')
@@ -26,9 +26,9 @@ export default function useLadders() {
     const { data } = await query
 
     return data ?? []
-  }
+  }, [])
 
-  async function getUserProfileForSport(userId: string, sportId: string) {
+  const getUserProfileForSport = useCallback(async (userId: string, sportId: string) => {
     const { data } = await supabase
       .from('player_profiles')
       .select('id, user_id, sport_id, rating, matches_played')
@@ -37,65 +37,70 @@ export default function useLadders() {
       .limit(1)
 
     return (data && data[0]) ?? null
-  }
+  }, [])
 
-  async function createChallenge(sportId: string, challengerProfileId: string, opponentProfileId: string, message?: string) {
-    if (challengerProfileId === opponentProfileId) throw new Error('Cannot challenge yourself')
+  const createChallenge = useCallback(
+    async (sportId: string, challengerProfileId: string, opponentProfileId: string, message?: string) => {
+      if (challengerProfileId === opponentProfileId) throw new Error('Cannot challenge yourself')
 
-    // Check for existing active challenges between these two profiles in this sport
-    const { data: existing } = await supabase
-      .from('matches')
-      .select('id, status')
-      .eq('sport_id', sportId)
-      .or(`and(player1_id.eq.${challengerProfileId},player2_id.eq.${opponentProfileId}),and(player1_id.eq.${opponentProfileId},player2_id.eq.${challengerProfileId})`)
-      .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING'])
-      .limit(1)
+      // Check for existing active challenges between these two profiles in this sport
+      const { data: existing } = await supabase
+        .from('matches')
+        .select('id, status')
+        .eq('sport_id', sportId)
+        .or(
+          `and(player1_id.eq.${challengerProfileId},player2_id.eq.${opponentProfileId}),and(player1_id.eq.${opponentProfileId},player2_id.eq.${challengerProfileId})`
+        )
+        .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING'])
+        .limit(1)
 
-    if (existing && existing.length) {
-      throw new Error('There is already a pending or processing challenge between these players')
-    }
-
-    // Insert a match row with status CHALLENGED to represent a challenge
-    const { data, error } = await supabase.from('matches').insert({
-      sport_id: sportId,
-      player1_id: challengerProfileId,
-      player2_id: opponentProfileId,
-      status: 'CHALLENGED',
-      message: message ?? null
-    })
-    if (error) {
-      // handle unique constraint from DB (defensive fallback)
-      if (error.message && error.message.includes('duplicate key')) {
+      if (existing && existing.length) {
         throw new Error('There is already a pending or processing challenge between these players')
       }
-      throw error
-    }
-    return data
-  }
 
-  async function createMatch(sportId: string, player1Id: string, player2Id: string) {
+      // Insert a match row with status CHALLENGED to represent a challenge
+      const { data, error } = await supabase.from('matches').insert({
+        sport_id: sportId,
+        player1_id: challengerProfileId,
+        player2_id: opponentProfileId,
+        status: 'CHALLENGED',
+        message: message ?? null,
+      })
+      if (error) {
+        // handle unique constraint from DB (defensive fallback)
+        if (error.message && error.message.includes('duplicate key')) {
+          throw new Error('There is already a pending or processing challenge between these players')
+        }
+        throw error
+      }
+      return data
+    },
+    []
+  )
+
+  const createMatch = useCallback(async (sportId: string, player1Id: string, player2Id: string) => {
     const { data, error } = await supabase.from('matches').insert({ sport_id: sportId, player1_id: player1Id, player2_id: player2Id })
     if (error) throw error
     return data
-  }
+  }, [])
 
   // Use helper functions for matches/stats/rank (supabaseHelpers)
-  async function getMatchesForProfile(profileId: string, limit = 5) {
+  const getMatchesForProfile = useCallback(async (profileId: string, limit = 5) => {
     const { getMatchesForProfile } = await import('../supabaseHelpers')
     return getMatchesForProfile(profileId, limit)
-  }
+  }, [])
 
-  async function getProfileStats(profileId: string) {
+  const getProfileStats = useCallback(async (profileId: string) => {
     const { getProfileStats } = await import('../supabaseHelpers')
     return getProfileStats(profileId)
-  }
+  }, [])
 
-  async function getRankForProfile(profileId: string, sportId: string) {
+  const getRankForProfile = useCallback(async (profileId: string, sportId: string) => {
     const { getRankForProfile } = await import('../supabaseHelpers')
     return getRankForProfile(profileId, sportId)
-  }
+  }, [])
 
-  async function getPendingChallengesForUser(userId: string) {
+  const getPendingChallengesForUser = useCallback(async (userId: string) => {
     // Find all player profile ids for this user
     const { data: profiles } = await supabase.from('player_profiles').select('id').eq('user_id', userId)
     const ids = (profiles || []).map((r: any) => r.id)
@@ -118,16 +123,24 @@ export default function useLadders() {
         .from('player_profiles_view')
         .select('id, full_name, avatar_url, rating')
         .in('id', idsInMatches as any)
-      ;(profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
+      ;(profiles || []).forEach((p: any) => {
+        profilesMap[p.id] = p
+      })
     }
 
     return (data || []).map((m: any) => ({
       ...m,
-      player1_id: m.player1_id ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url, rating: profilesMap[m.player1_id]?.rating } : null,
-      player2_id: m.player2_id ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url, rating: profilesMap[m.player2_id]?.rating } : null,
-      reported_by: m.reported_by ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url, rating: profilesMap[m.reported_by]?.rating } : null
+      player1_id: m.player1_id
+        ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url, rating: profilesMap[m.player1_id]?.rating }
+        : null,
+      player2_id: m.player2_id
+        ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url, rating: profilesMap[m.player2_id]?.rating }
+        : null,
+      reported_by: m.reported_by
+        ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url, rating: profilesMap[m.reported_by]?.rating }
+        : null,
     }))
-  }
+  }, [])
 
   return { sports, getPlayersForSport, getUserProfileForSport, createChallenge, createMatch, getMatchesForProfile, getProfileStats, getRankForProfile, getPendingChallengesForUser }
 }

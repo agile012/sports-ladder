@@ -1,5 +1,5 @@
 'use server'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 
 export async function getMatchesForProfile(profileId: string, limit = 5) {
   // Fetch matches (player ids only) then resolve full_name/avatar via player_profiles_view
@@ -23,7 +23,7 @@ export async function getMatchesForProfile(profileId: string, limit = 5) {
     ;(profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
   }
 
-  const finalStatuses = ['finished', 'CONFIRMED', 'confirmed']
+  const finalStatuses = ['CONFIRMED', 'PROCESSED']
 
   return data.map((m: any) => {
     const isPlayer1 = m.player1_id === profileId

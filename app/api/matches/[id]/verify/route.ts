@@ -5,7 +5,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } })
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: any) {
   // await params to support Next.js dynamic API behavior
   const { id } = (await params) as { id: string }
   const { searchParams } = new URL(req.url)
@@ -33,7 +33,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.redirect(`${origin}/?message=verified`)
   } else {
     // opponent rejected the reported result: mark disputed and clear tentative winner and reporter
-    const { error } = await supabase.from('matches').update({ status: 'DISPUTED', winner_id: null, reported_by: null }).eq('id', id)
+    const { error } = await supabase.from('matches').update({ status: 'PENDING', winner_id: null, reported_by: null }).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.redirect(`${origin}/?message=disputed`)
   }

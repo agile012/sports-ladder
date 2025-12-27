@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
@@ -20,8 +21,8 @@ export default function Login() {
           onClick={signInWithGoogle}
           className="w-full flex items-center justify-center gap-2 border border-gray-200 px-4 py-2 rounded hover:bg-gray-50"
           disabled={loading}
-        >
-          <img src="/google.svg" alt="Google" className="w-5 h-5" />
+        > 
+          <Image src="/google.svg" alt="Google" width={20} height={20} />
           <span>{loading ? 'Redirecting...' : 'Continue with Google'}</span>
         </button>
         <p className="text-xs text-gray-500 mt-4">Only Google sign-in is supported for accessing private ladders.</p>
