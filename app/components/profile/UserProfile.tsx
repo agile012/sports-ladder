@@ -25,7 +25,7 @@ export default function UserProfile({ user, myPlayers }: { user: any; myPlayers:
         ) : (
           <div className="flex flex-wrap gap-2">
             {myPlayers.map((p: any) => (
-              <div key={p.id} className="flex-1 min-w-[500px]">
+              <div key={p.id} className="flex-1 min-w-full md:min-w-[500px]">
                 <PlayerProfile player={p} />
               </div>
             ))}

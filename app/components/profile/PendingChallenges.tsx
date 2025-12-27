@@ -54,7 +54,7 @@ export default function PendingChallenges({
           console.log('c.winner_id', c.winner_id, 'profile.id', profile.id)
 
           return (
-            <div key={c.id} className="border rounded-lg p-4 flex items-center justify-between">
+            <div key={c.id} className="border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <div className="font-semibold">
                   <Badge variant={getBadgeVariant(status)} className={status === 'Challenged' ? 'bg-blue-500' : ''}>

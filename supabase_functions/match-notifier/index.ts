@@ -21,7 +21,9 @@ import sgMail from '@sendgrid/mail'
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY!
-const PUBLIC_SITE_URL = process.env.PUBLIC_SITE_URL || 'http://localhost:3000'
+const PUBLIC_SITE_URL =
+  process.env.PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
 
 sgMail.setApiKey(SENDGRID_API_KEY)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } })
