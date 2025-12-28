@@ -70,7 +70,7 @@ export default function PendingChallenges({
                     <Button
                       size="sm"
                       onClick={() =>
-                        window.fetch(`/api/matches/${c.id}/action?action=accept&token=${c.action_token}`).then(() => onAction())
+                        window.fetch(`/api/matches/${c.id}/action?action=accept&token=${c.action_token}`, { method: 'POST' }).then(() => onAction())
                       }
                     >
                       Accept
@@ -79,7 +79,7 @@ export default function PendingChallenges({
                       size="sm"
                       variant="destructive"
                       onClick={() =>
-                        window.fetch(`/api/matches/${c.id}/action?action=reject&token=${c.action_token}`).then(() => onAction())
+                        window.fetch(`/api/matches/${c.id}/action?action=reject&token=${c.action_token}`, { method: 'POST' }).then(() => onAction())
                       }
                     >
                       Reject
@@ -129,7 +129,7 @@ export default function PendingChallenges({
                       <Button
                         size="sm"
                         onClick={() =>
-                          window.fetch(`/api/matches/${c.id}/verify?verify=yes&token=${c.action_token}`).then(() => onAction())
+                          window.fetch(`/api/matches/${c.id}/verify?verify=yes&token=${c.action_token}`, { method: 'POST' }).then(() => onAction())
                         }
                       >
                         Confirm
@@ -138,7 +138,7 @@ export default function PendingChallenges({
                         size="sm"
                         variant="destructive"
                         onClick={() =>
-                          window.fetch(`/api/matches/${c.id}/verify?verify=no&token=${c.action_token}`).then(() => onAction())
+                          window.fetch(`/api/matches/${c.id}/verify?verify=no&token=${c.action_token}`, { method: 'POST' }).then(() => onAction())
                         }
                       >
                         Dispute

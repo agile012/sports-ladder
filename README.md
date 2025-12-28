@@ -28,3 +28,10 @@ INNGEST_EVENT_KEY=
 INNGEST_SIGNING_KEY=
 PUBLIC_SITE_URL=
 ```
+
+Stages:
+1. CHALLENGED - before challenge is accepted
+2. PENDING - before match result is uploaded
+3. PROCESSING - before result is verified
+4. COMPLETED - before rating is updated
+5. PROCESSED - all stages complete
