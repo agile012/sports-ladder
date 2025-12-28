@@ -66,7 +66,7 @@ export const sendChallengeEmail = inngest.createFunction(
  </p>
         `,
       };
-      transporter.sendMail(msg, (error, info) => {
+      await transporter.sendMail(msg, (error, info) => {
         if (error) {
           console.error('Error sending email:', error);
         } else {
@@ -166,7 +166,7 @@ export const handleMatchAction = inngest.createFunction(
               html: opponentHtml,
             };
             await step.run("send-opponent-email", async () => {
-              transporter.sendMail(opponentMsg, (error, info) => {
+              await transporter.sendMail(opponentMsg, (error, info) => {
                 if (error) {
                   console.error('Error sending email:', error);
                 } else {
@@ -186,7 +186,7 @@ export const handleMatchAction = inngest.createFunction(
             html,
           };
           await step.run("send-rejection-email", async () => {
-            transporter.sendMail(msg, (error, info) => {
+            await transporter.sendMail(msg, (error, info) => {
               if (error) {
                 console.error('Error sending email:', error);
               } else {
@@ -249,7 +249,7 @@ export const handleMatchResult = inngest.createFunction(
  </p>
           `,
         };
-        transporter.sendMail(msg, (error, info) => {
+        await transporter.sendMail(msg, (error, info) => {
           if (error) {
             console.error('Error sending email:', error);
           } else {
@@ -306,7 +306,7 @@ export const handleMatchVerification = inngest.createFunction(
  `;
 
         const msg = { to: emails, from: FROM_EMAIL, subject, html };
-        transporter.sendMail(msg, (error, info) => {
+        await transporter.sendMail(msg, (error, info) => {
           if (error) {
             console.error('Error sending email:', error);
           } else {
