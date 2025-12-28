@@ -24,6 +24,7 @@ export default function Home() {
   const [userProfileIds, setUserProfileIds] = useState<string[]>([])
   const [unjoinedSports, setUnjoinedSports] = useState<any[]>([])
   const router = useRouter()
+  const userId = user?.id
 
   useEffect(() => {
     if (sports.length > 0 && !sportId) setSportId(sports[0].id)
@@ -40,8 +41,8 @@ export default function Home() {
         const players = await getPlayersForSport(s.id) // fetch full list
         tops[s.id] = players.slice(0, 5)
 
-        if (user) {
-          const myProfile = await getUserProfileForSport(user.id, s.id)
+        if (userId) {
+          const myProfile = await getUserProfileForSport(userId, s.id)
           if (myProfile) {
             // compute ranks with ties (same algorithm as ladder page)
             const ranks: number[] = []
@@ -61,7 +62,7 @@ export default function Home() {
               }
             }
 
-            const myIndex = players.findIndex(p => p.user_id === user.id || p.id === myProfile.id)
+            const myIndex = players.findIndex(p => p.user_id === userId || p.id === myProfile.id)
             const myRank = myIndex >= 0 ? ranks[myIndex] : null
 
             if (myRank) {
@@ -99,15 +100,15 @@ export default function Home() {
       setLoadingLists(false)
 
       // load user's player profiles and pending challenges for signed-in user
-      if (user) {
+      if (userId) {
         try {
           const { supabase } = await import('@/lib/supabase/client')
-          const { data: profiles } = await supabase.from('player_profiles').select('id, sport_id').eq('user_id', user.id)
+          const { data: profiles } = await supabase.from('player_profiles').select('id, sport_id').eq('user_id', userId)
           const profileIds = (profiles || []).map((p: any) => p.id)
           setUserProfileIds(profileIds)
 
           if (profileIds.length > 0) {
-            const pending = await getPendingChallengesForUser(user.id)
+            const pending = await getPendingChallengesForUser(userId)
             setPendingChallenges(pending)
           }
 
@@ -126,7 +127,7 @@ export default function Home() {
     }
 
     if (sports.length > 0) loadLists()
-  }, [sports, user, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser])
+  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser])
 
   async function join() {
     if (!user) {
@@ -234,7 +235,7 @@ export default function Home() {
         {sports.length > 0 ? (
           <Tabs defaultValue={sports[0].id} className="w-full">
             <TabsList className="border">
-              {sports.map(s => (
+              {sports.map((s) => (
                 <TabsTrigger
                   key={s.id}
                   value={s.id}

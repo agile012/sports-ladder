@@ -52,7 +52,6 @@ export default function PendingChallenges({
         {challenges.map((c: any) => {
           const status = getMatchStatus(c)
           const myProfileId = currentUserIds.find(id => id === c.player1_id?.id || id === c.player2_id?.id)
-          console.log('c.winner_id', c.winner_id, 'myProfileId', myProfileId)
 
           return (
             <div key={c.id} className="border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
