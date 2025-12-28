@@ -33,11 +33,11 @@ const getBadgeVariant = (status: string) => {
 
 export default function PendingChallenges({
   challenges,
-  profile,
+  currentUserIds,
   onAction = () => window.location.reload(),
 }: {
   challenges: any[]
-  profile: any
+  currentUserIds: string[]
   onAction?: () => void
 }) {
   if (!challenges || challenges.length === 0) return null
@@ -51,7 +51,8 @@ export default function PendingChallenges({
       <CardContent className="space-y-4">
         {challenges.map((c: any) => {
           const status = getMatchStatus(c)
-          console.log('c.winner_id', c.winner_id, 'profile.id', profile.id)
+          const myProfileId = currentUserIds.find(id => id === c.player1_id?.id || id === c.player2_id?.id)
+          console.log('c.winner_id', c.winner_id, 'myProfileId', myProfileId)
 
           return (
             <div key={c.id} className="border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -65,7 +66,7 @@ export default function PendingChallenges({
                 <p className="text-sm text-muted-foreground">{c.message ?? ''}</p>
               </div>
               <div className="flex items-center gap-2">
-                {c.status === 'CHALLENGED' && c.player2_id?.id === profile.id && (
+                {c.status === 'CHALLENGED' && c.player2_id?.id === myProfileId && (
                   <>
                     <Button
                       size="sm"
@@ -98,7 +99,7 @@ export default function PendingChallenges({
                       await fetch(`/api/matches/${c.id}/submit-result`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ winner_profile_id: winner, reported_by: profile.id, token: c.action_token }),
+                        body: JSON.stringify({ winner_profile_id: winner, reported_by: myProfileId, token: c.action_token }),
                       })
                       onAction()
                     }}
@@ -119,9 +120,9 @@ export default function PendingChallenges({
                 )}
 
                 {c.status === 'PROCESSING' &&
-                  (c.reported_by?.id !== profile.id ? (
+                  (c.reported_by?.id !== myProfileId ? (
                     <div className="flex items-center gap-2">
-                      {c.winner_id === profile.id ? (
+                      {c.winner_id === myProfileId ? (
                         <span className="text-green-500 font-bold">Won</span>
                       ) : (
                         <span className="text-red-500 font-bold">Lost</span>

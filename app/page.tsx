@@ -303,10 +303,9 @@ export default function Home() {
           </CardContent>
         </Card>
         {pendingChallenges.length > 0 && (
-          <PendingChallenges challenges={pendingChallenges} profile={{ id: userProfileIds[0] }} />
+          <PendingChallenges challenges={pendingChallenges} currentUserIds={userProfileIds} />
         )}
       </aside>
     </div>
   )
 }
-
