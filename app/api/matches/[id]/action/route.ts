@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { inngest } from '@/lib/inngest/client'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -33,6 +34,11 @@ export async function GET(req: NextRequest, { params }: any) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (!updated) return NextResponse.json({ error: 'No rows updated; match not found or not permitted' }, { status: 500 })
+    // Trigger Inngest event for email notification
+    await inngest.send({
+      name: 'match.action',
+      data: { matchId: updated.id, action: 'accept' },
+    })
     const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
     return NextResponse.redirect(`${origin}/?message=accepted`)
   }
@@ -44,6 +50,11 @@ export async function GET(req: NextRequest, { params }: any) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (!updated) return NextResponse.json({ error: 'No rows updated; match not found or not permitted' }, { status: 500 })
+    // Trigger Inngest event for email notification
+    await inngest.send({
+      name: 'match.action',
+      data: { matchId: updated.id, action: 'reject' },
+    })
     const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
     return NextResponse.redirect(`${origin}/?message=rejected`)
   }

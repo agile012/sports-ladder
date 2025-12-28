@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { inngest } from '@/lib/inngest/client'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -29,12 +30,22 @@ export async function GET(req: Request, { params }: any) {
       console.error('Failed to set match to CONFIRMED:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+    // Trigger Inngest event for email notification
+    await inngest.send({
+      name: 'match.verify',
+      data: { matchId: match.id, action: 'confirm' },
+    })
 
     return NextResponse.redirect(`${origin}/?message=verified`)
   } else {
     // opponent rejected the reported result: mark disputed and clear tentative winner and reporter
     const { error } = await supabase.from('matches').update({ status: 'PENDING', winner_id: null, reported_by: null }).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    // Trigger Inngest event for email notification
+    await inngest.send({
+      name: 'match.verify',
+      data: { matchId: match.id, action: 'dispute' },
+    })
     return NextResponse.redirect(`${origin}/?message=disputed`)
   }
 }

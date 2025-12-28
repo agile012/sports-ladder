@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import UserProfile from '@/components/profile/UserProfile'
-import * as helpers from '@/lib/supabaseHelpers'
+import * as helpers from '@/lib/supabase/supabaseHelpers'
 
 export default async function ProfilePage() {
   const supabase = await createClient()

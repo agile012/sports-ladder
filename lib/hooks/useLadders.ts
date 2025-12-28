@@ -41,37 +41,15 @@ export default function useLadders() {
 
   const createChallenge = useCallback(
     async (sportId: string, challengerProfileId: string, opponentProfileId: string, message?: string) => {
-      if (challengerProfileId === opponentProfileId) throw new Error('Cannot challenge yourself')
-
-      // Check for existing active challenges between these two profiles in this sport
-      const { data: existing } = await supabase
-        .from('matches')
-        .select('id, status')
-        .eq('sport_id', sportId)
-        .or(
-          `and(player1_id.eq.${challengerProfileId},player2_id.eq.${opponentProfileId}),and(player1_id.eq.${opponentProfileId},player2_id.eq.${challengerProfileId})`
-        )
-        .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING'])
-        .limit(1)
-
-      if (existing && existing.length) {
-        throw new Error('There is already a pending or processing challenge between these players')
-      }
-
-      // Insert a match row with status CHALLENGED to represent a challenge
-      const { data, error } = await supabase.from('matches').insert({
-        sport_id: sportId,
-        player1_id: challengerProfileId,
-        player2_id: opponentProfileId,
-        status: 'CHALLENGED',
-        message: message ?? null,
+      const response = await fetch('/api/challenges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sportId, challengerProfileId, opponentProfileId, message }),
       })
-      if (error) {
-        // handle unique constraint from DB (defensive fallback)
-        if (error.message && error.message.includes('duplicate key')) {
-          throw new Error('There is already a pending or processing challenge between these players')
-        }
-        throw error
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create challenge')
       }
       return data
     },
@@ -86,17 +64,17 @@ export default function useLadders() {
 
   // Use helper functions for matches/stats/rank (supabaseHelpers)
   const getMatchesForProfile = useCallback(async (profileId: string, limit = 5) => {
-    const { getMatchesForProfile } = await import('../supabaseHelpers')
+    const { getMatchesForProfile } = await import('../supabase/supabaseHelpers')
     return getMatchesForProfile(profileId, limit)
   }, [])
 
   const getProfileStats = useCallback(async (profileId: string) => {
-    const { getProfileStats } = await import('../supabaseHelpers')
+    const { getProfileStats } = await import('../supabase/supabaseHelpers')
     return getProfileStats(profileId)
   }, [])
 
   const getRankForProfile = useCallback(async (profileId: string, sportId: string) => {
-    const { getRankForProfile } = await import('../supabaseHelpers')
+    const { getRankForProfile } = await import('../supabase/supabaseHelpers')
     return getRankForProfile(profileId, sportId)
   }, [])
 
