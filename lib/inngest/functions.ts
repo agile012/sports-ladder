@@ -79,7 +79,7 @@ export const handleMatchAction = inngest.createFunction(
     const isAccepted = action === "accept";
 
     const match = await step.run("fetch-match", async () => {
-      const { data } = await supabase.from("matches").select("*").eq("id", matchId).single();
+      const { data } = await supabase.from("matches").select("*, sport:sports(name)").eq("id", matchId).single();
       return data;
     });
 
@@ -99,16 +99,15 @@ export const handleMatchAction = inngest.createFunction(
     });
 
     if (challenger?.user_email) {
-      await step.run("send-email-notification", async () => {
-        // Email to challenger
-        if (isAccepted) {
-          const subject = "Your challenge was accepted! Enter the result.";
-          const profileLink = `${PUBLIC_SITE_URL}/profile`; // Changed to specific match link
-          const submitResultUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/submit-result`;
+      // Email to challenger
+      if (isAccepted) {
+        const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted! Enter the result.`;
+        const profileLink = `${PUBLIC_SITE_URL}/profile`; // Changed to specific match link
+        const submitResultUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/submit-result`;
 
-          // Email to challenger
-          const challengerHtml = `
- <p>Your challenge for match ${match.id} was accepted!</p>
+        // Email to challenger
+        const challengerHtml = `
+ <p>Your challenge for match ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted!</p>
  <p>It's time to play your match. Once completed, please enter the result.</p>
  <p>Who won the match?</p>
  <p>
@@ -121,20 +120,20 @@ export const handleMatchAction = inngest.createFunction(
  </p>
  `;
 
-          const challengerMsg = {
-            to: challenger.user_email,
-            from: FROM_EMAIL,
-            subject,
-            html: challengerHtml,
-          };
-          await step.run("send-challenger-email", async () => {
-            await transporter.sendMail(challengerMsg);
-          });
+        const challengerMsg = {
+          to: challenger.user_email,
+          from: FROM_EMAIL,
+          subject,
+          html: challengerHtml,
+        };
+        await step.run("send-challenger-email", async () => {
+          await transporter.sendMail(challengerMsg);
+        });
 
-          // Email to opponent (if available)
-          if (opponent?.user_email) {
-            const opponentHtml = `
- <p>You have accepted the challenge for match ${match.id}!</p>
+        // Email to opponent (if available)
+        if (opponent?.user_email) {
+          const opponentHtml = `
+ <p>You have accepted the challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name}!</p>
  <p>It's time to play your match. Once completed, please enter the result.</p>
  <p>Who won the match?</p>
  <p>
@@ -147,31 +146,30 @@ export const handleMatchAction = inngest.createFunction(
  </p>
  `;
 
-            const opponentMsg = {
-              to: opponent.user_email,
-              from: FROM_EMAIL,
-              subject,
-              html: opponentHtml,
-            };
-            await step.run("send-opponent-email", async () => {
-              await transporter.sendMail(opponentMsg);
-            });
-          }
-        } else {
-          // If rejected, only notify the challenger
-          const subject = `Your challenge was rejected by ${opponent?.full_name}`;
-          const html = `<p>Your challenge for match ${match.id} was rejected by the opponent.</p>`;
-          const msg = {
-            to: challenger.user_email,
+          const opponentMsg = {
+            to: opponent.user_email,
             from: FROM_EMAIL,
             subject,
-            html,
+            html: opponentHtml,
           };
-          await step.run("send-rejection-email", async () => {
-            await transporter.sendMail(msg)
+          await step.run("send-opponent-email", async () => {
+            await transporter.sendMail(opponentMsg);
           });
         }
-      });
+      } else {
+        // If rejected, only notify the challenger
+        const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was rejected by ${opponent?.full_name}`;
+        const html = `<p>Your challenge for match ${match.id} was rejected by the opponent.</p>`;
+        const msg = {
+          to: challenger.user_email,
+          from: FROM_EMAIL,
+          subject,
+          html,
+        };
+        await step.run("send-rejection-email", async () => {
+          await transporter.sendMail(msg)
+        });
+      }
     }
   }
 );
@@ -183,7 +181,15 @@ export const handleMatchResult = inngest.createFunction(
     const { matchId } = event.data;
 
     const match = await step.run("fetch-match", async () => {
-      const { data } = await supabase.from("matches").select("*").eq("id", matchId).single();
+      const { data } = await supabase
+        .from("matches")
+        .select(
+          `
+          *,
+          sport:sports(name)
+        `
+        )
+        .eq("id", matchId).single();
       return data;
     });
 
@@ -191,14 +197,30 @@ export const handleMatchResult = inngest.createFunction(
 
     // Determine who needs to verify (the player who did NOT report the result)
     const verifierId = match.reported_by === match.player1_id ? match.player2_id : match.player1_id;
+    const reporterId = match.reported_by;
 
-    const verifier = await step.run("fetch-verifier", async () => {
+    const { verifier, reporter } = await step.run("fetch-verifier-and-reporter", async () => {
       const { data } = await supabase
         .from("player_profiles_view")
         .select("id, user_id, user_email, full_name")
-        .eq("id", verifierId)
+        .in("id", [verifierId, reporterId]);
+
+      const verifier = data?.find((p) => p.id === verifierId);
+      const reporter = data?.find((p) => p.id === reporterId);
+      return { verifier, reporter };
+    });
+
+    const winner = await step.run("fetch-winner", async () => {
+      if (!match.winner_id) return null;
+      const { data } = await supabase
+        .from("player_profiles_view")
+        .select("full_name")
+        .eq("id", match.winner_id)
         .single();
       return data;
+    });
+    const loser = await step.run("fetch-loser", async () => {
+      return null; // TODO: Implement fetching loser
     });
 
     if (verifier?.user_email) {
@@ -207,14 +229,14 @@ export const handleMatchResult = inngest.createFunction(
         const confirmUrl = `${verifyUrl}&verify=yes`;
         const disputeUrl = `${verifyUrl}&verify=no`;
 
-        const verifierIsWinner = match.winner_id === verifierId;
+        const matchIdentifier = `${match.sport?.name}: ${reporter?.full_name} vs ${verifier?.full_name}`;
 
-        const resultText = verifierIsWinner ? "You won" : "You lost";
+        const resultText = match.winner_id === verifierId ? "You won" : `${winner?.full_name} won`;
 
         const msg = {
           to: verifier.user_email,
           from: FROM_EMAIL,
-          subject: `Verify match result for challenge ${match.id}`,
+          subject: `Verify result for ${matchIdentifier}`,
 
           html: `
             <p>The result was entered by the opponent.</p>
