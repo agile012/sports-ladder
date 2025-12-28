@@ -219,9 +219,6 @@ export const handleMatchResult = inngest.createFunction(
         .single();
       return data;
     });
-    const loser = await step.run("fetch-loser", async () => {
-      return null; // TODO: Implement fetching loser
-    });
 
     if (verifier?.user_email) {
       await step.run("send-verify-email", async () => {
