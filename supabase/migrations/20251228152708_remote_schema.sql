@@ -122,11 +122,11 @@ BEGIN
 
   -- Check if this match already has ratings_history for each player
   SELECT EXISTS (
-    SELECT 1 FROM public.ratings_history rh WHERE rh.match_id = match_uuid AND rh.player_profile_id = m_rec.player1_id
+    SELECT 1 FROM public.ratings_history rh WHERE rh.match_id = match_uuid AND rh.player_profile_id = m.player1_id
   ) INTO p1_already;
 
   SELECT EXISTS (
-    SELECT 1 FROM public.ratings_history rh WHERE rh.match_id = match_uuid AND rh.player_profile_id = m_rec.player2_id
+    SELECT 1 FROM public.ratings_history rh WHERE rh.match_id = match_uuid AND rh.player_profile_id = m.player2_id
   ) INTO p2_already;
 
   -- If both players already processed for this match, skip entirely
@@ -226,22 +226,15 @@ DECLARE
   exists_p1       boolean;
   exists_p2       boolean;
   cur_played      integer;
+  hist_created_at timestamptz;
 BEGIN
-  -- Ensure ratings_history table exists
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name = 'ratings_history'
-  ) THEN
-    RAISE EXCEPTION 'ratings_history table not found in public schema';
-  END IF;
-
   -- Reset all player_profiles to defaults before recompute
   UPDATE public.player_profiles
   SET rating = in_starting_rating,
       matches_played = 0
   WHERE true;
 
-  -- Initialize ratings_map and played_map from current player_profiles (now reset to defaults)
+  -- Initialize maps from current player_profiles
   FOR m_rec IN
     SELECT id, COALESCE(rating, in_starting_rating) AS rating, COALESCE(matches_played, 0) AS matches_played
     FROM public.player_profiles
@@ -255,17 +248,20 @@ BEGIN
 
   -- Iterate matches chronologically
   FOR m_rec IN
-    SELECT id, created_at, player1_id, player2_id, winner_id
+    SELECT id, created_at, updated_at, player1_id, player2_id, winner_id
     FROM public.matches
     WHERE player1_id IS NOT NULL AND player2_id IS NOT NULL
       AND winner_id IS NOT NULL
     ORDER BY COALESCE(created_at, now()), id
   LOOP
+    -- Use match.updated_at as the created_at for history rows (fallback to created_at or now())
+    hist_created_at := COALESCE(m_rec.updated_at, m_rec.created_at, now());
+
     -- Fetch current ratings from map or default
     player1_rating := COALESCE( (ratings_map ->> m_rec.player1_id::text)::numeric, in_starting_rating );
     player2_rating := COALESCE( (ratings_map ->> m_rec.player2_id::text)::numeric, in_starting_rating );
 
-    -- Check if history already contains this match for these players
+    -- Check if history already contains this match for these players (defensive - usually false after TRUNCATE)
     SELECT EXISTS (
       SELECT 1 FROM public.ratings_history rh WHERE rh.player_profile_id = m_rec.player1_id AND rh.match_id = m_rec.id
     ) INTO exists_p1;
@@ -274,7 +270,6 @@ BEGIN
       SELECT 1 FROM public.ratings_history rh WHERE rh.player_profile_id = m_rec.player2_id AND rh.match_id = m_rec.id
     ) INTO exists_p2;
 
-    -- Save old integer ratings for history
     old_rating1 := ROUND(player1_rating)::integer;
     old_rating2 := ROUND(player2_rating)::integer;
 
@@ -318,20 +313,20 @@ BEGIN
       new_rating2 := ROUND(player2_rating);
     END IF;
 
-    -- Insert history rows only for players that were not already recorded
+    -- Insert history rows only for players that were not already recorded; use hist_created_at
     IF NOT exists_p1 AND NOT exists_p2 THEN
       INSERT INTO public.ratings_history(id, player_profile_id, match_id, old_rating, new_rating, delta, reason, created_at)
       VALUES
-        (gen_random_uuid(), m_rec.player1_id, m_rec.id, old_rating1, new_rating1::integer, (new_rating1::integer - old_rating1), 'recomputed', now()),
-        (gen_random_uuid(), m_rec.player2_id, m_rec.id, old_rating2, new_rating2::integer, (new_rating2::integer - old_rating2), 'recomputed', now());
+        (gen_random_uuid(), m_rec.player1_id, m_rec.id, old_rating1, new_rating1::integer, (new_rating1::integer - old_rating1), 'recomputed', hist_created_at),
+        (gen_random_uuid(), m_rec.player2_id, m_rec.id, old_rating2, new_rating2::integer, (new_rating2::integer - old_rating2), 'recomputed', hist_created_at);
     ELSIF NOT exists_p1 THEN
       INSERT INTO public.ratings_history(id, player_profile_id, match_id, old_rating, new_rating, delta, reason, created_at)
       VALUES
-        (gen_random_uuid(), m_rec.player1_id, m_rec.id, old_rating1, new_rating1::integer, (new_rating1::integer - old_rating1), 'recomputed', now());
+        (gen_random_uuid(), m_rec.player1_id, m_rec.id, old_rating1, new_rating1::integer, (new_rating1::integer - old_rating1), 'recomputed', hist_created_at);
     ELSIF NOT exists_p2 THEN
       INSERT INTO public.ratings_history(id, player_profile_id, match_id, old_rating, new_rating, delta, reason, created_at)
       VALUES
-        (gen_random_uuid(), m_rec.player2_id, m_rec.id, old_rating2, new_rating2::integer, (new_rating2::integer - old_rating2), 'recomputed', now());
+        (gen_random_uuid(), m_rec.player2_id, m_rec.id, old_rating2, new_rating2::integer, (new_rating2::integer - old_rating2), 'recomputed', hist_created_at);
     END IF;
   END LOOP;
 
