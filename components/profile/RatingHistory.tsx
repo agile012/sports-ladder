@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LabelList } from 'recharts'
 
 export default function RatingHistory({ ratingHistory }: { ratingHistory: any[] }) {

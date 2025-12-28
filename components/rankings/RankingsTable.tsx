@@ -2,7 +2,7 @@
 'use client'
 
 import RankingsTableRow from './RankingsTableRow'
-import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from '@/app/components/ui/table'
+import { Table, TableBody, TableCaption, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 export default function RankingsTable({
   players,

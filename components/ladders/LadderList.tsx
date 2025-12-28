@@ -2,7 +2,7 @@
 'use client'
 
 import LadderListItem from './LadderListItem'
-import { Card } from '@/app/components/ui/card'
+import { Card } from '@/components/ui/card'
 
 export default function LadderList({
   sports,

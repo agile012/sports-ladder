@@ -1,11 +1,11 @@
 
 'use client'
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar'
-import { Button } from '@/app/components/ui/button'
-import { CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Table, TableBody, TableCell, TableRow } from '@/app/components/ui/table'
-import { Separator } from '@/app/components/ui/separator'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
+import { Separator } from '@/components/ui/separator'
 
 export default function LadderListItem({
   sport,

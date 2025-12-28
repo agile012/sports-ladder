@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Button } from '@/app/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import PendingChallenges from '@/components/profile/PendingChallenges'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/components/ui/tabs'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function Home() {
   const { user, loading } = useUser()

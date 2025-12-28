@@ -1,9 +1,9 @@
 
 'use client'
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar'
-import { Badge } from '@/app/components/ui/badge'
-import { Button } from '@/app/components/ui/button'
-import { TableCell, TableRow } from '@/app/components/ui/table'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { TableCell, TableRow } from '@/components/ui/table'
 import React from 'react'
 
 const RankingsTableRow = React.forwardRef<

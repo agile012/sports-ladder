@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import RankingsTable from '@/components/rankings/RankingsTable'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Button } from '@/app/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export default function LadderPage() {
   const { user, loading } = useUser()

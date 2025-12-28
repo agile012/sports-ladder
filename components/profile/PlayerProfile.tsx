@@ -4,10 +4,10 @@
 import MatchHistory from './MatchHistory'
 import PendingChallenges from './PendingChallenges'
 import RatingHistory from './RatingHistory'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar'
-import { Badge } from '@/app/components/ui/badge'
-import { Button } from '@/app/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 export default function PlayerProfile({ player }: { player: any }) {
   return (
@@ -52,7 +52,7 @@ export default function PlayerProfile({ player }: { player: any }) {
           <MatchHistory matches={player.recentMatches} />
         </div>
         <div className="space-y-4 md:col-span-3">
-          <PendingChallenges challenges={player.pendingChallenges} profile={player} />
+          <PendingChallenges challenges={player.pendingChallenges} currentUserIds={[player.id]} />
         </div>
         <div className="space-y-6 md:col-span-3">
           <RatingHistory ratingHistory={player.ratingHistory} />
