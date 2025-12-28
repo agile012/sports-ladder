@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from "next-themes"
 import { Button } from './ui/button'
-import { Moon, Sun, Monitor } from "lucide-react"
-import { Separator } from '@radix-ui/react-separator'
+import { Moon, Sun, Monitor, Menu, X } from "lucide-react"
+
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<any | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
@@ -44,14 +45,15 @@ export default function Header() {
   return (
     <header className="bg-background border-b text-foreground shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="scroll-m-20 text-center text-4xl font-extrabold tracking-tight text-balance text-shadow-sm">IIMA Sports Ladder</Link>
-        <nav className="flex items-center gap-4">
+        <Link href="/" className="scroll-m-20 text-center text-3xl md:text-4xl font-extrabold tracking-tight text-balance text-shadow-sm">IIMA Sports Ladder</Link>
+        <nav className="hidden md:flex items-center gap-4">
           <Link href="/ladder" className="scroll-m-20 text-2xl mt-1 font-bold tracking-tight text-shadow-sm">Ladders</Link>
+          {user && (
+            <Link href="/profile" className="scroll-m-20 text-2xl mt-1 font-bold tracking-tight text-shadow-sm">Profile</Link>
+          )}
+          <ModeToggle />
           {user ? (
-            <>
-              <Link href="/profile" className="scroll-m-20 text-2xl mt-1 font-bold tracking-tight text-shadow-sm">Profile</Link>
-              <Button onClick={signOut} variant='default' className='scroll-m-20 text-xl font-bold tracking-tight'>Sign out</Button>
-            </>
+            <Button onClick={signOut} variant='default' className='scroll-m-20 text-xl font-bold tracking-tight'>Sign out</Button>
           ) : (
             pathname !== '/login' && (
               <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-md">
@@ -59,9 +61,33 @@ export default function Header() {
               </Button>
             )
           )}
-        <ModeToggle />
         </nav>
+        <div className="flex items-center gap-2 md:hidden">
+          <ModeToggle />
+          <Button variant="ghost" size="icon" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
+        </div>
       </div>
+      {isMenuOpen && (
+        <div className="md:hidden border-t px-4 py-4 space-y-4 bg-background">
+          <nav className="flex flex-col gap-4">
+            <Link href="/ladder" onClick={() => setIsMenuOpen(false)} className="text-lg font-bold">Ladders</Link>
+            {user ? (
+              <>
+                <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="text-lg font-bold">Profile</Link>
+                <Button onClick={() => { signOut(); setIsMenuOpen(false); }} variant='default' className='w-full justify-start text-lg font-bold'>Sign out</Button>
+              </>
+            ) : (
+              pathname !== '/login' && (
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-md w-full justify-start">
+                  <Link href="/login" onClick={() => setIsMenuOpen(false)}>Sign in with Google</Link>
+                </Button>
+              )
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   )
 }
