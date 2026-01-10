@@ -6,12 +6,14 @@ import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import PendingChallenges from '@/components/profile/PendingChallenges'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
+import { motion } from 'framer-motion'
+import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 
 export default function Home() {
   const { user, loading } = useUser()
@@ -33,9 +35,7 @@ export default function Home() {
     if (sports.length > 0 && !sportId) setSportId(sports[0].id)
   }, [sports, sportId])
 
-  // fetch top 5 and challengable lists for each sport
   useEffect(() => {
-    // load recent matches for home page
     async function loadRecent() {
       try {
         const data = await getRecentMatches(5) as MatchWithPlayers[]
@@ -64,7 +64,6 @@ export default function Home() {
         if (userId) {
           const myProfile = myProfiles.find((p) => p.sport_id === s.id)
           if (myProfile) {
-            // compute ranks with ties (same algorithm as ladder page)
             const ranks: number[] = []
             let lastRank = 0
             for (let i = 0; i < players.length; i++) {
@@ -87,22 +86,18 @@ export default function Home() {
 
             if (myRank) {
               let challengable: RankedPlayerProfile[] = []
-
-              // If the user is in the top 10, they can challenge any of the top 10 players
               if (myRank <= 10) {
                 challengable = players
                   .map((p, i) => ({ ...p, rank: ranks[i] }))
                   .filter(p => p.id !== myProfile.id && p.rank <= 10)
                   .slice(0, 10)
               } else {
-                // Otherwise they can challenge up to 10 ranks above
                 const minRank = Math.max(1, myRank - 10)
                 challengable = players
                   .map((p, i) => ({ ...p, rank: ranks[i] }))
                   .filter(p => p.rank < myRank && p.rank >= minRank)
                   .slice(0, 10)
               }
-
               challengables[s.id] = challengable
             } else {
               challengables[s.id] = []
@@ -119,7 +114,6 @@ export default function Home() {
       setChallengeLists(challengables)
       setLoadingLists(false)
 
-      // load user's player profiles and pending challenges for signed-in user
       if (userId) {
         try {
           const { supabase } = await import('@/lib/supabase/client')
@@ -159,7 +153,6 @@ export default function Home() {
       return
     }
 
-    // ask for confirmation before joining
     const sportName = sports.find(s => s.id === sportId)?.name ?? 'this sport'
     const confirmed = window.confirm(`Join ${sportName} ladder? Are you sure you want to join?`)
     if (!confirmed) return
@@ -171,7 +164,6 @@ export default function Home() {
     setSubmitting(false)
 
     if (error) {
-      // handle unique constraint error (already joined)
       if (error.code === '23505' || /duplicate|unique/.test(error.message || '')) {
         setMessage('You already joined this sport.')
       } else {
@@ -181,7 +173,6 @@ export default function Home() {
     }
 
     setMessage('Joined! Redirecting to the ladder...')
-    // Redirect to the ladder for the joined sport
     router.push(`/ladder?sport=${sportId}`)
   }
 
@@ -201,10 +192,8 @@ export default function Home() {
     try {
       await createChallenge(sportId, myProfile.id, opponentProfileId)
       setMessage('Challenge sent!')
-      // refresh lists
       const players = await getPlayersForSport(sportId)
       setTopLists(prev => ({ ...prev, [sportId]: players.slice(0, 5) }))
-      // recompute challengables for the sport
       const ranks: number[] = []
       let lastRank = 0
       for (let i = 0; i < players.length; i++) {
@@ -247,117 +236,211 @@ export default function Home() {
     }
   }
 
-  if (loading) return <div>Loading…</div>
+  if (loading) return (
+    <div className="flex justify-center items-center h-[50vh]">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-8 h-8 border-t-2 border-primary rounded-full"
+      />
+    </div>
+  )
 
   return (
-    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-      <aside className="md:col-span-1 space-y-6 md:order-last">
-        <Card className='shadow-lg'>
-          <CardHeader>
-            <CardTitle className="text-center text-shadow font-bold text-lg">Join a Ladder</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!user ? (
-              <div className="text-center">
-                <p className="mb-4 text-sm text-muted-foreground">You need to sign in to join a ladder.</p>
-                <Button onClick={() => router.push('/login')} className='shadow-sm font-bold'>Sign in</Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Select onValueChange={setSportId} defaultValue={sportId ?? undefined}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose sport" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background border">
-                    {unjoinedSports.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
 
-                <div className="flex items-center gap-3">
-                  <Button onClick={join} disabled={submitting} className="w-full">
-                    {submitting ? 'Joining…' : 'Join Ladder'}
-                  </Button>
-                  <Button onClick={() => router.push('/ladder')} variant="secondary" className="w-full">
-                    View ladders
+      {/* Sidebar / Secondary Content */}
+      <aside className="md:col-span-1 space-y-6 md:order-last">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className='overflow-hidden border-none shadow-xl bg-gradient-to-br from-card to-card/50 backdrop-blur-sm sticky top-24'>
+            <CardHeader className="bg-primary/5 pb-4">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Trophy className="h-5 w-5 text-primary" />
+                Join a Ladder
+              </CardTitle>
+              <CardDescription>
+                Select a sport to start competing
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {!user ? (
+                <div className="text-center py-4">
+                  <p className="mb-6 text-sm text-muted-foreground">Sign in to join the competition and track your ranking.</p>
+                  <Button onClick={() => router.push('/login')} className='w-full font-bold shadow-lg shadow-primary/20'>
+                    Sign in to Join
                   </Button>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Sport</label>
+                    <Select onValueChange={setSportId} defaultValue={sportId ?? undefined}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue placeholder="Choose a sport" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unjoinedSports.map(s => (
+                          <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {message && <p className="text-sm text-muted-foreground">{message}</p>}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <Button onClick={join} disabled={submitting} className="w-full font-semibold shadow-lg shadow-primary/20">
+                      {submitting ? 'Joining…' : 'Join Ladder'}
+                    </Button>
+                    <Button onClick={() => router.push('/ladder')} variant="outline" className="w-full bg-background/50">
+                      View All
+                    </Button>
+                  </div>
+
+                  {message && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-md bg-muted/50 text-sm border border-border/50 text-muted-foreground"
+                    >
+                      {message}
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {pendingChallenges.length > 0 && (
-          <PendingChallenges challenges={pendingChallenges} currentUserIds={userProfileIds} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <PendingChallenges challenges={pendingChallenges} currentUserIds={userProfileIds} />
+          </motion.div>
         )}
       </aside>
 
-      <main className="md:col-span-2 space-y-6">
-        <section>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold">Recent Matches</h2>
-            <Link href="/match-history" className="text-sm text-muted-foreground">View full history</Link>
-          </div>
-          <div className="mt-3 space-y-2">
-            {recentMatches.length === 0 && <p className="text-sm text-muted-foreground">No recent matches</p>}
-            {recentMatches.map((m) => (
-              <div key={m.id} className="p-3 border rounded flex justify-between items-center">
-                <div>
-                  <div className="font-medium">
-                    <Link href={`/player/${m.player1?.id}`} className="hover:underline text-blue-600">
-                      {m.player1?.full_name ?? 'Player 1'}
-                    </Link>
-                    <span className="mx-1 text-muted-foreground">vs</span>
-                    <Link href={`/player/${m.player2?.id}`} className="hover:underline text-blue-600">
-                      {m.player2?.full_name ?? 'Player 2'}
-                    </Link>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{sports.find(s => s.id === m.sport_id)?.name ?? 'Sport'} • {m.status} • {new Date(m.created_at).toLocaleString()}</div>
-                </div>
-                <div className="text-sm">
-                  {m.winner_id ? (
-                    <span className="text-emerald-600 font-medium">Winner: {(m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id)}</span>
-                  ) : (
-                    <span className="text-muted-foreground">No result</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      {/* Main Content */}
+      <main className="md:col-span-2 space-y-8">
 
-        {sports.length > 0 ? (
-          <Tabs defaultValue={sports[0].id} className="w-full">
-            <TabsList className='shadow-sm'>
-              {sports.map((s) => (
-                <TabsTrigger
-                  key={s.id}
-                  value={s.id}
-                  className='font-bold'
-                >
-                  {s.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {sports.map(s => (
-              <TabsContent key={s.id} value={s.id}>
-                <LadderList
-                  sports={[s]}
-                  topLists={topLists}
-                  challengeLists={challengeLists}
-                  loadingLists={loadingLists}
-                  submitting={submitting}
-                  handleChallenge={handleChallenge}
-                />
-              </TabsContent>
+        {/* Recent Matches Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Recent Activity
+            </h2>
+            <Link href="/match-history" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 transition-colors group">
+              View full history <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+
+          <div className="grid gap-3">
+            {recentMatches.length === 0 && (
+              <div className="p-8 border border-dashed rounded-xl text-center text-muted-foreground bg-muted/20">
+                No recent matches found
+              </div>
+            )}
+            {recentMatches.map((m, i) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 + (i * 0.05) }}
+                className="group p-4 rounded-xl border bg-card/50 backdrop-blur-sm hover:bg-card hover:shadow-md transition-all duration-300"
+              >
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <div className="space-y-1">
+                    <div className="font-semibold text-lg flex items-center gap-2 flex-wrap">
+                      <Link href={`/player/${m.player1?.id}`} className="hover:text-primary transition-colors">
+                        {m.player1?.full_name ?? 'Player 1'}
+                      </Link>
+                      <span className="text-muted-foreground text-sm font-normal">vs</span>
+                      <Link href={`/player/${m.player2?.id}`} className="hover:text-primary transition-colors">
+                        {m.player2?.full_name ?? 'Player 2'}
+                      </Link>
+                    </div>
+                    <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                      <span className="bg-secondary px-2 py-0.5 rounded text-secondary-foreground">
+                        {sports.find(s => s.id === m.sport_id)?.name ?? 'Sport'}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(m.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="text-sm self-start sm:self-center">
+                    {m.winner_id ? (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
+                        <Trophy className="h-3 w-3" />
+                        <span className="font-semibold">
+                          {(m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id)} won
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground italic px-3 py-1">Pending result</span>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
             ))}
-          </Tabs>
+          </div>
+        </motion.section>
+
+        {/* Ladders Tabs */}
+        {sports.length > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Tabs defaultValue={sports[0].id} className="w-full space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">Top Rankings</h2>
+                <TabsList className='bg-muted/50 p-1'>
+                  {sports.map((s) => (
+                    <TabsTrigger
+                      key={s.id}
+                      value={s.id}
+                      className='font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm'
+                    >
+                      {s.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </div>
+
+              {sports.map(s => (
+                <TabsContent key={s.id} value={s.id} className="mt-0">
+                  <LadderList
+                    sports={[s]}
+                    topLists={topLists}
+                    challengeLists={challengeLists}
+                    loadingLists={loadingLists}
+                    submitting={submitting}
+                    handleChallenge={handleChallenge}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
+          </motion.div>
         ) : (
-          <p className="text-muted-foreground">No sports available.</p>
+          <div className="text-center p-12 text-muted-foreground bg-muted/10 rounded-xl border border-dashed">
+            No sports available.
+          </div>
         )}
       </main>
     </div>

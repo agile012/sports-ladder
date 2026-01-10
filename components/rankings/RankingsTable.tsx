@@ -28,33 +28,35 @@ export default function RankingsTable({
   recentMap?: Record<string, any[]>
 }) {
   return (
-    <Table>
-      <TableCaption>{players.length === 0 ? 'No players yet.' : 'A list of players in the ladder.'}</TableCaption>
-      <TableHeader>
-        <TableRow>
-          <TableHead className='font-bold'>Rank</TableHead>
-          <TableHead className='font-bold'>Player</TableHead>
-          <TableHead className="text-right font-bold">Rating</TableHead>
-          <TableHead className="text-right font-bold">Matches</TableHead>
-          <TableHead />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {players.map((p, i) => (
-          <RankingsTableRow
-            key={p.id}
-            ref={playerRefs[i]}
-            player={p}
-            rank={ranks[i]}
-            isChallengable={challengables.has(p.id)}
-            submittingChallenge={submittingChallenge}
-            handleChallenge={handleChallenge}
-            selectedSport={selectedSport}
-            user={user}
-            recentMatches={recentMap?.[p.id]}
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="p-1 overflow-x-hidden">
+      <Table>
+        <TableCaption>{players.length === 0 ? 'No players yet.' : 'A list of players in the ladder.'}</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead className='font-bold'>Rank</TableHead>
+            <TableHead className='font-bold'>Player</TableHead>
+            <TableHead className="text-right font-bold">Rating</TableHead>
+            <TableHead className="text-right font-bold">Matches</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {players.map((p, i) => (
+            <RankingsTableRow
+              key={p.id}
+              ref={playerRefs[i]}
+              player={p}
+              rank={ranks[i]}
+              isChallengable={challengables.has(p.id)}
+              submittingChallenge={submittingChallenge}
+              handleChallenge={handleChallenge}
+              selectedSport={selectedSport}
+              user={user}
+              recentMatches={recentMap?.[p.id]}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }

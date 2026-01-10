@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import BackButton from '@/components/BackButton'
+import MatchDetailsView from '@/components/matches/MatchDetailsView'
 
 type Props = { params: { id: string } }
 
@@ -45,27 +44,13 @@ export default async function MatchPage({ params }: Props) {
   const player2 = match.player2_id ? profilesMap[match.player2_id] ?? { id: match.player2_id } : null
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Match Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <p><strong>Match ID:</strong> {match.id}</p>
-            <p><strong>Players:</strong> {player1?.full_name ?? 'Unknown'} vs {player2?.full_name ?? 'Unknown'}</p>
-            {sportName && <p><strong>Sport:</strong> {sportName}</p>}
-            <p><strong>Status:</strong> {match.status}</p>
-            {match.winner_id && <p><strong>Winner:</strong> {profilesMap[match.winner_id]?.full_name ?? match.winner_id}</p>}
-            <p className="text-sm text-muted-foreground">Created: {new Date(match.created_at).toLocaleString()}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-
-      <div>
-        <BackButton />
-      </div>
-    </div>
+    <MatchDetailsView
+      match={match}
+      player1={player1}
+      player2={player2}
+      sportName={sportName}
+      currentUser={user}
+      allowedToSubmit={allowedToSubmit}
+    />
   )
 }
