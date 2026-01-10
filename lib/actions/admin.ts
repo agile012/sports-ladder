@@ -53,10 +53,21 @@ async function verifyMatchAdmin(matchId: string) {
     return { supabase }
 }
 
-export async function addSport(name: string) {
+export async function addSport(name: string, scoring_config: any = { type: 'simple' }) {
     const { supabase } = await getAdminUser() // Any admin can add a sport for now
 
-    const { error } = await supabase.from('sports').insert({ name })
+    const { error } = await supabase.from('sports').insert({ name, scoring_config })
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/')
+    revalidatePath('/admin/sports')
+    return { success: true }
+}
+
+export async function updateSport(sportId: string, data: { name?: string, scoring_config?: any }) {
+    const { supabase } = await verifySportAdmin(sportId) // Verify admin rights for this sport
+
+    const { error } = await supabase.from('sports').update(data).eq('id', sportId)
     if (error) throw new Error(error.message)
 
     revalidatePath('/')
