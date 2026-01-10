@@ -12,17 +12,17 @@ import {
 } from '@/lib/types'
 
 export async function getMatchesForProfile(profileId: string, limit = 5): Promise<MatchHistoryItem[]> {
-  // Fetch matches (player ids only) then resolve full_name/avatar via player_profiles_view
+  // Fetch matches (include sport name via relation) then resolve full_name/avatar via player_profiles_view
   const { data } = await supabase
     .from('matches')
-    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at')
+    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)')
     .or(`player1_id.eq.${profileId},player2_id.eq.${profileId}`)
     .order('created_at', { ascending: false })
     .limit(limit)
 
   if (!data) return []
 
-  const matches = data as Match[]
+  const matches = data as any[]
 
   // collect unique profile ids referenced in these matches
   const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id].filter(Boolean)))) as string[]
@@ -32,9 +32,9 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
       .from('player_profiles_view')
       .select('id, full_name, avatar_url, rating')
       .in('id', ids)
-    ;(profiles as PlayerProfile[] || []).forEach((p) => {
-      profilesMap[p.id] = p
-    })
+      ; (profiles as PlayerProfile[] || []).forEach((p) => {
+        profilesMap[p.id] = p
+      })
   }
 
   const finalStatuses = ['CONFIRMED', 'PROCESSED']
@@ -48,6 +48,8 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
       id: m.id,
       created_at: m.created_at,
       status: m.status,
+      sport_id: m.sport_id,
+      sport_name: (m.sports && (m.sports as any).name) || null,
       result,
       opponent: opponent ? { id: opponent.id, full_name: opponent.full_name, avatar_url: opponent.avatar_url } : null,
     }
@@ -91,9 +93,9 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
       .from('player_profiles_view')
       .select('id, full_name, avatar_url, rating')
       .in('id', ids)
-    ;(profiles as PlayerProfile[] || []).forEach((p) => {
-      profilesMap[p.id] = p
-    })
+      ; (profiles as PlayerProfile[] || []).forEach((p) => {
+        profilesMap[p.id] = p
+      })
   }
 
   return matches.map((m) => ({
@@ -104,15 +106,15 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
     action_token: m.action_token,
     winner_id: m.winner_id,
     created_at: m.created_at,
-    player1_id: m.player1_id
+    player1: m.player1_id
       ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url }
       : { id: 'unknown' },
-    player2_id: m.player2_id
+    player2: m.player2_id
       ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url }
       : { id: 'unknown' },
-    reported_by: m.reported_by
+    reported_by: m.reported_by && profilesMap[m.reported_by]
       ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url }
-      : null,
+      : m.reported_by ? { id: m.reported_by } : null,
   }))
 }
 

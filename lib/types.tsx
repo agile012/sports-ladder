@@ -1,5 +1,4 @@
 
-
 export type Sport = {
   id: string
   name: string
@@ -17,9 +16,16 @@ export type PlayerProfile = {
   avatar_url?: string
 }
 
+export type PlayerBasic = {
+  id: string
+  full_name?: string
+  avatar_url?: string
+}
+
 export type Match = {
   id: string
   sport_id: string
+  sports?: { id: string; name: string } | null
   player1_id: string | null
   player2_id: string | null
   status: string
@@ -31,9 +37,10 @@ export type Match = {
 }
 
 export type MatchWithPlayers = Omit<Match, 'player1_id' | 'player2_id' | 'reported_by'> & {
-  player1_id: Partial<PlayerProfile> | null
-  player2_id: Partial<PlayerProfile> | null
-  reported_by: Partial<PlayerProfile> | null
+  sport_name?: string | null
+  player1: PlayerBasic | null
+  player2: PlayerBasic | null
+  reported_by: PlayerBasic | null
 }
 
 export type RankedPlayerProfile = PlayerProfile & {
@@ -47,18 +54,19 @@ export type MatchHistoryItem = {
   created_at: string
   status: string
   result?: MatchResult
-  opponent?: {
-    id: string
-    full_name?: string
-    avatar_url?: string
-  } | null
+  sport_id?: string
+  sport_name?: string
+  player1_id?: string | null
+  player2_id?: string | null
+  winner_id?: string | null
+  opponent?: PlayerBasic | null
 }
 
 export type PendingChallengeItem = {
   id: string
   sport_id: string
-  player1_id: { id: string; full_name?: string; avatar_url?: string }
-  player2_id: { id: string; full_name?: string; avatar_url?: string }
+  player1: PlayerBasic
+  player2: PlayerBasic
   status: string
   message?: string | null
   action_token?: string | null

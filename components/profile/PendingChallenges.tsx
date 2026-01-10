@@ -52,7 +52,7 @@ export default function PendingChallenges({
       <CardContent className="space-y-4">
         {challenges.map((c) => {
           const status = getMatchStatus(c)
-          const myProfileId = currentUserIds.find(id => id === c.player1_id?.id || id === c.player2_id?.id)
+          const myProfileId = currentUserIds.find(id => id === c.player1?.id || id === c.player2?.id)
 
           return (
             <div key={c.id} className="border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -61,12 +61,12 @@ export default function PendingChallenges({
                   <Badge variant={getBadgeVariant(status)} className={status === 'Challenged' ? 'bg-blue-500' : 'text-sx'}>
                     {status}
                   </Badge>{' '}
-                  • {c.player1_id.full_name} vs {c.player2_id.full_name}
+                  • {c.player1.full_name} vs {c.player2.full_name}
                 </div>
                 <p className="text-sm text-muted-foreground">{c.message ?? ''}</p>
               </div>
               <div className="flex items-center gap-2">
-                {c.status === 'CHALLENGED' && c.player2_id?.id === myProfileId && (
+                {c.status === 'CHALLENGED' && c.player2?.id === myProfileId && (
                   <>
                     <Button
                       size="sm"
@@ -109,8 +109,8 @@ export default function PendingChallenges({
                         <SelectValue placeholder="Select winner" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={c.player1_id.id}>{c.player1_id.full_name ?? 'Player 1'}</SelectItem>
-                        <SelectItem value={c.player2_id.id}>{c.player2_id.full_name ?? 'Player 2'}</SelectItem>
+                        <SelectItem value={c.player1.id}>{c.player1.full_name ?? 'Player 1'}</SelectItem>
+                        <SelectItem value={c.player2.id}>{c.player2.full_name ?? 'Player 2'}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button size="sm" type="submit">
