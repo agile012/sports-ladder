@@ -32,9 +32,9 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
       .from('player_profiles_view')
       .select('id, full_name, avatar_url, rating')
       .in('id', ids)
-    ;(profiles as PlayerProfile[] || []).forEach((p) => {
-      profilesMap[p.id] = p
-    })
+      ; (profiles as PlayerProfile[] || []).forEach((p) => {
+        profilesMap[p.id] = p
+      })
   }
 
   const finalStatuses = ['CONFIRMED', 'PROCESSED']
@@ -93,9 +93,9 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
       .from('player_profiles_view')
       .select('id, full_name, avatar_url, rating')
       .in('id', ids)
-    ;(profiles as PlayerProfile[] || []).forEach((p) => {
-      profilesMap[p.id] = p
-    })
+      ; (profiles as PlayerProfile[] || []).forEach((p) => {
+        profilesMap[p.id] = p
+      })
   }
 
   return matches.map((m) => ({
@@ -106,15 +106,15 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
     action_token: m.action_token,
     winner_id: m.winner_id,
     created_at: m.created_at,
-    player1_id: m.player1_id
+    player1: m.player1_id
       ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url }
       : { id: 'unknown' },
-    player2_id: m.player2_id
+    player2: m.player2_id
       ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url }
       : { id: 'unknown' },
-    reported_by: m.reported_by
+    reported_by: m.reported_by && profilesMap[m.reported_by]
       ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url }
-      : null,
+      : m.reported_by ? { id: m.reported_by } : null,
   }))
 }
 

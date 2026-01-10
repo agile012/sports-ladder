@@ -72,7 +72,7 @@ export default function useLadders() {
   const getRecentMatches = useCallback(async (limit = 5): Promise<MatchWithPlayers[]> => {
     const { data } = await supabase
       .from('matches')
-      .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)')
+      .select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, sports(id, name)')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -81,20 +81,21 @@ export default function useLadders() {
     const matches = (data as unknown as Match[])
 
     // resolve player profiles for display
-    const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id].filter(Boolean)))) as string[]
+    const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id, m.reported_by].filter(Boolean)))) as string[]
     const profilesMap: Record<string, { id: string; full_name?: string; avatar_url?: string }> = {}
     if (ids.length) {
       const { data: profiles } = await supabase.from('player_profiles_view').select('id, full_name, avatar_url').in('id', ids)
-      ;(profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
+        ; (profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
     }
 
     return matches.map((m) => ({
       id: m.id,
       sport_id: m.sport_id,
-      sport_name: (m.sports && (m.sports as any).name) || null,
+      sport_name: m.sports?.name || null,
       player1: m.player1_id ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url } : null,
       player2: m.player2_id ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url } : null,
       winner_id: m.winner_id,
+      reported_by: m.reported_by ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url } : null,
       status: m.status,
       created_at: m.created_at,
     }))
@@ -123,7 +124,7 @@ export default function useLadders() {
     const profilesMap: Record<string, { id: string; full_name?: string; avatar_url?: string }> = {}
     if (ids.length) {
       const { data: profiles } = await supabase.from('player_profiles_view').select('id, full_name, avatar_url').in('id', ids)
-      ;(profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
+        ; (profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
     }
 
     const finalStatuses = ['CONFIRMED', 'PROCESSED']
@@ -178,21 +179,25 @@ export default function useLadders() {
         .from('player_profiles_view')
         .select('id, full_name, avatar_url, rating')
         .in('id', idsInMatches)
-      ;(profiles || []).forEach((p) => {
-        profilesMap[p.id] = p as PlayerProfile
-      })
+        ; (profiles || []).forEach((p) => {
+          profilesMap[p.id] = p as PlayerProfile
+        })
     }
 
     return matches.map((m) => ({
       ...m,
-      player1: m.player1_id
-        ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url, rating: profilesMap[m.player1_id]?.rating }
-        : null,
-      player2: m.player2_id
-        ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url, rating: profilesMap[m.player2_id]?.rating }
-        : null,
+      player1: {
+        id: m.player1_id!,
+        full_name: profilesMap[m.player1_id!]?.full_name,
+        avatar_url: profilesMap[m.player1_id!]?.avatar_url
+      },
+      player2: {
+        id: m.player2_id!,
+        full_name: profilesMap[m.player2_id!]?.full_name,
+        avatar_url: profilesMap[m.player2_id!]?.avatar_url
+      },
       reported_by: m.reported_by
-        ? { id: m.reported_by, full_name: profilesMap[m.reported_by]?.full_name, avatar_url: profilesMap[m.reported_by]?.avatar_url, rating: profilesMap[m.reported_by]?.rating }
+        ? { id: m.reported_by }
         : null,
     }))
   }, [])
