@@ -230,6 +230,12 @@ export const handleMatchResult = inngest.createFunction(
 
         const resultText = match.winner_id === verifierId ? "You won" : `${winner?.full_name} won`;
 
+        let scoresHtml = '';
+        if (match.scores && Array.isArray(match.scores) && match.scores.length > 0) {
+          const scoresText = match.scores.map((s: any) => `${s.p1}-${s.p2}`).join(', ');
+          scoresHtml = `<p>Scores: <strong>${scoresText}</strong></p>`;
+        }
+
         const msg = {
           to: verifier.user_email,
           from: FROM_EMAIL,
@@ -238,6 +244,7 @@ export const handleMatchResult = inngest.createFunction(
           html: `
             <p>The result was entered by the opponent.</p>
             <p>Result: <strong>${resultText}</strong></p>
+            ${scoresHtml}
             <p>
  <a href="${confirmUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Confirm Result</a>
  <a href="${disputeUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">Dispute Result</a>

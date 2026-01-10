@@ -15,7 +15,7 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
   // Fetch matches (include sport name via relation) then resolve full_name/avatar via player_profiles_view
   const { data } = await supabase
     .from('matches')
-    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)')
+    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(id, name)')
     .or(`player1_id.eq.${profileId},player2_id.eq.${profileId}`)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -51,6 +51,7 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
       sport_id: m.sport_id,
       sport_name: (m.sports && (m.sports as any).name) || null,
       result,
+      scores: m.scores,
       opponent: opponent ? { id: opponent.id, full_name: opponent.full_name, avatar_url: opponent.avatar_url } : null,
     }
   })
@@ -76,14 +77,15 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
   // Fetch matches (player ids only) then resolve names via player_profiles_view
   const { data } = await supabase
     .from('matches')
-    .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at')
+    .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores, sports(scoring_config)')
     .or(`player1_id.eq.${profileId},player2_id.eq.${profileId}`)
     .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING'])
     .order('created_at', { ascending: false })
 
   if (!data) return []
 
-  const matches = data as Match[]
+  // cast to any first because specific sports fields (id, name) are missing from this specific query
+  const matches = data as any[]
 
   // resolve player names/avatars (include reported_by in the id list)
   const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id, m.reported_by].filter(Boolean)))) as string[]
@@ -101,7 +103,9 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
   return matches.map((m) => ({
     id: m.id,
     sport_id: m.sport_id,
+    sports: m.sports as any, // contains scoring_config
     status: m.status,
+    scores: m.scores,
     message: m.message,
     action_token: m.action_token,
     winner_id: m.winner_id,

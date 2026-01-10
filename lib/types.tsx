@@ -2,6 +2,7 @@
 export type Sport = {
   id: string
   name: string
+  scoring_config?: any
 }
 
 export type PlayerProfile = {
@@ -26,7 +27,7 @@ export type PlayerBasic = {
 export type Match = {
   id: string
   sport_id: string
-  sports?: { id: string; name: string } | null
+  sports?: { id: string; name: string; scoring_config?: any } | null
   player1_id: string | null
   player2_id: string | null
   status: string
@@ -35,6 +36,7 @@ export type Match = {
   winner_id?: string | null
   reported_by?: string | null
   created_at: string
+  scores?: any
 }
 
 export type MatchWithPlayers = Omit<Match, 'player1_id' | 'player2_id' | 'reported_by'> & {
@@ -61,11 +63,13 @@ export type MatchHistoryItem = {
   player2_id?: string | null
   winner_id?: string | null
   opponent?: PlayerBasic | null
+  scores?: any
 }
 
 export type PendingChallengeItem = {
   id: string
   sport_id: string
+  sports?: { scoring_config?: any }
   player1: PlayerBasic
   player2: PlayerBasic
   status: string
@@ -75,6 +79,18 @@ export type PendingChallengeItem = {
   reported_by?: { id: string } | null
   created_at: string
   result?: MatchResult
+  scores?: any
+}
+
+export type RatingHistoryEntry = {
+  id: string
+  player_profile_id: string
+  match_id: string
+  old_rating: number
+  new_rating: number
+  delta: number
+  reason: string
+  created_at: string
 }
 
 export type PlayerStats = {

@@ -8,7 +8,8 @@ async function handleResultSubmission(
   id: string,
   winner_profile_id: string,
   token: string | null,
-  reported_by: string | null
+  reported_by: string | null,
+  scores?: any
 ) {
   // recorded reporter defaults to the winner if not provided (useful for token-based submissions)
   const reporter = reported_by ?? winner_profile_id
@@ -35,8 +36,13 @@ async function handleResultSubmission(
     return NextResponse.json({ error: `Cannot submit result for match in status ${match.status}` }, { status: 400 })
   }
 
-  // update match to PROCESSING and record tentative winner in `winner_id` and who reported it
-  const { error } = await supabase.from('matches').update({ status: 'PROCESSING', winner_id: winner_profile_id, reported_by: reporter }).eq('id', id)
+  // update match to PROCESSING and record tentative winner in `winner_id` and who reported it. Also save scores.
+  const { error } = await supabase.from('matches').update({
+    status: 'PROCESSING',
+    winner_id: winner_profile_id,
+    reported_by: reporter,
+    scores: scores ?? null
+  }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Trigger Inngest event for email notification
@@ -48,7 +54,7 @@ async function handleResultSubmission(
   return NextResponse.redirect(origin, { status: 303 })
 }
 
-export async function GET(req: Request, { params }:  { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return new NextResponse(
     `<html>
       <head><title>Submit Result</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -66,11 +72,11 @@ export async function GET(req: Request, { params }:  { params: Promise<{ id: str
   )
 }
 
-export async function POST(req: Request, { params }:  { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   // await the params object in case it's a Promise (Next.js App Router)
   const { id } = (await params) as { id: string }
 
-  let winner_profile_id, token, reported_by
+  let winner_profile_id, token, reported_by, scores
 
   // Try to parse JSON, fallback to search params (for HTML form submission from GET page)
   try {
@@ -78,15 +84,34 @@ export async function POST(req: Request, { params }:  { params: Promise<{ id: st
     winner_profile_id = body.winner_profile_id
     token = body.token
     reported_by = body.reported_by
+    scores = body.scores
   } catch (e) {
     const { searchParams } = new URL(req.url)
     winner_profile_id = searchParams.get('winner_profile_id')
     token = searchParams.get('token')
     reported_by = searchParams.get('reported_by')
+    // scores via searchParams is complex/unlikely, can ignore for now or parse if needed
   }
 
   if (!winner_profile_id) return NextResponse.json({ error: 'Missing winner_profile_id' }, { status: 400 })
 
+  // Validate reported_by if provided
+  if (reported_by) {
+    // Basic UUID check could go here
+  }
+
   const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
-  return handleResultSubmission(origin, id, winner_profile_id, token, reported_by)
+
+  // Pass scores to handler, but handler needs update. 
+  // Wait, I should update the handler signature and logic in this same file.
+
+  // Call internal handler with scores injected into body equivalent or arg
+  // Refactoring usage:
+
+  return handleResultSubmission(origin, id, winner_profile_id, token, reported_by, scores)
 }
+
+// Need to update handleResultSubmission signature above too...
+// Replacing the whole file content might be safer due to signature change across functions.
+// Let's use replacement on the function signature.
+

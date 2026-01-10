@@ -10,6 +10,8 @@ import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash } from 'lucide-
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
+import { RatingHistoryEntry } from '@/lib/types'
+
 type Player = {
     id: string
     full_name?: string
@@ -23,6 +25,7 @@ type MatchDetailsProps = {
     sportName?: string | null
     currentUser?: any
     allowedToSubmit: boolean
+    history?: RatingHistoryEntry[]
 }
 
 export default function MatchDetailsView({
@@ -31,7 +34,8 @@ export default function MatchDetailsView({
     player2,
     sportName,
     currentUser,
-    allowedToSubmit
+    allowedToSubmit,
+    history = []
 }: MatchDetailsProps) {
     const winnerId = match.winner_id
 
@@ -44,68 +48,86 @@ export default function MatchDetailsView({
         }
     }
 
-    const PlayerCard = ({ player, isLeft, isWinner }: { player: Player, isLeft: boolean, isWinner?: boolean }) => (
-        <motion.div
-            initial={{ opacity: 0, x: isLeft ? -50 : 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-            className={cn(
-                "relative flex-1 p-8 rounded-2xl border transition-all duration-500 overflow-hidden group",
-                isWinner
-                    ? "bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/30 shadow-[0_0_30px_-10px_rgba(245,158,11,0.3)]"
-                    : "bg-card/50 hover:bg-card border-border/50",
-                "flex flex-col items-center justify-center gap-4 text-center min-h-[300px]"
-            )}
-        >
-            {/* Winner Glow Effect */}
-            {isWinner && (
-                <div className="absolute inset-0 bg-gradient-to-t from-amber-500/20 via-transparent to-transparent opacity-50" />
-            )}
+    const PlayerCard = ({ player, isLeft, isWinner }: { player: Player, isLeft: boolean, isWinner?: boolean }) => {
+        const ratingEntry = history?.find((h) => h.player_profile_id === player.id)
+        const delta = ratingEntry?.delta
 
-            {/* Avatar Container */}
-            <div className="relative">
-                <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    className={cn(
-                        "rounded-full p-2 bg-background shadow-xl",
-                        isWinner ? "ring-4 ring-amber-400/50" : "ring-1 ring-border"
-                    )}
-                >
-                    <Avatar className="w-32 h-32">
-                        <AvatarImage src={player.avatar_url} className="object-cover" />
-                        <AvatarFallback className="text-4xl font-bold bg-muted text-muted-foreground">
-                            {player.full_name?.[0] ?? '?'}
-                        </AvatarFallback>
-                    </Avatar>
-                </motion.div>
-
+        return (
+            <motion.div
+                initial={{ opacity: 0, x: isLeft ? -50 : 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+                className={cn(
+                    "relative flex-1 p-8 rounded-2xl border transition-all duration-500 overflow-hidden group",
+                    isWinner
+                        ? "bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/30 shadow-[0_0_30px_-10px_rgba(245,158,11,0.3)]"
+                        : "bg-card/50 hover:bg-card border-border/50",
+                    "flex flex-col items-center justify-center gap-4 text-center min-h-[300px]"
+                )}
+            >
+                {/* Winner Glow Effect */}
                 {isWinner && (
+                    <div className="absolute inset-0 bg-gradient-to-t from-amber-500/20 via-transparent to-transparent opacity-50" />
+                )}
+
+                {/* Avatar Container */}
+                <div className="relative">
                     <motion.div
-                        initial={{ scale: 0, y: 20 }}
-                        animate={{ scale: 1, y: 0 }}
-                        transition={{ delay: 0.5, type: 'spring' }}
-                        className="absolute -top-6 -right-6 bg-amber-500 text-white p-3 rounded-full shadow-lg rotate-12"
+                        whileHover={{ scale: 1.05 }}
+                        className={cn(
+                            "rounded-full p-2 bg-background shadow-xl",
+                            isWinner ? "ring-4 ring-amber-400/50" : "ring-1 ring-border"
+                        )}
                     >
-                        <Trophy className="w-8 h-8 fill-yellow-200 text-yellow-100" />
+                        <Avatar className="w-32 h-32">
+                            <AvatarImage src={player.avatar_url} className="object-cover" />
+                            <AvatarFallback className="text-4xl font-bold bg-muted text-muted-foreground">
+                                {player.full_name?.[0] ?? '?'}
+                            </AvatarFallback>
+                        </Avatar>
                     </motion.div>
-                )}
-            </div>
 
-            {/* Name and Link */}
-            <div className="z-10 space-y-2">
-                <Link href={`/player/${player.id}`} className="group-hover:text-primary transition-colors">
-                    <h2 className="text-3xl font-bold tracking-tight">
-                        {player.full_name ?? 'Unknown Player'}
-                    </h2>
-                </Link>
-                {isWinner && (
-                    <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 animate-pulse">
-                        Winner
-                    </Badge>
-                )}
-            </div>
-        </motion.div>
-    )
+                    {isWinner && (
+                        <motion.div
+                            initial={{ scale: 0, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            transition={{ delay: 0.5, type: 'spring' }}
+                            className="absolute -top-6 -right-6 bg-amber-500 text-white p-3 rounded-full shadow-lg rotate-12"
+                        >
+                            <Trophy className="w-8 h-8 fill-yellow-200 text-yellow-100" />
+                        </motion.div>
+                    )}
+                </div>
+
+                {/* Name and Link */}
+                <div className="z-10 space-y-2 flex flex-col items-center">
+                    <Link href={`/player/${player.id}`} className="group-hover:text-primary transition-colors">
+                        <h2 className="text-3xl font-bold tracking-tight">
+                            {player.full_name ?? 'Unknown Player'}
+                        </h2>
+                    </Link>
+
+                    {/* Rating Delta Badge */}
+                    {delta !== undefined && (
+                        <div className={cn(
+                            "px-3 py-1 rounded-full text-sm font-bold shadow-sm border flex items-center gap-1",
+                            delta > 0 ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                                delta < 0 ? "bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400" :
+                                    "bg-muted text-muted-foreground border-border"
+                        )}>
+                            {delta > 0 ? '+' : ''}{delta} Rating
+                        </div>
+                    )}
+
+                    {isWinner && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 animate-pulse mt-2">
+                            Winner
+                        </Badge>
+                    )}
+                </div>
+            </motion.div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-background/50">
@@ -154,6 +176,34 @@ export default function MatchDetailsView({
                         isWinner={winnerId === player2.id}
                     />
                 </div>
+
+                {/* Scoreboard (if scores exist) */}
+                {match.scores && Array.isArray(match.scores) && match.scores.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="flex justify-center -mt-6 z-30 relative"
+                    >
+                        <Card className="border-border/50 bg-card/80 backdrop-blur shadow-lg">
+                            <CardContent className="p-4 flex items-center gap-6">
+                                <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Final Score</div>
+                                <div className="flex items-center gap-4">
+                                    {match.scores.map((set: any, i: number) => (
+                                        <div key={i} className="flex flex-col items-center">
+                                            <div className="text-2xl font-black font-mono leading-none tracking-tighter">
+                                                <span className={cn(Number(set.p1) > Number(set.p2) ? "text-foreground" : "text-muted-foreground")}>{set.p1}</span>
+                                                <span className="text-muted-foreground/30 mx-1">-</span>
+                                                <span className={cn(Number(set.p2) > Number(set.p1) ? "text-foreground" : "text-muted-foreground")}>{set.p2}</span>
+                                            </div>
+                                            {(match.scores.length > 1) && <span className="text-[10px] text-muted-foreground uppercase mt-1">Set {i + 1}</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
 
                 {/* Match Details Card */}
                 <motion.div

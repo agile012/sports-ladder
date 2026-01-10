@@ -163,14 +163,15 @@ export default function useLadders() {
 
     const { data } = await supabase
       .from('matches')
-      .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at')
+      .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores, sports(scoring_config)')
       .or(ids.map((id: string) => `player1_id.eq.${id}`).concat(ids.map((id: string) => `player2_id.eq.${id}`)).join(','))
       .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING'])
       .order('created_at', { ascending: false })
 
     if (!data) return []
 
-    const matches = data as Match[]
+    // Cast to any[] to avoid strict type checks on missing sports fields
+    const matches = data as any[]
     // Resolve profile info for player ids
     const idsInMatches = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id].filter(Boolean)))) as string[]
     const profilesMap: Record<string, PlayerProfile> = {}
@@ -186,6 +187,8 @@ export default function useLadders() {
 
     return matches.map((m) => ({
       ...m,
+      scores: m.scores,
+      sports: m.sports,
       player1: {
         id: m.player1_id!,
         full_name: profilesMap[m.player1_id!]?.full_name,
