@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import PendingChallenges from '@/components/profile/PendingChallenges'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
+import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
 import { motion } from 'framer-motion'
 import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 
 export default function Home() {
   const { user, loading } = useUser()
-  const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getPendingChallengesForUser, getRecentMatches, getAllPlayers, getUserProfiles } = useLadders()
+  const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getPendingChallengesForUser, getRecentMatches, getMatchesForProfile, getAllPlayers, getUserProfiles, getMatchesSince } = useLadders()
   const [sportId, setSportId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -58,50 +59,27 @@ export default function Home() {
       ])
 
       for (const s of sports) {
-        const players = allPlayers.filter((p) => p.sport_id === s.id)
+        const rawPlayers = allPlayers.filter((p) => p.sport_id === s.id)
+        const players = calculateRanks(rawPlayers)
         tops[s.id] = players.slice(0, 5)
 
         if (userId) {
           const myProfile = myProfiles.find((p) => p.sport_id === s.id)
           if (myProfile) {
-            const ranks: number[] = []
-            let lastRank = 0
-            for (let i = 0; i < players.length; i++) {
-              if (i === 0) {
-                ranks.push(1)
-                lastRank = 1
-              } else {
-                const prev = players[i - 1]
-                if (players[i].rating === prev.rating) {
-                  ranks.push(lastRank)
-                } else {
-                  ranks.push(i + 1)
-                  lastRank = i + 1
-                }
-              }
-            }
+            const cooldownDays = s.scoring_config?.rematch_cooldown_days ?? 7
 
-            const myIndex = players.findIndex(p => p.user_id === userId || p.id === myProfile.id)
-            const myRank = myIndex >= 0 ? ranks[myIndex] : null
+            // Fetch matches specifically within the cooldown period
+            const recentMatches = await getMatchesSince(myProfile.id, cooldownDays)
 
-            if (myRank) {
-              let challengable: RankedPlayerProfile[] = []
-              if (myRank <= 10) {
-                challengable = players
-                  .map((p, i) => ({ ...p, rank: ranks[i] }))
-                  .filter(p => p.id !== myProfile.id && p.rank <= 10)
-                  .slice(0, 10)
-              } else {
-                const minRank = Math.max(1, myRank - 10)
-                challengable = players
-                  .map((p, i) => ({ ...p, rank: ranks[i] }))
-                  .filter(p => p.rank < myRank && p.rank >= minRank)
-                  .slice(0, 10)
-              }
-              challengables[s.id] = challengable
-            } else {
-              challengables[s.id] = []
-            }
+            const recentOpponentIds = new Set(
+              recentMatches
+                .map((m: any) => m.opponent?.id)
+                .filter(Boolean) as string[]
+            )
+
+            // Use shared logic for determining validation challenges
+            const validOpponents = getChallengablePlayers(players, myProfile, s.scoring_config, recentOpponentIds)
+            challengables[s.id] = validOpponents
           } else {
             challengables[s.id] = []
           }
@@ -141,7 +119,7 @@ export default function Home() {
     }
 
     if (sports.length > 0) loadLists()
-  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getRecentMatches])
+  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getRecentMatches, getMatchesSince])
 
   async function join() {
     if (!user) {

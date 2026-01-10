@@ -9,7 +9,7 @@ export default function useLadders() {
   useEffect(() => {
     supabase
       .from('sports')
-      .select('id, name')
+      .select('id, name, scoring_config')
       .order('name')
       .then((res) => setSports((res.data as Sport[]) ?? []))
   }, [])
@@ -145,6 +145,11 @@ export default function useLadders() {
     return map
   }, [])
 
+  const getMatchesSince = useCallback(async (profileId: string, days: number) => {
+    const { getMatchesSince } = await import('../supabase/supabaseHelpers')
+    return getMatchesSince(profileId, days)
+  }, [])
+
   const getProfileStats = useCallback(async (profileId: string) => {
     const { getProfileStats } = await import('../supabase/supabaseHelpers')
     return getProfileStats(profileId)
@@ -223,5 +228,5 @@ export default function useLadders() {
     return (data as PlayerProfile[]) ?? []
   }, [])
 
-  return { sports, getPlayersForSport, getUserProfileForSport, createChallenge, createMatch, getMatchesForProfile, getRecentMatches, getRecentMatchesForProfiles, getProfileStats, getRankForProfile, getPendingChallengesForUser, getAllPlayers, getUserProfiles }
+  return { sports, getPlayersForSport, getUserProfileForSport, createChallenge, createMatch, getMatchesForProfile, getRecentMatches, getRecentMatchesForProfiles, getProfileStats, getRankForProfile, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getMatchesSince }
 }

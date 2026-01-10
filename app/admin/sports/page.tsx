@@ -206,7 +206,7 @@ export default function AdminSportsPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Rematch Cooldown</Label>
-                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={-1} />
                                         <p className="text-[10px] text-muted-foreground">Days before rematch</p>
                                     </div>
                                 </div>

@@ -57,6 +57,54 @@ export async function getMatchesForProfile(profileId: string, limit = 5): Promis
   })
 }
 
+export async function getMatchesSince(profileId: string, days: number): Promise<MatchHistoryItem[]> {
+  const cutoffDate = new Date()
+  cutoffDate.setDate(cutoffDate.getDate() - days)
+
+  const { data } = await supabase
+    .from('matches')
+    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at')
+    .or(`player1_id.eq.${profileId},player2_id.eq.${profileId}`)
+    .gt('created_at', cutoffDate.toISOString())
+    .order('created_at', { ascending: false })
+
+  if (!data) return []
+
+  const matches = data as any[]
+  const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id].filter(Boolean)))) as string[]
+
+  const profilesMap: Record<string, PlayerProfile> = {}
+  if (ids.length) {
+    const { data: profiles } = await supabase
+      .from('player_profiles_view')
+      .select('id, full_name, avatar_url, rating')
+      .in('id', ids)
+      ; (profiles as PlayerProfile[] || []).forEach((p) => {
+        profilesMap[p.id] = p
+      })
+  }
+
+  const finalStatuses = ['CONFIRMED', 'PROCESSED']
+
+  return matches.map((m) => {
+    const isPlayer1 = m.player1_id === profileId
+    const opponentId = isPlayer1 ? m.player2_id : m.player1_id
+    const opponent = opponentId ? profilesMap[opponentId] : null
+    const result: MatchResult = finalStatuses.includes(m.status) ? (m.winner_id === profileId ? 'win' : 'loss') : null
+
+    return {
+      id: m.id,
+      created_at: m.created_at,
+      status: m.status,
+      sport_id: m.sport_id,
+      sport_name: null,
+      result,
+      scores: null,
+      opponent: opponent ? { id: opponent.id, full_name: opponent.full_name, avatar_url: opponent.avatar_url } : null,
+    }
+  })
+}
+
 export async function getProfileStats(profileId: string): Promise<PlayerStats> {
   const { data } = await supabase
     .from('matches')
