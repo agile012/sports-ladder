@@ -307,12 +307,20 @@ export default function Home() {
             {recentMatches.map((m) => (
               <div key={m.id} className="p-3 border rounded flex justify-between items-center">
                 <div>
-                  <Link href={`/matches/${m.id}`} className="font-medium">{m.player1?.full_name ?? 'Player 1'} vs {m.player2?.full_name ?? 'Player 2'}</Link>
+                  <div className="font-medium">
+                    <Link href={`/player/${m.player1?.id}`} className="hover:underline text-blue-600">
+                      {m.player1?.full_name ?? 'Player 1'}
+                    </Link>
+                    <span className="mx-1 text-muted-foreground">vs</span>
+                    <Link href={`/player/${m.player2?.id}`} className="hover:underline text-blue-600">
+                      {m.player2?.full_name ?? 'Player 2'}
+                    </Link>
+                  </div>
                   <div className="text-sm text-muted-foreground">{sports.find(s => s.id === m.sport_id)?.name ?? 'Sport'} • {m.status} • {new Date(m.created_at).toLocaleString()}</div>
                 </div>
                 <div className="text-sm">
                   {m.winner_id ? (
-                    <span className="text-emerald-600 font-medium">Winner: { (m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id) }</span>
+                    <span className="text-emerald-600 font-medium">Winner: {(m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id)}</span>
                   ) : (
                     <span className="text-muted-foreground">No result</span>
                   )}

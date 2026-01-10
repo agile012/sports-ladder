@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PlayerProfileExtended } from '@/lib/types'
 
-export default function PlayerProfile({ player }: { player: PlayerProfileExtended }) {
+export default function PlayerProfile({ player, isPublic = false }: { player: PlayerProfileExtended; isPublic?: boolean }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-4">
@@ -37,23 +37,26 @@ export default function PlayerProfile({ player }: { player: PlayerProfileExtende
             Wins: {player.stats?.wins ?? 0} • Losses: {player.stats?.losses ?? 0}
           </p>
           {player.stats?.winRate != null && <p className="text-sm text-muted-foreground">Win rate: {player.stats.winRate}%</p>}
-          <div className="space-y-2">
-            <h4 className="font-semibold">Quick actions</h4>
-            <div className="flex gap-2">
-              <Button asChild variant="outline" size="sm">
-                <a href={`/ladder?sport=${player.sport_id}`}>View ladder</a>
-              </Button>
-              <Button asChild variant="secondary" size="sm">
-                <a href={`/ladder?sport=${player.sport_id}&profile=${player.id}`}>View my position</a>
-              </Button>
+
+          {!isPublic && (
+            <div className="space-y-2">
+              <h4 className="font-semibold">Quick actions</h4>
+              <div className="flex gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href={`/ladder?sport=${player.sport_id}`}>View ladder</a>
+                </Button>
+                <Button asChild variant="secondary" size="sm">
+                  <a href={`/ladder?sport=${player.sport_id}&profile=${player.id}`}>View my position</a>
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="space-y-4">
           <MatchHistory matches={player.recentMatches} />
         </div>
         <div className="space-y-4 md:col-span-3">
-          <PendingChallenges challenges={player.pendingChallenges} currentUserIds={[player.id]} />
+          <PendingChallenges challenges={player.pendingChallenges} currentUserIds={[player.id]} isReadOnly={isPublic} />
         </div>
         <div className="space-y-6 md:col-span-3">
           <RatingHistory ratingHistory={player.ratingHistory} />

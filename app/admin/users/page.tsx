@@ -89,7 +89,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                     <TableBody>
                         {(profiles || []).map((p) => (
                             <TableRow key={p.id}>
-                                <TableCell className="font-medium">{p.full_name}</TableCell>
+                                <TableCell className="font-medium">
+                                    <Link href={`/player/${p.id}`} className="hover:underline text-blue-600">
+                                        {p.full_name}
+                                    </Link>
+                                </TableCell>
                                 <TableCell>{p.user_email}</TableCell>
                                 <TableCell>{sportsMap[p.sport_id] || p.sport_id}</TableCell>
                                 <TableCell>

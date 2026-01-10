@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { RankedPlayerProfile, Sport } from '@/lib/types'
 import { User } from '@supabase/supabase-js'
+import Link from 'next/link'
 
 type Props = {
   player: RankedPlayerProfile
@@ -29,16 +30,20 @@ const RankingsTableRow = React.forwardRef<HTMLTableRowElement, Props>(
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-3">
-            <Avatar>
-              <AvatarImage src={player.avatar_url} />
-              <AvatarFallback>
-                {(player.full_name ?? player.user_email ?? player.user_id ?? '')
-                  .toString()[0]
-                  ?.toUpperCase() ?? 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <Link href={`/player/${player.id}`}>
+              <Avatar className="hover:ring-2 ring-offset-2 ring-blue-500 cursor-pointer transition-all">
+                <AvatarImage src={player.avatar_url} />
+                <AvatarFallback>
+                  {(player.full_name ?? player.user_email ?? player.user_id ?? '')
+                    .toString()[0]
+                    ?.toUpperCase() ?? 'U'}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
             <div className="font-medium flex items-center gap-3">
-              <div>{player.full_name ?? player.user_email ?? `Player ${rank}`}</div>
+              <Link href={`/player/${player.id}`} className="hover:underline hover:text-blue-600 transition-colors">
+                <div>{player.full_name ?? player.user_email ?? `Player ${rank}`}</div>
+              </Link>
               <div className="flex items-center gap-1">
                 {recent.map((m, idx) => {
                   if (m.result === 'win') return <span key={`r-${player.id}-${idx}`} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white text-xs">✓</span>

@@ -45,5 +45,11 @@ export default async function ProfilePage() {
 
   const isAdmin = profileRows.some(p => p.is_admin)
 
-  return <UserProfile user={user} myPlayers={myPlayers} isAdmin={isAdmin} />
+  const userInfo = {
+    id: user.id,
+    email: user.email,
+    avatar_url: user.user_metadata.avatar_url
+  }
+
+  return <UserProfile userInfo={userInfo} myPlayers={myPlayers} isAdmin={isAdmin} />
 }

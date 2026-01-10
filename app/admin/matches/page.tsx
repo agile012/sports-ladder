@@ -130,7 +130,19 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
                                 </TableCell>
                                 <TableCell>{m.sport_name}</TableCell>
                                 <TableCell>
-                                    {profilesMap[m.player1_id]?.full_name ?? 'P1'} vs {profilesMap[m.player2_id]?.full_name ?? 'P2'}
+                                    <div className="flex flex-col gap-1">
+                                        <span>
+                                            <Link href={`/player/${m.player1_id}`} className="hover:underline text-blue-600">
+                                                {profilesMap[m.player1_id]?.full_name ?? 'P1'}
+                                            </Link>
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">vs</span>
+                                        <span>
+                                            <Link href={`/player/${m.player2_id}`} className="hover:underline text-blue-600">
+                                                {profilesMap[m.player2_id]?.full_name ?? 'P2'}
+                                            </Link>
+                                        </span>
+                                    </div>
                                 </TableCell>
                                 <TableCell>
                                     {m.winner_id ? profilesMap[m.winner_id]?.full_name : '-'}
