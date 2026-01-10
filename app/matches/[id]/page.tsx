@@ -43,6 +43,13 @@ export default async function MatchPage({ params }: Props) {
   const player1 = match.player1_id ? profilesMap[match.player1_id] ?? { id: match.player1_id } : null
   const player2 = match.player2_id ? profilesMap[match.player2_id] ?? { id: match.player2_id } : null
 
+  // fetch rating history
+  const { data: historyData } = await supabase
+    .from('ratings_history')
+    .select('*')
+    .eq('match_id', id)
+  const history = historyData || []
+
   return (
     <MatchDetailsView
       match={match}
@@ -51,6 +58,7 @@ export default async function MatchPage({ params }: Props) {
       sportName={sportName}
       currentUser={user}
       allowedToSubmit={allowedToSubmit}
+      history={history}
     />
   )
 }

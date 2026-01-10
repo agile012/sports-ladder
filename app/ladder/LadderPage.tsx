@@ -9,10 +9,11 @@ import RankingsTable from '@/components/rankings/RankingsTable'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
+import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
 
 export default function LadderPage() {
   const { user, loading } = useUser()
-  const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getRecentMatchesForProfiles } = useLadders()
+  const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getRecentMatchesForProfiles, getMatchesSince } = useLadders()
   const [players, setPlayers] = useState<RankedPlayerProfile[]>([])
   const [recentMap, setRecentMap] = useState<Record<string, any[]>>({})
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null)
@@ -37,74 +38,55 @@ export default function LadderPage() {
     if (!selectedSport) return
     let cancelled = false
 
-    ;(async () => {
-      const p = await getPlayersForSport(selectedSport.id) as RankedPlayerProfile[]
-      if (cancelled) return
-      setPlayers(p)
+      ; (async () => {
+        const pRaw = await getPlayersForSport(selectedSport.id)
+        if (cancelled) return
 
-      try {
-        const ids = p.map(x => x.id)
-        const map = await getRecentMatchesForProfiles(ids, 3)
-        if (!cancelled) setRecentMap(map)
-      } catch (e) {
-        // ignore
-      }
+        const p = calculateRanks(pRaw)
+        setPlayers(p)
 
-      // compute ranks (standard competition ranking)
-      const ranks: number[] = []
-      let lastRank = 0
-      for (let i = 0; i < p.length; i++) {
-        if (i === 0) {
-          ranks.push(1)
-          lastRank = 1
-        } else {
-          const prev = p[i - 1]
-          if (p[i].rating === prev.rating) {
-            ranks.push(lastRank)
-          } else {
-            ranks.push(i + 1)
-            lastRank = i + 1
-          }
+        try {
+          const ids = p.map(x => x.id)
+          const map = await getRecentMatchesForProfiles(ids, 3)
+          if (!cancelled) setRecentMap(map)
+        } catch (e) {
+          // ignore
         }
-      }
 
-      if (!user) {
-        setChallengables(new Set())
-        return
-      }
-
-      const myProfile = await getUserProfileForSport(user.id, selectedSport.id)
-      if (!myProfile) {
-        setChallengables(new Set())
-        return
-      }
-
-      const myIndex = p.findIndex(pp => pp.user_id === user.id || pp.id === myProfile.id)
-      const myRank = myIndex >= 0 ? ranks[myIndex] : null
-
-      let challengableArr: RankedPlayerProfile[] = []
-      if (myRank) {
-        if (myRank <= 10) {
-          challengableArr = p
-            .map((pp, i) => ({ ...pp, rank: ranks[i] }))
-            .filter(pp => pp.id !== myProfile.id && pp.rank <= 10)
-            .slice(0, 10)
-        } else {
-          const minRank = Math.max(1, myRank - 10)
-          challengableArr = p
-            .map((pp, i) => ({ ...pp, rank: ranks[i] }))
-            .filter(pp => pp.rank < myRank && pp.rank >= minRank)
-            .slice(0, 10)
+        if (!user) {
+          setChallengables(new Set())
+          return
         }
-      }
 
-      setChallengables(new Set(challengableArr.map(x => x.id)))
-    })()
+        const myProfile = await getUserProfileForSport(user.id, selectedSport.id)
+        if (!myProfile) {
+          setChallengables(new Set())
+          return
+        }
+
+        const cooldownDays = selectedSport.scoring_config?.rematch_cooldown_days ?? 7
+
+        // Fetch matches specific to cooldown period
+        const recentMatches = await getMatchesSince(myProfile.id, cooldownDays)
+
+        const recentOpponentIds = new Set(
+          recentMatches
+            .map((m: any) => m.opponent?.id)
+            .filter(Boolean) as string[]
+        )
+
+        // Use shared logic
+        const validOpponents = getChallengablePlayers(p, myProfile, selectedSport.scoring_config, recentOpponentIds)
+
+        if (!cancelled) {
+          setChallengables(new Set(validOpponents.map(x => x.id)))
+        }
+      })()
 
     return () => {
       cancelled = true
     }
-  }, [selectedSport, user, getPlayersForSport, getUserProfileForSport])
+  }, [selectedSport, user, getPlayersForSport, getUserProfileForSport, getMatchesSince])
 
   useEffect(() => {
     const profileId = searchParams.get('profile')
@@ -117,24 +99,7 @@ export default function LadderPage() {
   }, [players, searchParams, playerRefs])
 
   const ranks = useMemo(() => {
-    const res: number[] = []
-    let lastRank = 0
-    for (let i = 0; i < players.length; i++) {
-      const p = players[i]
-      if (i === 0) {
-        res.push(1)
-        lastRank = 1
-      } else {
-        const prev = players[i - 1]
-        if (p.rating === prev.rating) {
-          res.push(lastRank)
-        } else {
-          res.push(i + 1)
-          lastRank = i + 1
-        }
-      }
-    }
-    return res
+    return players.map(p => p.rank)
   }, [players])
 
   async function handleChallenge(opponentProfileId: string) {
@@ -162,46 +127,24 @@ export default function LadderPage() {
       setMessage('Challenge sent!')
 
       // refresh players and challengables
-      const p = await getPlayersForSport(selectedSport.id) as RankedPlayerProfile[]
+      const pRaw = await getPlayersForSport(selectedSport.id)
+      const p = calculateRanks(pRaw)
       setPlayers(p)
 
-      // recompute ranks and challengables (same logic as above)
-      const ranks2: number[] = []
-      let last2 = 0
-      for (let i = 0; i < p.length; i++) {
-        if (i === 0) {
-          ranks2.push(1)
-          last2 = 1
-        } else {
-          const prev = p[i - 1]
-          if (p[i].rating === prev.rating) {
-            ranks2.push(last2)
-          } else {
-            ranks2.push(i + 1)
-            last2 = i + 1
-          }
-        }
-      }
+      // Re-calculate challengables with shared logic
+      const cooldownDays = selectedSport.scoring_config?.rematch_cooldown_days ?? 7
+      const recentMatches = await getMatchesSince(myProfile.id, cooldownDays)
 
-      const myIndex = p.findIndex(pp => pp.user_id === user.id || pp.id === myProfile.id)
-      const myRank = myIndex >= 0 ? ranks2[myIndex] : null
-      let challengableArr: RankedPlayerProfile[] = []
-      if (myRank) {
-        if (myRank <= 10) {
-          challengableArr = p
-            .map((pp, i) => ({ ...pp, rank: ranks2[i] }))
-            .filter(pp => pp.id !== myProfile.id && pp.rank <= 10)
-            .slice(0, 10)
-        } else {
-          const minRank = Math.max(1, myRank - 10)
-          challengableArr = p
-            .map((pp, i) => ({ ...pp, rank: ranks2[i] }))
-            .filter(pp => pp.rank < myRank && pp.rank >= minRank)
-            .slice(0, 10)
-        }
-      }
+      const recentOpponentIds = new Set(
+        recentMatches
+          .map((m: any) => m.opponent?.id)
+          .filter(Boolean) as string[]
+      )
 
-      setChallengables(new Set(challengableArr.map(x => x.id)))
+      const validOpponents = getChallengablePlayers(p, myProfile, selectedSport.scoring_config, recentOpponentIds)
+
+      setChallengables(new Set(validOpponents.map(x => x.id)))
+
     } catch (err: unknown) {
       setMessage(err instanceof Error ? err.message : 'Unable to create challenge')
     } finally {
