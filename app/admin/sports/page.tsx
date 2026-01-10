@@ -14,8 +14,12 @@ import { Sport } from '@/lib/types'
 type ScoringConfig = {
     type: 'simple' | 'sets'
     total_sets?: number
+    points_per_set?: number
     win_by?: number
     cap?: number
+    max_challenge_range?: number
+    challenge_window_days?: number
+    rematch_cooldown_days?: number
 }
 
 export default function AdminSportsPage() {
@@ -26,9 +30,15 @@ export default function AdminSportsPage() {
     // Form State
     const [name, setName] = useState('')
     const [scoringType, setScoringType] = useState<'simple' | 'sets'>('simple')
+    // Scoring Rules
     const [totalSets, setTotalSets] = useState(3)
+    const [pointsPerSet, setPointsPerSet] = useState(21)
     const [winBy, setWinBy] = useState(2)
     const [cap, setCap] = useState(30)
+    // Ladder Rules
+    const [maxChallengeRange, setMaxChallengeRange] = useState(5)
+    const [challengeWindowDays, setChallengeWindowDays] = useState(7)
+    const [rematchCooldownDays, setRematchCooldownDays] = useState(7)
 
     const [submitting, setSubmitting] = useState(false)
     const [message, setMessage] = useState('')
@@ -51,8 +61,12 @@ export default function AdminSportsPage() {
         setName('')
         setScoringType('simple')
         setTotalSets(3)
+        setPointsPerSet(21)
         setWinBy(2)
         setCap(30)
+        setMaxChallengeRange(5)
+        setChallengeWindowDays(7)
+        setRematchCooldownDays(7)
         setMessage('')
     }
 
@@ -62,8 +76,12 @@ export default function AdminSportsPage() {
         const config = sport.scoring_config || { type: 'simple' }
         setScoringType(config.type || 'simple')
         setTotalSets(config.total_sets || 3)
+        setPointsPerSet(config.points_per_set || 21)
         setWinBy(config.win_by || 2)
         setCap(config.cap || 30)
+        setMaxChallengeRange(config.max_challenge_range || 5)
+        setChallengeWindowDays(config.challenge_window_days || 7)
+        setRematchCooldownDays(config.rematch_cooldown_days || 7)
         setMessage('')
     }
 
@@ -76,9 +94,13 @@ export default function AdminSportsPage() {
 
         const config: ScoringConfig = {
             type: scoringType,
+            max_challenge_range: Number(maxChallengeRange),
+            challenge_window_days: Number(challengeWindowDays),
+            rematch_cooldown_days: Number(rematchCooldownDays)
         }
         if (scoringType === 'sets') {
             config.total_sets = Number(totalSets)
+            config.points_per_set = Number(pointsPerSet)
             config.win_by = Number(winBy)
             config.cap = Number(cap)
         }
@@ -144,21 +166,51 @@ export default function AdminSportsPage() {
                             </div>
 
                             {scoringType === 'sets' && (
-                                <div className="grid grid-cols-3 gap-4 p-4 bg-muted/50 rounded-lg border border-border/50">
-                                    <div className="space-y-2">
-                                        <Label className="text-xs">Max Sets</Label>
-                                        <Input type="number" value={totalSets} onChange={e => setTotalSets(Number(e.target.value))} min={1} max={9} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-xs">Win By</Label>
-                                        <Input type="number" value={winBy} onChange={e => setWinBy(Number(e.target.value))} min={1} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label className="text-xs">Cap (Max)</Label>
-                                        <Input type="number" value={cap} onChange={e => setCap(Number(e.target.value))} min={1} />
+                                <div className="space-y-4 p-4 bg-muted/50 rounded-lg border border-border/50">
+                                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Scoring Rules</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Max Sets</Label>
+                                            <Input type="number" value={totalSets} onChange={e => setTotalSets(Number(e.target.value))} min={1} max={9} />
+                                            <p className="text-[10px] text-muted-foreground">e.g. 3 (Best of 3)</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Points / Set</Label>
+                                            <Input type="number" value={pointsPerSet} onChange={e => setPointsPerSet(Number(e.target.value))} min={1} />
+                                            <p className="text-[10px] text-muted-foreground">e.g. 21</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Win By</Label>
+                                            <Input type="number" value={winBy} onChange={e => setWinBy(Number(e.target.value))} min={1} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Cap (Max)</Label>
+                                            <Input type="number" value={cap} onChange={e => setCap(Number(e.target.value))} min={1} />
+                                        </div>
                                     </div>
                                 </div>
                             )}
+
+                            <div className="space-y-4 p-4 bg-muted/50 rounded-lg border border-border/50">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Ladder Rules</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Challenge Range</Label>
+                                        <Input type="number" value={maxChallengeRange} onChange={e => setMaxChallengeRange(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Can challenge X spots above</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Deadline (Days)</Label>
+                                        <Input type="number" value={challengeWindowDays} onChange={e => setChallengeWindowDays(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Days to play match</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Rematch Cooldown</Label>
+                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Days before rematch</p>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div className="flex gap-2">
                                 <Button type="submit" className="w-full" disabled={submitting || !name.trim()}>
@@ -202,7 +254,7 @@ export default function AdminSportsPage() {
                                             </span>
                                             {sport.scoring_config?.type === 'sets' && (
                                                 <span>
-                                                    Best of {sport.scoring_config.total_sets} (cap: {sport.scoring_config.cap? sport.scoring_config.cap : 'N/A'})
+                                                    Best of {sport.scoring_config.total_sets} (cap: {sport.scoring_config.cap ? sport.scoring_config.cap : 'N/A'})
                                                 </span>
                                             )}
                                         </div>

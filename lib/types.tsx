@@ -1,8 +1,19 @@
 
+export type ScoringConfig = {
+  type: 'simple' | 'sets'
+  total_sets?: number
+  points_per_set?: number
+  win_by?: number
+  cap?: number
+  max_challenge_range?: number
+  challenge_window_days?: number
+  rematch_cooldown_days?: number
+}
+
 export type Sport = {
   id: string
   name: string
-  scoring_config?: any
+  scoring_config?: ScoringConfig
 }
 
 export type PlayerProfile = {
