@@ -23,7 +23,7 @@ export default function LadderList({
   return (
     <div className="space-y-6">
       {sports.map(s => (
-        <Card key={s.id} className="bg-card hover:bg-muted transition-colors shadow-lg">
+        <Card key={s.id} className="bg-card hover:bg-muted transition-colors shadow-lg overflow-hidden">
           <LadderListItem
             sport={s}
             topList={topLists[s.id] || []}
