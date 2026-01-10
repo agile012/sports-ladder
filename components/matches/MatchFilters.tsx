@@ -1,7 +1,7 @@
 'use plain'
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { SearchableSelect } from '@/components/ui/searchable-select'
@@ -28,6 +28,7 @@ type Props = {
 export default function MatchFilters({ sports, players, initialSport, initialStatus, initialPlayer }: Props) {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const pathname = usePathname()
 
     function updateFilter(key: string, value: string) {
         const params = new URLSearchParams(searchParams.toString())
@@ -38,7 +39,7 @@ export default function MatchFilters({ sports, players, initialSport, initialSta
         }
         // reset to page 1 on filter change
         params.delete('page')
-        router.push(`/match-history?${params.toString()}`)
+        router.push(`${pathname}?${params.toString()}`)
     }
 
     // Filter players if a sport is selected
@@ -98,7 +99,7 @@ export default function MatchFilters({ sports, players, initialSport, initialSta
             {(initialSport !== 'all' || initialStatus !== 'all' || initialPlayer !== 'all') && (
                 <Button
                     variant="ghost"
-                    onClick={() => router.push('/match-history')}
+                    onClick={() => router.push(pathname)}
                 >
                     Reset
                 </Button>

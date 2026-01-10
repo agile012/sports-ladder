@@ -14,6 +14,7 @@ export type PlayerProfile = {
   user_metadata?: unknown
   full_name?: string
   avatar_url?: string
+  is_admin?: boolean
 }
 
 export type PlayerBasic = {
