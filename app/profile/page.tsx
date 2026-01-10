@@ -43,6 +43,8 @@ export default async function ProfilePage() {
     })
   )
 
+  myPlayers.sort((a, b) => (a.sport_name || '').localeCompare(b.sport_name || ''))
+
   const isAdmin = profileRows.some(p => p.is_admin)
 
   const userInfo = {
