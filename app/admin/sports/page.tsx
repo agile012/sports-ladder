@@ -9,18 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { addSport, updateSport } from '@/lib/actions/admin'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, Plus, Pencil, Save, X } from 'lucide-react'
-import { Sport } from '@/lib/types'
-
-type ScoringConfig = {
-    type: 'simple' | 'sets'
-    total_sets?: number
-    points_per_set?: number
-    win_by?: number
-    cap?: number
-    max_challenge_range?: number
-    challenge_window_days?: number
-    rematch_cooldown_days?: number
-}
+import { Sport, ScoringConfig } from '@/lib/types'
 
 export default function AdminSportsPage() {
     const [sports, setSports] = useState<Sport[]>([])
