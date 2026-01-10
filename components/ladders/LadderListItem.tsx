@@ -7,6 +7,7 @@ import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { Sport, PlayerProfile, RankedPlayerProfile } from '@/lib/types'
+import Link from 'next/link'
 
 type UserMeta = {
   avatar_url?: string
@@ -46,14 +47,18 @@ export default function LadderListItem({
               <TableRow key={p.id} className="border-0">
                 <TableCell className="p-2">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
-                      <AvatarFallback>
-                        {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Link href={`/player/${p.id}`}>
+                      <Avatar className="h-12 w-12 hover:ring-2 ring-offset-2 ring-blue-500 cursor-pointer">
+                        <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
+                        <AvatarFallback>
+                          {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
                     <div>
-                      <p className="font-semibold text-lg">{p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email}</p>
+                      <Link href={`/player/${p.id}`} className="hover:underline">
+                        <p className="font-semibold text-lg">{p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email}</p>
+                      </Link>
                       <p className="text-md text-muted-foreground">Rating: {p.rating}</p>
                     </div>
                   </div>
@@ -74,14 +79,18 @@ export default function LadderListItem({
                   <TableRow key={p.id} className="border-0">
                     <TableCell className="p-2">
                       <div className="flex items-center gap-4">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
-                          <AvatarFallback>
-                            {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <Link href={`/player/${p.id}`}>
+                          <Avatar className="h-12 w-12 hover:ring-2 ring-offset-2 ring-blue-500 cursor-pointer">
+                            <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
+                            <AvatarFallback>
+                              {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
                         <div>
-                          <p className="font-semibold text-lg">{p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email}</p>
+                          <Link href={`/player/${p.id}`} className="hover:underline">
+                            <p className="font-semibold text-lg">{p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email}</p>
+                          </Link>
                           <p className="text-md text-muted-foreground">
                             Rank: {p.rank} • Rating: {p.rating}
                           </p>

@@ -36,10 +36,12 @@ export default function PendingChallenges({
   challenges,
   currentUserIds,
   onAction = () => window.location.reload(),
+  isReadOnly = false,
 }: {
   challenges: PendingChallengeItem[] | undefined
   currentUserIds: string[]
   onAction?: () => void
+  isReadOnly?: boolean
 }) {
   if (!challenges || challenges.length === 0) return null
 
@@ -66,7 +68,7 @@ export default function PendingChallenges({
                 <p className="text-sm text-muted-foreground">{c.message ?? ''}</p>
               </div>
               <div className="flex items-center gap-2">
-                {c.status === 'CHALLENGED' && c.player2?.id === myProfileId && (
+                {!isReadOnly && c.status === 'CHALLENGED' && c.player2?.id === myProfileId && (
                   <>
                     <Button
                       size="sm"
@@ -88,7 +90,7 @@ export default function PendingChallenges({
                   </>
                 )}
 
-                {c.status === 'PENDING' && (
+                {!isReadOnly && c.status === 'PENDING' && (
                   <form
                     className="flex items-center gap-2"
                     onSubmit={async e => {
@@ -119,7 +121,7 @@ export default function PendingChallenges({
                   </form>
                 )}
 
-                {c.status === 'PROCESSING' &&
+                {!isReadOnly && c.status === 'PROCESSING' &&
                   (c.reported_by?.id !== myProfileId ? (
                     <div className="flex items-center gap-2">
                       {c.winner_id === myProfileId ? (

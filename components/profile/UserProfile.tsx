@@ -10,17 +10,23 @@ import { PlayerProfileExtended } from '@/lib/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
-export default function UserProfile({ user, myPlayers, isAdmin }: { user: User; myPlayers: PlayerProfileExtended[], isAdmin: boolean }) {
+export interface UserInfo {
+  id: string
+  email?: string
+  avatar_url?: string
+}
+
+export default function UserProfile({ userInfo, myPlayers, isAdmin, isPublic = false }: { userInfo: UserInfo; myPlayers: PlayerProfileExtended[], isAdmin?: boolean, isPublic?: boolean }) {
   return (
     <Card className="w-full">
       <CardHeader className="flex flex-row items-center gap-4">
         <Avatar className="h-20 w-20">
-          <AvatarImage src={user.user_metadata.avatar_url} alt="avatar" />
-          <AvatarFallback>{user.email?.[0]?.toUpperCase()}</AvatarFallback>
+          <AvatarImage src={userInfo.avatar_url} alt="avatar" />
+          <AvatarFallback>{userInfo.email?.[0]?.toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className="overflow-hidden space-y-2">
-          <CardTitle className="text-3xl truncate">{user.email}</CardTitle>
-          <CardDescription>Member ID: {user.id}</CardDescription>
+          <CardTitle className="text-3xl truncate">{userInfo.email || 'Unknown User'}</CardTitle>
+          <CardDescription>Member ID: {userInfo.id}</CardDescription>
           {isAdmin && (
             <Button variant="default" asChild className="bg-purple-600 hover:bg-purple-700 text-white">
               <Link href="/admin">Admin Dashboard</Link>
@@ -29,14 +35,14 @@ export default function UserProfile({ user, myPlayers, isAdmin }: { user: User; 
         </div>
       </CardHeader>
       <CardContent>
-        <h3 className="text-xl font-semibold mb-4">Your Player Profiles</h3>
+        <h3 className="text-xl font-semibold mb-4">Player Profiles</h3>
         {myPlayers.length === 0 ? (
-          <p className="text-muted-foreground">You don&apos;t have any player profiles yet.</p>
+          <p className="text-muted-foreground">No player profiles found.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {myPlayers.map((p) => (
               <div key={p.id} className="flex-1 min-w-full md:min-w-[500px]">
-                <PlayerProfile player={p} />
+                <PlayerProfile player={p} isPublic={isPublic} />
               </div>
             ))}
           </div>
