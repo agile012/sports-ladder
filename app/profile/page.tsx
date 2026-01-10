@@ -23,7 +23,7 @@ export default async function ProfilePage() {
   }
 
   const [{ data: profiles }, { data: sports }] = await Promise.all([
-    supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url').eq('user_id', user.id).order('rating', { ascending: false }),
+    supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url, is_admin').eq('user_id', user.id).order('rating', { ascending: false }),
     supabase.from('sports').select('id, name'),
   ])
 
@@ -43,5 +43,7 @@ export default async function ProfilePage() {
     })
   )
 
-  return <UserProfile user={user} myPlayers={myPlayers} />
+  const isAdmin = profileRows.some(p => p.is_admin)
+
+  return <UserProfile user={user} myPlayers={myPlayers} isAdmin={isAdmin} />
 }
