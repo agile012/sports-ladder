@@ -152,7 +152,7 @@ export default function Header() {
               ))}
               <div className="pt-4 flex flex-col gap-3">
                 {user ? (
-                  <Button onClick={() => { signOut(); setIsMenuOpen(false); }} variant='destructive' className='w-full'>Sign out</Button>
+                  <Button onClick={() => { signOut(); setIsMenuOpen(false); }} variant='ghost' className='w-full text-destructive hover:bg-destructive/10 hover:text-destructive font-medium'>Sign out</Button>
                 ) : (
                   pathname !== '/login' && (
                     <Button asChild className="w-full">
