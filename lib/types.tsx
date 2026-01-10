@@ -6,6 +6,7 @@ export type ScoringConfig = {
   win_by?: number
   cap?: number
   max_challenge_range?: number
+  max_challenge_below?: number
   challenge_window_days?: number
   rematch_cooldown_days?: number
 }

@@ -49,6 +49,7 @@ export function getChallengablePlayers(
 
     // 2. Determine Range
     let range = config?.max_challenge_range ?? 5 // Default to 5 per IIMA rules
+    let below = config?.max_challenge_below ?? 0
 
     // Rule 5.1: New members (0 matches) can challenge up to 10 places above
     if ((myProfile.matches_played || 0) === 0) {
@@ -56,12 +57,13 @@ export function getChallengablePlayers(
     }
 
     const minRank = Math.max(1, myRank - range)
+    const maxRank = myRank + below
 
     // 3. Filter
     return rankedPlayers.filter(p =>
         p.id !== myProfile.id &&            // Not myself
-        p.rank < myRank &&                  // Strictly above me
-        p.rank >= minRank &&                // Within range
+        p.rank >= minRank &&                // Within upper range (numeric lower)
+        p.rank <= maxRank &&                // Within lower range (numeric higher)
         !recentOpponentIds.has(p.id)        // Not in cooldown
     )
 }

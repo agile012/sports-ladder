@@ -39,6 +39,7 @@ export default function AdminSportsPage() {
     const [maxChallengeRange, setMaxChallengeRange] = useState(5)
     const [challengeWindowDays, setChallengeWindowDays] = useState(7)
     const [rematchCooldownDays, setRematchCooldownDays] = useState(7)
+    const [maxChallengeBelow, setMaxChallengeBelow] = useState(0) // Added this state
 
     const [submitting, setSubmitting] = useState(false)
     const [message, setMessage] = useState('')
@@ -67,6 +68,7 @@ export default function AdminSportsPage() {
         setMaxChallengeRange(5)
         setChallengeWindowDays(7)
         setRematchCooldownDays(7)
+        setMaxChallengeBelow(0) // Reset maxChallengeBelow
         setMessage('')
     }
 
@@ -82,6 +84,7 @@ export default function AdminSportsPage() {
         setMaxChallengeRange(config.max_challenge_range || 5)
         setChallengeWindowDays(config.challenge_window_days || 7)
         setRematchCooldownDays(config.rematch_cooldown_days || 7)
+        setMaxChallengeBelow(config.max_challenge_below || 0) // Set maxChallengeBelow from config
         setMessage('')
     }
 
@@ -96,7 +99,8 @@ export default function AdminSportsPage() {
             type: scoringType,
             max_challenge_range: Number(maxChallengeRange),
             challenge_window_days: Number(challengeWindowDays),
-            rematch_cooldown_days: Number(rematchCooldownDays)
+            rematch_cooldown_days: Number(rematchCooldownDays),
+            max_challenge_below: Number(maxChallengeBelow) // Added max_challenge_below to config
         }
         if (scoringType === 'sets') {
             config.total_sets = Number(totalSets)
@@ -206,8 +210,13 @@ export default function AdminSportsPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Rematch Cooldown</Label>
-                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={-1} />
+                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={1} />
                                         <p className="text-[10px] text-muted-foreground">Days before rematch</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Challenge Below</Label>
+                                        <Input type="number" value={maxChallengeBelow} onChange={e => setMaxChallengeBelow(Number(e.target.value))} min={0} />
+                                        <p className="text-[10px] text-muted-foreground">Max spots below to challenge</p>
                                     </div>
                                 </div>
                             </div>
