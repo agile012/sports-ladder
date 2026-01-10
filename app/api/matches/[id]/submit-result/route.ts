@@ -102,16 +102,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
 
-  // Pass scores to handler, but handler needs update. 
-  // Wait, I should update the handler signature and logic in this same file.
-
-  // Call internal handler with scores injected into body equivalent or arg
-  // Refactoring usage:
-
   return handleResultSubmission(origin, id, winner_profile_id, token, reported_by, scores)
 }
-
-// Need to update handleResultSubmission signature above too...
-// Replacing the whole file content might be safer due to signature change across functions.
-// Let's use replacement on the function signature.
-
