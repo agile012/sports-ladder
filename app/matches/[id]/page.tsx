@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import BackButton from '@/components/BackButton'
 
 type Props = { params: { id: string } }
 
@@ -20,7 +21,7 @@ export default async function MatchPage({ params }: Props) {
       .from('player_profiles_view')
       .select('id, full_name, avatar_url')
       .in('id', ids)
-    ;(profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
+      ; (profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
   }
 
   // fetch sport name
@@ -63,7 +64,7 @@ export default async function MatchPage({ params }: Props) {
 
 
       <div>
-        <Link href="/">← Back</Link>
+        <BackButton />
       </div>
     </div>
   )

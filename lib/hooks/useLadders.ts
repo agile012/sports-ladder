@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Sport, PlayerProfile, Match, MatchWithPlayers } from '@/lib/types'
+import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem } from '@/lib/types'
 
 export default function useLadders() {
   const [sports, setSports] = useState<Sport[]>([])
@@ -69,7 +69,7 @@ export default function useLadders() {
     return getMatchesForProfile(profileId, limit)
   }, [])
 
-  const getRecentMatches = useCallback(async (limit = 5) => {
+  const getRecentMatches = useCallback(async (limit = 5): Promise<MatchWithPlayers[]> => {
     const { data } = await supabase
       .from('matches')
       .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)')
@@ -78,7 +78,7 @@ export default function useLadders() {
 
     if (!data) return []
 
-    const matches = (data as any[])
+    const matches = (data as unknown as Match[])
 
     // resolve player profiles for display
     const ids = Array.from(new Set(matches.flatMap((m) => [m.player1_id, m.player2_id].filter(Boolean)))) as string[]
@@ -154,7 +154,7 @@ export default function useLadders() {
     return getRankForProfile(profileId, sportId)
   }, [])
 
-  const getPendingChallengesForUser = useCallback(async (userId: string): Promise<MatchWithPlayers[]> => {
+  const getPendingChallengesForUser = useCallback(async (userId: string): Promise<PendingChallengeItem[]> => {
     // Find all player profile ids for this user
     const { data: profiles } = await supabase.from('player_profiles').select('id').eq('user_id', userId)
     const ids = (profiles || []).map((r) => r.id)
@@ -185,10 +185,10 @@ export default function useLadders() {
 
     return matches.map((m) => ({
       ...m,
-      player1_id: m.player1_id
+      player1: m.player1_id
         ? { id: m.player1_id, full_name: profilesMap[m.player1_id]?.full_name, avatar_url: profilesMap[m.player1_id]?.avatar_url, rating: profilesMap[m.player1_id]?.rating }
         : null,
-      player2_id: m.player2_id
+      player2: m.player2_id
         ? { id: m.player2_id, full_name: profilesMap[m.player2_id]?.full_name, avatar_url: profilesMap[m.player2_id]?.avatar_url, rating: profilesMap[m.player2_id]?.rating }
         : null,
       reported_by: m.reported_by

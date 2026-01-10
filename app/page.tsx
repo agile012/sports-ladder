@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import PendingChallenges from '@/components/profile/PendingChallenges'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport } from '@/lib/types'
+import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
 
 export default function Home() {
   const { user, loading } = useUser()
@@ -25,7 +25,7 @@ export default function Home() {
   const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>([])
   const [userProfileIds, setUserProfileIds] = useState<string[]>([])
   const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
-  const [recentMatches, setRecentMatches] = useState<any[]>([])
+  const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
   const router = useRouter()
   const userId = user?.id
 
@@ -38,7 +38,7 @@ export default function Home() {
     // load recent matches for home page
     async function loadRecent() {
       try {
-        const data = await getRecentMatches(5)
+        const data = await getRecentMatches(5) as MatchWithPlayers[]
         setRecentMatches(data || [])
       } catch (e) {
         console.error('Failed to load recent matches', e)
@@ -147,7 +147,7 @@ export default function Home() {
     }
 
     if (sports.length > 0) loadLists()
-  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser, getAllPlayers, getUserProfiles])
+  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getRecentMatches])
 
   async function join() {
     if (!user) {
