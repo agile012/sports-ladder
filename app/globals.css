@@ -85,13 +85,16 @@
 }
 
 .dark {
-  --background: oklch(0.1 0 0); /* Even darker background */
+  --background: oklch(0.1 0 0);
+  /* Even darker background */
   --foreground: oklch(0.985 0.002 247.839);
-  --card: oklch(0.12 0 0); /* Slightly lighter than bg */
+  --card: oklch(0.12 0 0);
+  /* Slightly lighter than bg */
   --card-foreground: oklch(0.985 0.002 247.839);
   --popover: oklch(0.12 0 0);
   --popover-foreground: oklch(0.985 0.002 247.839);
-  --primary: oklch(0.985 0.002 247.839); /* White primary */
+  --primary: oklch(0.985 0.002 247.839);
+  /* White primary */
   --primary-foreground: oklch(0.141 0.005 285.823);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0.002 247.839);
@@ -122,17 +125,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-    background-size: 200% 200%;
+    /* Background handled by PremiumBackground component */
     /* Add subtle noise or texture if desired (optional) */
   }
-  
+
   /* Smooth scrolling */
   html {
-     scroll-behavior: smooth;
+    scroll-behavior: smooth;
   }
 }
