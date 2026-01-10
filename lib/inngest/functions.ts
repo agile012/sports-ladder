@@ -159,7 +159,7 @@ export const handleMatchAction = inngest.createFunction(
       } else {
         // If rejected, only notify the challenger
         const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was rejected by ${opponent?.full_name}`;
-        const html = `<p>Your challenge for match ${match.id} was rejected by the opponent.</p>`;
+        const html = `<p>Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was rejected by the opponent.</p>`;
         const msg = {
           to: challenger.user_email,
           from: FROM_EMAIL,
