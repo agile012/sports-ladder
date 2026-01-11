@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
 import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
 import { motion } from 'framer-motion'
+import { toast } from "sonner"
 import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 
 export default function Home() {
@@ -21,7 +22,6 @@ export default function Home() {
   const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getPendingChallengesForUser, getRecentMatches, getMatchesForProfile, getAllPlayers, getUserProfiles, getMatchesSince } = useLadders()
   const [sportId, setSportId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
   const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>({})
   const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>({})
   const [loadingLists, setLoadingLists] = useState(false)
@@ -127,30 +127,25 @@ export default function Home() {
       return
     }
     if (!sportId) {
-      setMessage('Please select a sport to join.')
+      toast.error('Please select a sport to join.')
       return
     }
 
-    const sportName = sports.find(s => s.id === sportId)?.name ?? 'this sport'
-    const confirmed = window.confirm(`Join ${sportName} ladder? Are you sure you want to join?`)
-    if (!confirmed) return
-
     setSubmitting(true)
-    setMessage(null)
 
     const { error } = await (await import('@/lib/supabase/client')).supabase.from('player_profiles').insert({ user_id: user.id, sport_id: sportId })
     setSubmitting(false)
 
     if (error) {
       if (error.code === '23505' || /duplicate|unique/.test(error.message || '')) {
-        setMessage('You already joined this sport.')
+        toast.info('You already joined this sport.')
       } else {
-        setMessage(error.message)
+        toast.error(error.message)
       }
       return
     }
 
-    setMessage('Joined! Redirecting to the ladder...')
+    toast.success('Joined! Redirecting to the ladder...')
     router.push(`/ladder?sport=${sportId}`)
   }
 
@@ -162,14 +157,14 @@ export default function Home() {
 
     const myProfile = await getUserProfileForSport(user.id, sportId)
     if (!myProfile) {
-      setMessage('Join this sport before challenging someone.')
+      toast.error('Join this sport before challenging someone.')
       return
     }
 
     setSubmitting(true)
     try {
       await createChallenge(sportId, myProfile.id, opponentProfileId)
-      setMessage('Challenge sent!')
+      toast.success('Challenge sent!')
       const players = await getPlayersForSport(sportId)
       setTopLists(prev => ({ ...prev, [sportId]: players.slice(0, 5) }))
       const ranks: number[] = []
@@ -208,7 +203,7 @@ export default function Home() {
         setChallengeLists(prev => ({ ...prev, [sportId]: challengable }))
       }
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Unable to create challenge')
+      toast.error(err instanceof Error ? err.message : 'Unable to create challenge')
     } finally {
       setSubmitting(false)
     }
@@ -277,15 +272,6 @@ export default function Home() {
                     </Button>
                   </div>
 
-                  {message && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-md bg-muted/50 text-sm border border-border/50 text-muted-foreground"
-                    >
-                      {message}
-                    </motion.div>
-                  )}
                 </div>
               )}
             </CardContent>

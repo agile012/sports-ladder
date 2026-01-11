@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { addSport, updateSport } from '@/lib/actions/admin'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, Plus, Pencil, Save, X } from 'lucide-react'
@@ -237,42 +238,34 @@ export default function AdminSportsPage() {
                                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Notifications</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             id="notifyOnChallenge"
                                             checked={notifyOnChallenge}
-                                            onChange={e => setNotifyOnChallenge(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            onCheckedChange={setNotifyOnChallenge}
                                         />
                                         <Label htmlFor="notifyOnChallenge" className="text-sm font-normal">Challenge Received</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             id="notifyOnAction"
                                             checked={notifyOnAction}
-                                            onChange={e => setNotifyOnAction(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            onCheckedChange={setNotifyOnAction}
                                         />
                                         <Label htmlFor="notifyOnAction" className="text-sm font-normal">Challenge Accepted/Rejected</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             id="notifyOnResult"
                                             checked={notifyOnResult}
-                                            onChange={e => setNotifyOnResult(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            onCheckedChange={setNotifyOnResult}
                                         />
                                         <Label htmlFor="notifyOnResult" className="text-sm font-normal">Result Verification Request</Label>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <input
-                                            type="checkbox"
+                                        <Switch
                                             id="notifyOnConfirmed"
                                             checked={notifyOnConfirmed}
-                                            onChange={e => setNotifyOnConfirmed(e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                            onCheckedChange={setNotifyOnConfirmed}
                                         />
                                         <Label htmlFor="notifyOnConfirmed" className="text-sm font-normal">Match Confirmed/Disputed</Label>
                                     </div>

@@ -19,10 +19,21 @@ import {
     DialogTitle,
     DialogFooter,
 } from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cancelMatch, updateMatchResult, processMatchElo } from '@/lib/actions/admin'
 import { MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { ScoreInput, ScoreSet, ScoringConfig } from '@/components/matches/ScoreInput'
+import { toast } from "sonner"
 
 type Props = {
     matchId: string
@@ -41,41 +52,90 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
     const [showScoreDialog, setShowScoreDialog] = useState(false)
     const [scores, setScores] = useState<ScoreSet[]>([{ p1: '', p2: '' }])
 
-    async function handleCancel() {
-        if (!confirm('Are you sure you want to cancel this match?')) return
+    const [alertConfig, setAlertConfig] = useState<{
+        open: boolean
+        title: string
+        description: string
+        action: () => Promise<void>
+    }>({ open: false, title: '', description: '', action: async () => { } })
+
+    const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
+
+    async function executeAction(action: () => Promise<void>) {
         setLoading(true)
         try {
-            await cancelMatch(matchId)
+            await action()
+        } catch (e: any) {
+            toast.error(e.message)
         } finally {
             setLoading(false)
+            closeAlert()
         }
     }
 
+    // Cancel Match
+    function confirmCancel() {
+        setAlertConfig({
+            open: true,
+            title: "Cancel Match",
+            description: "Are you sure you want to cancel this match? This action cannot be undone.",
+            action: async () => {
+                await cancelMatch(matchId)
+                toast.success("Match cancelled")
+            }
+        })
+    }
+
+    // Update Match
     async function handleUpdate(status: string, winnerId: string | null) {
         setLoading(true)
         try {
             await updateMatchResult(matchId, winnerId, status)
+
             if (status === 'CONFIRMED' && winnerId) {
-                if (confirm('Match updated. Do you want to calculate ELO ratings for this match now?')) {
-                    await processMatchElo(matchId)
-                    alert('ELO processed successfully.')
-                }
+                toast.success("Match updated", {
+                    description: "Do you want to calculate ELO ratings now?",
+                    action: {
+                        label: "Calculate ELO",
+                        onClick: () => handleProcessElo(true) // Direct call without confirm
+                    }
+                })
+            } else {
+                toast.success("Match updated successfully")
             }
         } catch (e: any) {
-            alert('Error: ' + e.message)
+            toast.error(e.message)
         } finally {
             setLoading(false)
         }
     }
 
-    async function handleProcessElo() {
-        if (!confirm('Calculate ELO ratings for this match?')) return
+    // Process ELO
+    function confirmProcessElo() {
+        setAlertConfig({
+            open: true,
+            title: "Calculate ELO",
+            description: "Are you sure you want to calculate ELO ratings for this match? This will update player ratings.",
+            action: async () => {
+                await processMatchElo(matchId)
+                toast.success("ELO processed successfully")
+            }
+        })
+    }
+
+    // Direct ELO call (from toast)
+    async function handleProcessElo(skipConfirm = false) {
+        if (!skipConfirm) {
+            confirmProcessElo()
+            return
+        }
+
         setLoading(true)
         try {
             await processMatchElo(matchId)
-            alert('ELO processed successfully.')
+            toast.success("ELO processed successfully")
         } catch (e: any) {
-            alert('Error: ' + e.message)
+            toast.error(e.message)
         } finally {
             setLoading(false)
         }
@@ -93,18 +153,12 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
     async function saveScores() {
         setLoading(true)
         try {
-            // Determine winner based on scores if possible, or just keep current winner
-            // For admin edit, we might trust them to set winner via menu if needed, or we could auto-deduce.
-            // For now, allow saving scores without changing winner/status unless explicitly done?
-            // User requested "enter scores".
-            // We should pass scores to updateMatchResult.
-            // We pass current status and winner to avoid changing them implicitly, or we could allow logic.
-            // Let's passed sanitized scores
             const sanitizedScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
             await updateMatchResult(matchId, currentWinnerId, currentStatus, sanitizedScores)
             setShowScoreDialog(false)
+            toast.success("Scores updated")
         } catch (e: any) {
-            alert('Error: ' + e.message)
+            toast.error(e.message)
         } finally {
             setLoading(false)
         }
@@ -157,13 +211,13 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
                     </DropdownMenuSub>
 
                     {currentStatus === 'CONFIRMED' && (
-                        <DropdownMenuItem onClick={handleProcessElo}>
+                        <DropdownMenuItem onClick={() => handleProcessElo(false)}>
                             Process ELO
                         </DropdownMenuItem>
                     )}
 
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleCancel} className="text-red-600">
+                    <DropdownMenuItem onClick={confirmCancel} className="text-red-600">
                         Cancel Match
                     </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -176,20 +230,11 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
                     </DialogHeader>
                     <div className="py-4">
                         <ScoreInput
+                            key={showScoreDialog ? 'open' : 'closed'}
+                            initialScores={scores}
                             config={scoringConfig}
                             player1Name={p1Name || 'Player 1'}
                             player2Name={p2Name || 'Player 2'}
-                            // We need to pass initial scores, but ScoreInput manages its own state
-                            // We reused ScoreInput which calls onChange. 
-                            // But ScoreInput has internal state initialized to [{p1:'',p2:''}].
-                            // We need to update ScoreInput to accept `initialScores` or use a key to reset it.
-                            // I'll add key={showScoreDialog ? 'open' : 'closed'} to force remount or handle initial.
-                            // Better: pass current state into it? ScoreInput is controlled?
-                            // Checking ScoreInput.tsx: It has internal state initialized to default. It does NOT take value prop.
-                            // I need to update ScoreInput or wrap it.
-                            // Or I can modify ScoreInput to accept `initialValue`.
-                            // For now, I will assume ScoreInput handles onChange.
-                            // I will check ScoreInput again.
                             onChange={setScores}
                         />
                         {/* Wait, check ScoreInput implementation */}
@@ -202,6 +247,21 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={alertConfig.open} onOpenChange={(open) => !open && closeAlert()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {alertConfig.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={closeAlert}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => executeAction(alertConfig.action)}>Confirm</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

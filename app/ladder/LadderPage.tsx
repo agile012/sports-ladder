@@ -9,6 +9,7 @@ import RankingsTable from '@/components/rankings/RankingsTable'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
+import { toast } from "sonner"
 import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
 
 export default function LadderPage() {
@@ -19,7 +20,6 @@ export default function LadderPage() {
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null)
   const [challengables, setChallengables] = useState<Set<string>>(new Set())
   const [submittingChallenge, setSubmittingChallenge] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
   const playerRefs = useMemo(() => Array(players.length).fill(0).map(() => createRef<HTMLTableRowElement>()), [players])
@@ -110,21 +110,20 @@ export default function LadderPage() {
 
     const myProfile = await getUserProfileForSport(user.id, selectedSport.id)
     if (!myProfile) {
-      setMessage('Join this sport before challenging someone.')
+      toast.error('Join this sport before challenging someone.')
       return
     }
 
     if (!challengables.has(opponentProfileId)) {
-      setMessage('You cannot challenge this player.')
+      toast.error('You cannot challenge this player.')
       return
     }
 
     setSubmittingChallenge(opponentProfileId)
-    setMessage(null)
 
     try {
       await createChallenge(selectedSport.id, myProfile.id, opponentProfileId)
-      setMessage('Challenge sent!')
+      toast.success('Challenge sent!')
 
       // refresh players and challengables
       const pRaw = await getPlayersForSport(selectedSport.id)
@@ -146,7 +145,7 @@ export default function LadderPage() {
       setChallengables(new Set(validOpponents.map(x => x.id)))
 
     } catch (err: unknown) {
-      setMessage(err instanceof Error ? err.message : 'Unable to create challenge')
+      toast.error(err instanceof Error ? err.message : 'Unable to create challenge')
     } finally {
       setSubmittingChallenge(null)
     }
@@ -193,7 +192,6 @@ export default function LadderPage() {
             )}
           </CardHeader>
           <CardContent>
-            {message && <p className="mb-4 text-sm text-muted-foreground">{message}</p>}
 
             {selectedSport ? (
               <RankingsTable

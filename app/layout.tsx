@@ -5,6 +5,8 @@ import PageTransition from '@/components/PageTransition'
 
 import Background from '@/components/Background'
 
+import { Toaster } from "@/components/ui/sonner"
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -23,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
               </PageTransition>
             </main>
+            <Toaster />
           </div>
         </ThemeProvider>
       </body>

@@ -1,6 +1,14 @@
-
-'use client'
-
+import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -31,6 +39,25 @@ export default function LadderListItem({
   submitting: boolean
   handleChallenge: (sportId: string, opponentProfileId: string) => void
 }) {
+  const [alertConfig, setAlertConfig] = useState<{
+    open: boolean
+    title: string
+    description: string
+    action: () => void
+  }>({ open: false, title: '', description: '', action: () => { } })
+
+  const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
+
+  const confirmChallenge = (p: RankedPlayerProfile) => {
+    const name = p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? 'this player'
+    setAlertConfig({
+      open: true,
+      title: `Challenge ${name}?`,
+      description: `Are you sure you want to send a challenge to ${name}?`,
+      action: () => handleChallenge(sport.id, p.id)
+    })
+  }
+
   return (
     <>
       <CardHeader className="bg-primary/5 pb-4">
@@ -139,11 +166,7 @@ export default function LadderListItem({
                         <Button
                           size="sm"
                           className='bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-md font-bold transition-all hover:scale-105 active:scale-95'
-                          onClick={() => {
-                            const name = p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? 'this player'
-                            if (!window.confirm(`Challenge ${name}?`)) return
-                            handleChallenge(sport.id, p.id)
-                          }}
+                          onClick={() => confirmChallenge(p)}
                           disabled={submitting}
                         >
                           <Swords className="w-4 h-4 mr-2" />
@@ -162,6 +185,24 @@ export default function LadderListItem({
           )}
         </div>
       </CardContent>
+
+      <AlertDialog open={alertConfig.open} onOpenChange={(open) => !open && closeAlert()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertConfig.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeAlert}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              alertConfig.action()
+              closeAlert()
+            }}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
