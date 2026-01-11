@@ -9,6 +9,12 @@ export type ScoringConfig = {
   max_challenge_below?: number
   challenge_window_days?: number
   rematch_cooldown_days?: number
+  notifications?: {
+    on_challenge?: boolean
+    on_challenge_action?: boolean
+    on_match_result?: boolean
+    on_match_confirmed?: boolean // Verification completed (final result)
+  }
 }
 
 export type Sport = {

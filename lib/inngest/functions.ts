@@ -28,12 +28,23 @@ export const sendChallengeEmail = inngest.createFunction(
     const match = await step.run("fetch-match", async () => {
       const { data } = await supabase
         .from("matches")
-        .select("*, sport:sports(name)")
+        .select("*, sport:sports(name, scoring_config)")
         .eq("id", matchId)
         .single();
       return data;
     });
-    if (!match) return;
+    if (!match) {
+      console.log(`Match ${matchId} not found`);
+      return { status: 'error', message: 'Match not found' };
+    }
+
+    // Check notification settings
+    const config = (match.sport as any)?.scoring_config;
+    if (config?.notifications?.on_challenge === false) {
+      console.log(`Skipping challenge email for match ${matchId}: Notifications disabled`);
+      return { status: 'skipped', reason: 'notifications_disabled' };
+    }
+
     // Fetch challenger and opponent profiles in one go
     const { challengerProfile, opponent } = await step.run("fetch-profiles", async () => {
       const { data } = await supabase
@@ -67,6 +78,8 @@ export const sendChallengeEmail = inngest.createFunction(
         `,
       };
       await transporter.sendMail(msg);
+      console.log(`Challenge email sent to ${msg.to}`);
+      return { sent: true, to: msg.to };
     });
   }
 );
@@ -79,11 +92,18 @@ export const handleMatchAction = inngest.createFunction(
     const isAccepted = action === "accept";
 
     const match = await step.run("fetch-match", async () => {
-      const { data } = await supabase.from("matches").select("*, sport:sports(name)").eq("id", matchId).single();
+      const { data } = await supabase.from("matches").select("*, sport:sports(name, scoring_config)").eq("id", matchId).single();
       return data;
     });
 
-    if (!match) return;
+    if (!match) return { status: 'error', message: 'Match not found' };
+
+    // Check notification settings for challenge action
+    const config = (match.sport as any)?.scoring_config;
+    if (config?.notifications?.on_challenge_action === false) {
+      console.log(`Skipping action email for match ${matchId}: Notifications disabled`);
+      return { status: 'skipped', reason: 'notifications_disabled' };
+    }
 
     // Notify Challenger (player1) about the action
     const { challenger, opponent } = await step.run("fetch-challenger-and-opponent", async () => {
@@ -186,14 +206,21 @@ export const handleMatchResult = inngest.createFunction(
         .select(
           `
           *,
-          sport:sports(name)
+          sport:sports(name, scoring_config)
         `
         )
         .eq("id", matchId).single();
       return data;
     });
 
-    if (!match) return;
+    if (!match) return { status: 'error', message: 'Match not found' };
+
+    // Check notification settings for match result
+    const config = (match.sport as any)?.scoring_config;
+    if (config?.notifications?.on_match_result === false) {
+      console.log(`Skipping result email for match ${matchId}: Notifications disabled`);
+      return { status: 'skipped', reason: 'notifications_disabled' };
+    }
 
     // Determine who needs to verify (the player who did NOT report the result)
     const verifierId = match.reported_by === match.player1_id ? match.player2_id : match.player1_id;
@@ -271,6 +298,7 @@ export const handleMatchVerification = inngest.createFunction(
         .select(
           `
           *,
+          sport:sports(name, scoring_config),
           player1:player_profiles_view!player1_id (user_email, full_name),
           player2:player_profiles_view!player2_id (user_email, full_name)
         `
@@ -280,7 +308,14 @@ export const handleMatchVerification = inngest.createFunction(
       return data;
     });
 
-    if (!matchWithPlayers) return;
+    if (!matchWithPlayers) return { status: 'error', message: 'Match not found' };
+
+    // Check notification settings for match confirmation/dispute
+    const config = (matchWithPlayers.sport as any)?.scoring_config;
+    if (config?.notifications?.on_match_confirmed === false) {
+      console.log(`Skipping verification email for match ${matchId}: Notifications disabled`);
+      return { status: 'skipped', reason: 'notifications_disabled' };
+    }
 
     const player1 = matchWithPlayers.player1 as { user_email: string, full_name: string } | null;
     const player2 = matchWithPlayers.player2 as { user_email: string, full_name: string } | null;
