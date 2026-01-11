@@ -100,6 +100,88 @@ $$;
 ALTER FUNCTION "public"."match_replace_action_token_on_status_change"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."process_expired_challenges"() RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  m RECORD;
+  cfg jsonb;
+  challenge_days integer;
+  cutoff timestamptz;
+  processed_count integer := 0;
+  processed_matches jsonb := '[]'::jsonb;
+  new_score jsonb;
+BEGIN
+  FOR m IN
+    SELECT *
+    FROM public.matches
+    WHERE status = 'CHALLENGED'::match_status
+      AND player1_id IS NOT NULL
+      AND created_at IS NOT NULL
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    -- Load sport scoring config; skip if missing
+    SELECT s.scoring_config INTO cfg
+    FROM public.sports s
+    WHERE s.id = m.sport_id
+    LIMIT 1;
+
+    IF cfg IS NULL THEN
+      CONTINUE; -- no config => do nothing
+    END IF;
+
+    -- Extract challenge_window_days; if not present or not an integer, skip
+    BEGIN
+      challenge_days := (cfg ->> 'challenge_window_days')::int;
+    EXCEPTION WHEN others THEN
+      CONTINUE;
+    END;
+
+    IF challenge_days IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    cutoff := m.created_at + (challenge_days || ' days')::interval;
+
+    IF now() >= cutoff THEN
+      -- Merge or create score JSONB and set reason = 'forfeit'
+      IF m.score IS NULL THEN
+        new_score := jsonb_build_object('reason', 'forfeit');
+      ELSE
+        -- Overwrite or set the reason field
+        new_score := m.score || jsonb_build_object('reason', 'forfeit');
+      END IF;
+
+      UPDATE public.matches
+      SET winner_id = player1_id,
+          score = new_score,
+          status = 'PROCESSED'::match_status,
+          updated_at = now()
+      WHERE id = m.id;
+
+      processed_matches := processed_matches || jsonb_build_object(
+        'match_id', m.id,
+        'player1_id', m.player1_id,
+        'player2_id', m.player2_id,
+        'sport_id', m.sport_id,
+        'cutoff', cutoff
+      );
+
+      processed_count := processed_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'processed_count', processed_count,
+    'processed_matches', processed_matches
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."process_expired_challenges"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."process_match_elo"("match_uuid" "uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -434,11 +516,16 @@ CREATE TABLE IF NOT EXISTS "public"."matches" (
     "action_token" "uuid" DEFAULT "gen_random_uuid"(),
     "message" "text",
     "updated_at" timestamp with time zone DEFAULT "now"(),
-    "reported_by" "uuid"
+    "reported_by" "uuid",
+    "scores" "jsonb"
 );
 
 
 ALTER TABLE "public"."matches" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."matches"."scores" IS 'Actual match scores in JSON format';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."player_profiles" (
@@ -494,11 +581,16 @@ ALTER TABLE "public"."ratings_history" OWNER TO "postgres";
 
 CREATE TABLE IF NOT EXISTS "public"."sports" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "name" "text" NOT NULL
+    "name" "text" NOT NULL,
+    "scoring_config" "jsonb" DEFAULT '{"type": "simple"}'::"jsonb"
 );
 
 
 ALTER TABLE "public"."sports" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."sports"."scoring_config" IS 'Configuration for scoring rules (e.g. sets, points, win_by)';
+
 
 
 ALTER TABLE ONLY "public"."matches"
@@ -838,6 +930,12 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "anon";
 GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "anon";
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "service_role";
 
 
 
