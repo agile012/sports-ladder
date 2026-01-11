@@ -54,7 +54,7 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
 
     let query = supabase
         .from('matches')
-        .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)', { count: 'exact' })
+        .select('id, sport_id, player1_id, player2_id, winner_id, status, scores, created_at, sports(id, name, scoring_config)', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
 
@@ -79,6 +79,7 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
     const allMatches = ((data || []) as any[]).map((m) => ({
         ...m,
         sport_name: (m.sports && (m.sports as any).name) || null,
+        scoring_config: (m.sports && (m.sports as any).scoring_config) || null,
     }))
 
     const ids = Array.from(new Set(allMatches.flatMap((m) => [m.player1_id, m.player2_id, m.winner_id].filter(Boolean)))) as string[]
@@ -153,10 +154,12 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
                                         matchId={m.id}
                                         currentStatus={m.status}
                                         currentWinnerId={m.winner_id}
+                                        currentScores={m.scores}
                                         p1Id={m.player1_id}
                                         p2Id={m.player2_id}
                                         p1Name={profilesMap[m.player1_id]?.full_name}
                                         p2Name={profilesMap[m.player2_id]?.full_name}
+                                        scoringConfig={m.scoring_config}
                                     />
                                 </TableCell>
                             </TableRow>

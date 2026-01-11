@@ -20,14 +20,16 @@ export function ScoreInput({
     config,
     player1Name,
     player2Name,
+    initialScores,
     onChange,
 }: {
     config?: ScoringConfig
     player1Name: string
     player2Name: string
+    initialScores?: ScoreSet[]
     onChange: (scores: ScoreSet[]) => void
 }) {
-    const [sets, setSets] = useState<ScoreSet[]>([{ p1: '', p2: '' }])
+    const [sets, setSets] = useState<ScoreSet[]>(initialScores || [{ p1: '', p2: '' }])
 
     const type = config?.type || 'simple'
     const maxSets = config?.total_sets || 5
