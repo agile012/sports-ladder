@@ -110,7 +110,7 @@ DECLARE
   cutoff timestamptz;
   processed_count integer := 0;
   processed_matches jsonb := '[]'::jsonb;
-  new_score jsonb;
+  new_scores jsonb;
 BEGIN
   FOR m IN
     SELECT *
@@ -144,17 +144,17 @@ BEGIN
     cutoff := m.created_at + (challenge_days || ' days')::interval;
 
     IF now() >= cutoff THEN
-      -- Merge or create score JSONB and set reason = 'forfeit'
-      IF m.score IS NULL THEN
-        new_score := jsonb_build_object('reason', 'forfeit');
+      -- Merge or create scores JSONB and set reason = 'forfeit'
+      IF m.scores IS NULL THEN
+        new_scores := jsonb_build_object('reason', 'forfeit');
       ELSE
         -- Overwrite or set the reason field
-        new_score := m.score || jsonb_build_object('reason', 'forfeit');
+        new_scores := m.scores || jsonb_build_object('reason', 'forfeit');
       END IF;
 
       UPDATE public.matches
       SET winner_id = player1_id,
-          score = new_score,
+          scores = new_scores,
           status = 'PROCESSED'::match_status,
           updated_at = now()
       WHERE id = m.id;

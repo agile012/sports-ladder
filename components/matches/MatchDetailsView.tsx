@@ -177,8 +177,22 @@ export default function MatchDetailsView({
                     />
                 </div>
 
-                {/* Scoreboard (if scores exist) */}
-                {match.scores && Array.isArray(match.scores) && match.scores.length > 0 && (
+                {/* Result Display: Forfeit or Scoreboard */}
+                {(match.scores?.reason === 'forfeit' || (Array.isArray(match.scores) && match.scores.some((s: any) => s.reason === 'forfeit'))) ? (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="flex justify-center -mt-6 z-30 relative"
+                    >
+                        <Card className="border-amber-200 bg-amber-50/90 backdrop-blur shadow-lg">
+                            <CardContent className="px-8 py-4 flex items-center gap-3">
+                                <Clock className="w-5 h-5 text-amber-600" />
+                                <div className="text-lg font-bold text-amber-800 uppercase tracking-wide">Won by Forfeit</div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ) : (match.scores && Array.isArray(match.scores) && match.scores.length > 0) && (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
