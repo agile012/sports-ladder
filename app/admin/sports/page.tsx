@@ -28,7 +28,13 @@ export default function AdminSportsPage() {
     const [maxChallengeRange, setMaxChallengeRange] = useState(5)
     const [challengeWindowDays, setChallengeWindowDays] = useState(7)
     const [rematchCooldownDays, setRematchCooldownDays] = useState(7)
-    const [maxChallengeBelow, setMaxChallengeBelow] = useState(0) // Added this state
+    const [maxChallengeBelow, setMaxChallengeBelow] = useState(0)
+
+    // Notification Settings
+    const [notifyOnChallenge, setNotifyOnChallenge] = useState(true)
+    const [notifyOnAction, setNotifyOnAction] = useState(true)
+    const [notifyOnResult, setNotifyOnResult] = useState(true)
+    const [notifyOnConfirmed, setNotifyOnConfirmed] = useState(true)
 
     const [submitting, setSubmitting] = useState(false)
     const [message, setMessage] = useState('')
@@ -57,7 +63,11 @@ export default function AdminSportsPage() {
         setMaxChallengeRange(5)
         setChallengeWindowDays(7)
         setRematchCooldownDays(7)
-        setMaxChallengeBelow(0) // Reset maxChallengeBelow
+        setMaxChallengeBelow(0)
+        setNotifyOnChallenge(true)
+        setNotifyOnAction(true)
+        setNotifyOnResult(true)
+        setNotifyOnConfirmed(true)
         setMessage('')
     }
 
@@ -73,7 +83,14 @@ export default function AdminSportsPage() {
         setMaxChallengeRange(config.max_challenge_range || 5)
         setChallengeWindowDays(config.challenge_window_days || 7)
         setRematchCooldownDays(config.rematch_cooldown_days || 7)
-        setMaxChallengeBelow(config.max_challenge_below || 0) // Set maxChallengeBelow from config
+        setMaxChallengeBelow(config.max_challenge_below || 0)
+
+        const notifs = config.notifications || {}
+        setNotifyOnChallenge(notifs.on_challenge !== false)
+        setNotifyOnAction(notifs.on_challenge_action !== false)
+        setNotifyOnResult(notifs.on_match_result !== false)
+        setNotifyOnConfirmed(notifs.on_match_confirmed !== false)
+
         setMessage('')
     }
 
@@ -89,7 +106,13 @@ export default function AdminSportsPage() {
             max_challenge_range: Number(maxChallengeRange),
             challenge_window_days: Number(challengeWindowDays),
             rematch_cooldown_days: Number(rematchCooldownDays),
-            max_challenge_below: Number(maxChallengeBelow) // Added max_challenge_below to config
+            max_challenge_below: Number(maxChallengeBelow),
+            notifications: {
+                on_challenge: notifyOnChallenge,
+                on_challenge_action: notifyOnAction,
+                on_match_result: notifyOnResult,
+                on_match_confirmed: notifyOnConfirmed
+            }
         }
         if (scoringType === 'sets') {
             config.total_sets = Number(totalSets)
@@ -206,6 +229,52 @@ export default function AdminSportsPage() {
                                         <Label className="text-xs">Challenge Below</Label>
                                         <Input type="number" value={maxChallengeBelow} onChange={e => setMaxChallengeBelow(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Max spots below to challenge</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 p-4 bg-muted/50 rounded-lg border border-border/50">
+                                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Notifications</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="notifyOnChallenge"
+                                            checked={notifyOnChallenge}
+                                            onChange={e => setNotifyOnChallenge(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <Label htmlFor="notifyOnChallenge" className="text-sm font-normal">Challenge Received</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="notifyOnAction"
+                                            checked={notifyOnAction}
+                                            onChange={e => setNotifyOnAction(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <Label htmlFor="notifyOnAction" className="text-sm font-normal">Challenge Accepted/Rejected</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="notifyOnResult"
+                                            checked={notifyOnResult}
+                                            onChange={e => setNotifyOnResult(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <Label htmlFor="notifyOnResult" className="text-sm font-normal">Result Verification Request</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="notifyOnConfirmed"
+                                            checked={notifyOnConfirmed}
+                                            onChange={e => setNotifyOnConfirmed(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <Label htmlFor="notifyOnConfirmed" className="text-sm font-normal">Match Confirmed/Disputed</Label>
                                     </div>
                                 </div>
                             </div>
