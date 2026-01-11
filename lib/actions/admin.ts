@@ -90,12 +90,13 @@ export async function cancelMatch(matchId: string) {
     revalidatePath(`/matches/${matchId}`)
 }
 
-export async function updateMatchResult(matchId: string, winnerId: string | null, status: string) {
+export async function updateMatchResult(matchId: string, winnerId: string | null, status: string, scores?: any) {
     const { supabase } = await verifyMatchAdmin(matchId)
 
     const updates: any = { status }
     if (winnerId) updates.winner_id = winnerId
     if (status === 'PENDING') updates.winner_id = null
+    if (scores !== undefined) updates.scores = scores
 
     const { error } = await supabase
         .from('matches')
