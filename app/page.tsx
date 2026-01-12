@@ -1,20 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { getDashboardData } from '@/lib/actions/dashboard'
+
+import { Suspense } from 'react'
 import DashboardClient from './DashboardClient'
 
-export default async function Home() {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  const dashboardData = await getDashboardData(user?.id)
-
+export default function Home() {
   return (
-    <DashboardClient
-      initialData={dashboardData}
-      initialUser={user}
-    />
+    <Suspense fallback={<div className="flex justify-center items-center h-screen">Loading dashboard...</div>}>
+      <DashboardClient />
+    </Suspense>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
@@ -17,26 +17,68 @@ import { toast } from "sonner"
 import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 import { DashboardData } from '@/lib/actions/dashboard'
 
-export default function DashboardClient({ initialData, initialUser }: { initialData: DashboardData, initialUser: any }) {
-    // Use initialUser if provided (from server), otherwise fallback to hook (client side nav)
-    const { user: clientUser, loading: userLoading } = useUser()
-    const user = initialUser || clientUser
-    const loading = !initialUser && userLoading
+export default function DashboardClient() {
+    const { user, loading: userLoading } = useUser()
 
-    const { createChallenge, getPlayersForSport, getUserProfileForSport } = useLadders()
-
-    // Initialize state with server data
-    const [sportId, setSportId] = useState<string | null>(initialData.sports.length > 0 ? initialData.sports[0].id : null)
+    // State
+    const [loadingData, setLoadingData] = useState(true)
+    const [sportId, setSportId] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
-    const [sports, setSports] = useState<Sport[]>(initialData.sports)
-    const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>(initialData.topLists)
-    const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>(initialData.challengeLists)
-    const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>(initialData.pendingChallenges)
-    const [userProfileIds, setUserProfileIds] = useState<string[]>(initialData.userProfileIds)
-    const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>(initialData.unjoinedSports)
-    const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>(initialData.recentMatches)
+    const [sports, setSports] = useState<Sport[]>([])
+    const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>({})
+    const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>({})
+    const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>([])
+    const [userProfileIds, setUserProfileIds] = useState<string[]>([])
+    const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
+    const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
 
     const router = useRouter()
+
+    const { createChallenge, getUserProfileForSport } = useLadders()
+
+    // Fetch Data on Load or User Change
+    useEffect(() => {
+        let cancelled = false
+        const fetchData = async () => {
+            // Wait for user to be determined (null or object)
+            if (userLoading) return
+
+            try {
+                // Dynamically import server action to invoke it from client
+                const { getDashboardData } = await import('@/lib/actions/dashboard')
+                const data = await getDashboardData(user?.id)
+
+                if (!cancelled) {
+                    setSports(data.sports)
+                    setTopLists(data.topLists)
+                    setChallengeLists(data.challengeLists)
+                    setPendingChallenges(data.pendingChallenges)
+                    setUserProfileIds(data.userProfileIds)
+                    setUnjoinedSports(data.unjoinedSports)
+                    setRecentMatches(data.recentMatches)
+
+                    // Set default sport if not set
+                    if (!sportId && data.sports.length > 0) {
+                        setSportId(data.sports[0].id)
+                    } else if (!sportId && data.sports.length === 0) {
+                        setSportId(null)
+                    }
+
+                    setLoadingData(false)
+                }
+            } catch (e) {
+                console.error("Dashboard Fetch Error", e)
+                toast.error("Failed to load dashboard")
+                if (!cancelled) setLoadingData(false)
+            }
+        }
+
+        fetchData()
+
+        return () => { cancelled = true }
+    }, [user, userLoading]) // Intentionally omit sportId to avoid reset loop
+
+    const loading = userLoading || loadingData
 
     async function join() {
         if (!user) {

@@ -145,6 +145,17 @@ export default function useLadders() {
     return map
   }, [])
 
+  const getRecentMatchesForSport = useCallback(async (sportId: string, limit = 100): Promise<Match[]> => {
+    const { data } = await supabase
+      .from('matches')
+      .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at')
+      .eq('sport_id', sportId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+
+    return (data as Match[]) || []
+  }, [])
+
   const getMatchesSince = useCallback(async (profileId: string, days: number) => {
     const { getMatchesSince } = await import('../supabase/supabaseHelpers')
     return getMatchesSince(profileId, days)
@@ -228,5 +239,5 @@ export default function useLadders() {
     return (data as PlayerProfile[]) ?? []
   }, [])
 
-  return { sports, getPlayersForSport, getUserProfileForSport, createChallenge, createMatch, getMatchesForProfile, getRecentMatches, getRecentMatchesForProfiles, getProfileStats, getRankForProfile, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getMatchesSince }
+  return { sports, getPlayersForSport, getUserProfileForSport, createChallenge, createMatch, getMatchesForProfile, getRecentMatches, getRecentMatchesForProfiles, getRecentMatchesForSport, getProfileStats, getRankForProfile, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getMatchesSince }
 }

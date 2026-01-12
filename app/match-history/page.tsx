@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import MatchFilters from '@/components/matches/MatchFilters'
 import {
@@ -18,6 +19,8 @@ type Props = {
 
 const ITEMS_PER_PAGE = 20
 
+
+
 export default async function MatchHistoryPage({ searchParams }: Props) {
   const supabase = await createClient()
   const resolvedSearchParams = await searchParams
@@ -26,13 +29,11 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
   const status = typeof resolvedSearchParams.status === 'string' ? resolvedSearchParams.status : 'all'
   const playerId = typeof resolvedSearchParams.player === 'string' ? resolvedSearchParams.player : 'all'
 
-  // Fetch sports for filter
-  const { data: sportsData } = await supabase.from('sports').select('id, name')
-  const sports = sportsData || []
-
-  // Fetch all players for filter
-  const { data: playersData } = await supabase.from('player_profiles_view').select('id, full_name, sport_id')
-  const players = playersData || []
+  // Fetch cached data
+  const [sports, allPlayers] = await Promise.all([
+    getCachedSports(),
+    getCachedAllPlayers()
+  ])
 
   // Build query
   let query = supabase
@@ -58,12 +59,11 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     sport_name: (m.sports && (m.sports as any).name) || null,
   }))
 
-  const ids = Array.from(new Set(allMatches.flatMap((m) => [m.player1_id, m.player2_id, m.winner_id].filter(Boolean)))) as string[]
+  // Create lookup map from cached players
   const profilesMap: Record<string, any> = {}
-  if (ids.length) {
-    const { data: profiles } = await supabase.from('player_profiles_view').select('id, full_name').in('id', ids)
-      ; (profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
-  }
+  allPlayers.forEach(p => {
+    profilesMap[p.id] = p
+  })
 
   const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
 
@@ -79,7 +79,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
             <CardTitle>Matches</CardTitle>
             <MatchFilters
               sports={sports}
-              players={players as any[]}
+              players={allPlayers as any[]}
               initialSport={sportId}
               initialStatus={status}
               initialPlayer={playerId}

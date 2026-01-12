@@ -4,6 +4,8 @@ import UserProfile from '@/components/profile/UserProfile'
 import { getProfilePageData } from '@/lib/actions/profile'
 import { PlayerProfileExtended } from '@/lib/types'
 
+
+
 export default async function ProfilePage() {
   const supabase = await createClient()
   const {
@@ -30,5 +32,5 @@ export default async function ProfilePage() {
     avatar_url: user.user_metadata.avatar_url
   }
 
-  return <UserProfile userInfo={userInfo} myPlayers={profiles as PlayerProfileExtended[]} isAdmin={isAdmin} />
+  return <UserProfile key={user.id} userInfo={userInfo} myPlayers={profiles as PlayerProfileExtended[]} isAdmin={isAdmin} />
 }
