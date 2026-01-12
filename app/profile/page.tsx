@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import UserProfile from '@/components/profile/UserProfile'
-import * as helpers from '@/lib/supabase/supabaseHelpers'
-import { PlayerProfile, PlayerProfileExtended, Sport } from '@/lib/types'
+import { getProfilePageData } from '@/lib/actions/profile'
+import { PlayerProfileExtended } from '@/lib/types'
 
 export default async function ProfilePage() {
   const supabase = await createClient()
@@ -22,30 +22,7 @@ export default async function ProfilePage() {
     )
   }
 
-  const [{ data: profiles }, { data: sports }] = await Promise.all([
-    supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url, is_admin').eq('user_id', user.id).order('rating', { ascending: false }),
-    supabase.from('sports').select('id, name'),
-  ])
-
-  const sportMap = ((sports as Sport[]) || []).reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {} as Record<string, string>)
-  const profileRows = ((profiles as PlayerProfile[]) || []).map((p) => ({ ...p, sport_name: sportMap[p.sport_id] ?? p.sport_id }))
-
-  const myPlayers = await Promise.all(
-    profileRows.map(async (p): Promise<PlayerProfileExtended> => {
-      const [stats, matches, rankInfo, pendingChallenges, ratingHistory] = await Promise.all([
-        helpers.getProfileStats(p.id),
-        helpers.getMatchesForProfile(p.id, 5),
-        helpers.getRankForProfile(p.id, p.sport_id),
-        helpers.getPendingChallengesForProfile(p.id),
-        helpers.getRatingHistory(p.id),
-      ])
-      return { ...p, stats, recentMatches: matches, rankInfo, pendingChallenges, ratingHistory }
-    })
-  )
-
-  myPlayers.sort((a, b) => (a.sport_name || '').localeCompare(b.sport_name || ''))
-
-  const isAdmin = profileRows.some(p => p.is_admin)
+  const { profiles, isAdmin } = await getProfilePageData(user.id)
 
   const userInfo = {
     id: user.id,
@@ -53,5 +30,5 @@ export default async function ProfilePage() {
     avatar_url: user.user_metadata.avatar_url
   }
 
-  return <UserProfile userInfo={userInfo} myPlayers={myPlayers} isAdmin={isAdmin} />
+  return <UserProfile userInfo={userInfo} myPlayers={profiles as PlayerProfileExtended[]} isAdmin={isAdmin} />
 }

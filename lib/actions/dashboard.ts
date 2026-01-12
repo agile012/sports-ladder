@@ -3,43 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile } from '@/lib/types'
 import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
-import { unstable_cache } from 'next/cache'
-
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-
-// Cached Functions
-const getCachedSports = unstable_cache(
-    async () => {
-        // Use a direct client without cookies for cached public data
-        const supabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        const { data, error } = await supabase.from('sports').select('id, name, scoring_config').order('name')
-        if (error) throw error
-        return data as Sport[]
-    },
-    ['sports-list'],
-    { revalidate: 600 } // 10 minutes
-)
-
-const getCachedAllPlayers = unstable_cache(
-    async () => {
-        // Use a direct client without cookies for cached public data
-        const supabase = createSupabaseClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        const { data, error } = await supabase
-            .from('player_profiles_view')
-            .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, is_admin')
-            .order('rating', { ascending: false })
-        if (error) throw error
-        return data as PlayerProfile[]
-    },
-    ['all-players-list'],
-    { revalidate: 60, tags: ['all_players'] } // 60 seconds
-)
+import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
 
 export type DashboardData = {
     sports: Sport[]
