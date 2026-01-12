@@ -3,6 +3,43 @@
 import { createClient } from '@/lib/supabase/server'
 import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile } from '@/lib/types'
 import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
+import { unstable_cache } from 'next/cache'
+
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+// Cached Functions
+const getCachedSports = unstable_cache(
+    async () => {
+        // Use a direct client without cookies for cached public data
+        const supabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+        const { data, error } = await supabase.from('sports').select('id, name, scoring_config').order('name')
+        if (error) throw error
+        return data as Sport[]
+    },
+    ['sports-list'],
+    { revalidate: 600 } // 10 minutes
+)
+
+const getCachedAllPlayers = unstable_cache(
+    async () => {
+        // Use a direct client without cookies for cached public data
+        const supabase = createSupabaseClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        )
+        const { data, error } = await supabase
+            .from('player_profiles_view')
+            .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, is_admin')
+            .order('rating', { ascending: false })
+        if (error) throw error
+        return data as PlayerProfile[]
+    },
+    ['all-players-list'],
+    { revalidate: 60, tags: ['all_players'] } // 60 seconds
+)
 
 export type DashboardData = {
     sports: Sport[]
@@ -20,8 +57,8 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
     // Phase 1: Fetch core data in parallel
     // We need: sports, all players (for ranks/names), global recent matches
     const steps: any[] = [
-        supabase.from('sports').select('id, name, scoring_config').order('name'),
-        supabase.from('player_profiles_view').select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, is_admin').order('rating', { ascending: false }),
+        getCachedSports(),
+        getCachedAllPlayers(),
         supabase.from('matches').select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, sports(id, name)').order('created_at', { ascending: false }).limit(5)
     ]
 
@@ -32,16 +69,13 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
 
     const results = await Promise.all(steps)
 
-    const sportsRes = results[0]
-    const allPlayersRes = results[1]
+    const sports = results[0] as Sport[]
+    const allPlayers = results[1] as PlayerProfile[]
     const globalMatchesRes = results[2]
     const userProfilesRes = userId ? results[3] : { data: [] }
 
-    if (sportsRes.error) throw new Error(sportsRes.error.message)
-    if (allPlayersRes.error) throw new Error(allPlayersRes.error.message)
+    // Cached items throw their own errors inside the unstable_cache function wrapper
 
-    const sports = (sportsRes.data as Sport[]) || []
-    const allPlayers = (allPlayersRes.data as PlayerProfile[]) || []
     const globalMatchesRaw = (globalMatchesRes.data as any[]) || []
     const userProfiles = (userProfilesRes.data as PlayerProfile[]) || []
     const userProfileIds = userProfiles.map(p => p.id)
