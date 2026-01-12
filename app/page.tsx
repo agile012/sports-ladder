@@ -18,108 +18,53 @@ import { toast } from "sonner"
 import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 
 export default function Home() {
-  const { user, loading } = useUser()
-  const { sports, getPlayersForSport, getUserProfileForSport, createChallenge, getPendingChallengesForUser, getRecentMatches, getMatchesForProfile, getAllPlayers, getUserProfiles, getMatchesSince } = useLadders()
+  const { user, loading: userLoading } = useUser()
+  const { createChallenge, getPlayersForSport, getUserProfileForSport } = useLadders()
   const [sportId, setSportId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Data states
+  const [sports, setSports] = useState<Sport[]>([])
   const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>({})
   const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>({})
-  const [loadingLists, setLoadingLists] = useState(false)
+  const [loadingLists, setLoadingLists] = useState(true)
   const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>([])
   const [userProfileIds, setUserProfileIds] = useState<string[]>([])
   const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
   const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
+
   const router = useRouter()
-  const userId = user?.id
 
   useEffect(() => {
-    if (sports.length > 0 && !sportId) setSportId(sports[0].id)
-  }, [sports, sportId])
+    async function init() {
+      if (userLoading) return
 
-  useEffect(() => {
-    async function loadRecent() {
       try {
-        const data = await getRecentMatches(5) as MatchWithPlayers[]
-        setRecentMatches(data || [])
-      } catch (e) {
-        console.error('Failed to load recent matches', e)
-        setRecentMatches([])
-      }
-    }
-    loadRecent()
+        setLoadingLists(true)
+        const { getDashboardData } = await import('@/lib/actions/dashboard')
+        const data = await getDashboardData(user?.id)
 
-    async function loadLists() {
-      setLoadingLists(true)
-      const tops: Record<string, PlayerProfile[]> = {}
-      const challengables: Record<string, RankedPlayerProfile[]> = {}
+        setSports(data.sports)
+        setTopLists(data.topLists)
+        setChallengeLists(data.challengeLists)
+        setRecentMatches(data.recentMatches)
+        setPendingChallenges(data.pendingChallenges)
+        setUserProfileIds(data.userProfileIds)
+        setUnjoinedSports(data.unjoinedSports)
 
-      const [allPlayers, myProfiles] = await Promise.all([
-        getAllPlayers(),
-        userId ? getUserProfiles(userId) : Promise.resolve([]),
-      ])
-
-      for (const s of sports) {
-        const rawPlayers = allPlayers.filter((p) => p.sport_id === s.id)
-        const players = calculateRanks(rawPlayers)
-        tops[s.id] = players.slice(0, 5)
-
-        if (userId) {
-          const myProfile = myProfiles.find((p) => p.sport_id === s.id)
-          if (myProfile) {
-            const cooldownDays = s.scoring_config?.rematch_cooldown_days ?? 7
-
-            // Fetch matches specifically within the cooldown period
-            const recentMatches = await getMatchesSince(myProfile.id, cooldownDays)
-
-            const recentOpponentIds = new Set(
-              recentMatches
-                .map((m: any) => m.opponent?.id)
-                .filter(Boolean) as string[]
-            )
-
-            // Use shared logic for determining validation challenges
-            const validOpponents = getChallengablePlayers(players, myProfile, s.scoring_config, recentOpponentIds)
-            challengables[s.id] = validOpponents
-          } else {
-            challengables[s.id] = []
-          }
-        } else {
-          challengables[s.id] = []
+        if (data.sports.length > 0 && !sportId) {
+          setSportId(data.sports[0].id)
         }
-      }
-
-      setTopLists(tops)
-      setChallengeLists(challengables)
-      setLoadingLists(false)
-
-      if (userId) {
-        try {
-          const { supabase } = await import('@/lib/supabase/client')
-          const { data: profiles } = await supabase.from('player_profiles').select('id, sport_id').eq('user_id', userId)
-          const profileIds = (profiles || []).map((p: { id: string }) => p.id)
-          setUserProfileIds(profileIds)
-
-          if (profileIds.length > 0) {
-            const pending = await getPendingChallengesForUser(userId) as PendingChallengeItem[]
-            setPendingChallenges(pending)
-          }
-
-          const joinedSportIds = (profiles || []).map((p: { sport_id: string }) => p.sport_id)
-          setUnjoinedSports(sports.filter(s => !joinedSportIds.includes(s.id)))
-        } catch (e) {
-          console.error('Error loading user profiles or pending challenges:', e)
-          setPendingChallenges([])
-          setUserProfileIds([])
-        }
-      } else {
-        setPendingChallenges([])
-        setUserProfileIds([])
-        setUnjoinedSports(sports)
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error)
+        toast.error("Failed to load dashboard data")
+      } finally {
+        setLoadingLists(false)
       }
     }
 
-    if (sports.length > 0) loadLists()
-  }, [sports, userId, getPlayersForSport, getUserProfileForSport, getPendingChallengesForUser, getAllPlayers, getUserProfiles, getRecentMatches, getMatchesSince])
+    init()
+  }, [user, userLoading, sportId]) // sportId dependency to set default only once if needed, but logic handles it
 
   async function join() {
     if (!user) {
@@ -134,9 +79,10 @@ export default function Home() {
     setSubmitting(true)
 
     const { error } = await (await import('@/lib/supabase/client')).supabase.from('player_profiles').insert({ user_id: user.id, sport_id: sportId })
-    setSubmitting(false)
+
 
     if (error) {
+      setSubmitting(false)
       if (error.code === '23505' || /duplicate|unique/.test(error.message || '')) {
         toast.info('You already joined this sport.')
       } else {
@@ -145,8 +91,20 @@ export default function Home() {
       return
     }
 
-    toast.success('Joined! Redirecting to the ladder...')
-    router.push(`/ladder?sport=${sportId}`)
+    toast.success('Joined! Reloading...')
+    // Refresh data
+    try {
+      const { getDashboardData } = await import('@/lib/actions/dashboard')
+      const data = await getDashboardData(user.id)
+      setTopLists(data.topLists)
+      setChallengeLists(data.challengeLists)
+      setPendingChallenges(data.pendingChallenges)
+      setUserProfileIds(data.userProfileIds)
+      setUnjoinedSports(data.unjoinedSports)
+    } finally {
+      setSubmitting(false)
+      router.push(`/ladder?sport=${sportId}`)
+    }
   }
 
   async function handleChallenge(sportId: string, opponentProfileId: string) {
@@ -209,7 +167,7 @@ export default function Home() {
     }
   }
 
-  if (loading) return (
+  if (userLoading) return (
     <div className="flex justify-center items-center h-[50vh]">
       <motion.div
         animate={{ rotate: 360 }}
