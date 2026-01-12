@@ -9,7 +9,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table'
@@ -97,12 +96,20 @@ export default function LadderListItem({
                     <div className="flex items-center gap-4">
                       <div className="font-mono text-muted-foreground font-bold w-4 text-center">{i + 1}</div>
                       <Link href={`/player/${p.id}`}>
-                        <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-primary transition-all">
-                          <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
-                          <AvatarFallback className="font-bold bg-primary/10 text-primary">
-                            {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative h-10 w-10 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-primary transition-all bg-muted">
+                          {(p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url) ? (
+                            <img
+                              src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url}
+                              alt={p.full_name ?? 'User'}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center font-bold bg-primary/10 text-primary">
+                              {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
+                            </div>
+                          )}
+                        </div>
                       </Link>
                       <div>
                         <Link href={`/player/${p.id}`} className="hover:text-primary transition-colors">
@@ -145,12 +152,21 @@ export default function LadderListItem({
                       <TableCell className="p-3">
                         <div className="flex items-center gap-4">
                           <Link href={`/player/${p.id}`}>
-                            <Avatar className="h-10 w-10 ring-2 ring-transparent group-hover:ring-orange-400 transition-all">
-                              <AvatarImage src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url} />
-                              <AvatarFallback className="font-bold bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-200">
-                                {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="relative h-10 w-10 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-orange-400 transition-all bg-muted">
+                              {/* Use next/image for optimized loading */}
+                              {(p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url) ? (
+                                <img
+                                  src={p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url}
+                                  alt={p.full_name ?? 'User'}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center font-bold bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-200">
+                                  {(p.full_name ?? (p.user_metadata as UserMeta)?.full_name ?? p.user_email ?? '').toString()[0] ?? 'U'}
+                                </div>
+                              )}
+                            </div>
                           </Link>
                           <div>
                             <Link href={`/player/${p.id}`} className="hover:text-red-600 transition-colors">
