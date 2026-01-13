@@ -33,12 +33,12 @@ export async function getProfilePageData(userId: string) {
             .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(name)')
             .or(`player1_id.in.(${idsFilter}),player2_id.in.(${idsFilter})`)
             .order('created_at', { ascending: false }),
-            // .limit(50), -- limit if website becomes too slow
+        // .limit(50), -- limit if website becomes too slow
 
         // Pending/Active Challenges
         supabase
             .from('matches')
-            .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores')
+            .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores, sports(scoring_config)')
             .or(`player1_id.in.(${idsFilter}),player2_id.in.(${idsFilter})`)
             .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING']),
 
@@ -48,7 +48,7 @@ export async function getProfilePageData(userId: string) {
             .select('player_profile_id, new_rating, created_at')
             .in('player_profile_id', profileIds)
             .order('created_at', { ascending: false })
-            // .limit(50), -- limit if website becomes too slow
+        // .limit(50), -- limit if website becomes too slow
     ])
 
     const matchesRaw = matchesRes.data || []
@@ -109,6 +109,7 @@ export async function getProfilePageData(userId: string) {
         // D. Pending Challenges
         const myPending = pendingRaw.filter(pc => pc.player1_id === pId || pc.player2_id === pId).map(pc => ({
             ...pc,
+            sports: pc.sports as any, // Cast to any to avoid type issues with limited selection
             player1: resolvePlayer(pc.player1_id)!,
             player2: resolvePlayer(pc.player2_id)!
         })) as PendingChallengeItem[]
