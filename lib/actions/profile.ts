@@ -111,7 +111,8 @@ export async function getProfilePageData(userId: string) {
             ...pc,
             sports: pc.sports as any, // Cast to any to avoid type issues with limited selection
             player1: resolvePlayer(pc.player1_id)!,
-            player2: resolvePlayer(pc.player2_id)!
+            player2: resolvePlayer(pc.player2_id)!,
+            reported_by: pc.reported_by ? { id: pc.reported_by } : null
         })) as PendingChallengeItem[]
 
         // E. Rating History
