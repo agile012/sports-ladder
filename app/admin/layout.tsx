@@ -25,6 +25,9 @@ export default function AdminLayout({
                         <Button variant="ghost" className="justify-start" asChild>
                             <Link href="/admin/users">Users & Admins</Link>
                         </Button>
+                        <Button variant="ghost" className="justify-start" asChild>
+                            <Link href="/admin/verifications">Verifications</Link>
+                        </Button>
                         <div className="my-2 border-t" />
                         <Button variant="ghost" className="justify-start" asChild>
                             <Link href="/">Back to App</Link>

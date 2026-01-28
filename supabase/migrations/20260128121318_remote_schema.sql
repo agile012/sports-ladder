@@ -80,6 +80,16 @@ CREATE TYPE "public"."match_status" AS ENUM (
 ALTER TYPE "public"."match_status" OWNER TO "postgres";
 
 
+CREATE TYPE "public"."verification_status" AS ENUM (
+    'pending',
+    'verified',
+    'rejected'
+);
+
+
+ALTER TYPE "public"."verification_status" OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."assign_initial_ladder_rank"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -292,6 +302,28 @@ $$;
 
 
 ALTER FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_user_verification"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, status)
+    VALUES (
+        NEW.id, 
+        NEW.email,
+        CASE 
+            WHEN NEW.email ILIKE '%@iima.ac.in' THEN 'verified'::public.verification_status
+            ELSE 'pending'::public.verification_status
+        END
+    );
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."handle_new_user_verification"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") RETURNS "void"
@@ -1226,6 +1258,18 @@ CREATE OR REPLACE VIEW "public"."player_profiles_view" AS
 ALTER VIEW "public"."player_profiles_view" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."profiles" (
+    "id" "uuid" NOT NULL,
+    "email" "text" NOT NULL,
+    "status" "public"."verification_status" DEFAULT 'pending'::"public"."verification_status" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"()
+);
+
+
+ALTER TABLE "public"."profiles" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."ratings_history" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "player_profile_id" "uuid" NOT NULL,
@@ -1277,6 +1321,11 @@ ALTER TABLE ONLY "public"."player_profiles"
 
 ALTER TABLE ONLY "public"."player_profiles"
     ADD CONSTRAINT "player_profiles_user_id_sport_id_key" UNIQUE ("user_id", "sport_id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1393,6 +1442,11 @@ ALTER TABLE ONLY "public"."player_profiles"
 
 
 
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
 ALTER TABLE ONLY "public"."ratings_history"
     ADD CONSTRAINT "ratings_history_match_id_fkey" FOREIGN KEY ("match_id") REFERENCES "public"."matches"("id");
 
@@ -1429,7 +1483,9 @@ CREATE POLICY "Public read" ON "public"."player_profiles" FOR SELECT USING (true
 
 
 
-CREATE POLICY "User can insert own profile" ON "public"."player_profiles" FOR INSERT WITH CHECK (("auth"."uid"() = "user_id"));
+CREATE POLICY "Verified users can create player profiles" ON "public"."player_profiles" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "player_profiles"."user_id") AND ("profiles"."status" = 'verified'::"public"."verification_status")))));
 
 
 
@@ -1634,6 +1690,12 @@ GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "se
 
 
 
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "service_role";
@@ -1755,6 +1817,12 @@ GRANT ALL ON TABLE "public"."player_profiles" TO "service_role";
 GRANT ALL ON TABLE "public"."player_profiles_view" TO "anon";
 GRANT ALL ON TABLE "public"."player_profiles_view" TO "authenticated";
 GRANT ALL ON TABLE "public"."player_profiles_view" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profiles" TO "anon";
+GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."profiles" TO "service_role";
 
 
 

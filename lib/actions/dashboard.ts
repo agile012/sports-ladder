@@ -14,6 +14,7 @@ export type DashboardData = {
     userProfileIds: string[]
     myProfiles: PlayerProfile[]
     unjoinedSports: Sport[]
+    verificationStatus: 'pending' | 'verified' | 'rejected' | null
 }
 
 export async function getDashboardData(userId?: string): Promise<DashboardData> {
@@ -182,6 +183,20 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
         unjoinedSports.push(...sports)
     }
 
+    // Fetch verification status if logged in
+    let verificationStatus: 'pending' | 'verified' | 'rejected' | null = null
+    if (userId) {
+        const { data: profileData } = await supabase
+            .from('profiles')
+            .select('status')
+            .eq('id', userId)
+            .single()
+
+        if (profileData) {
+            verificationStatus = profileData.status
+        }
+    }
+
     return {
         sports,
         topLists,
@@ -190,6 +205,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
         pendingChallenges: pendingChallengesRef,
         userProfileIds,
         myProfiles: userProfiles,
-        unjoinedSports
+        unjoinedSports,
+        verificationStatus
     }
 }

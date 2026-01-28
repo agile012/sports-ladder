@@ -33,6 +33,7 @@ export default function DashboardClient() {
     const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
     const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
     const [myProfiles, setMyProfiles] = useState<PlayerProfile[]>([])
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected' | null>(null)
 
     const router = useRouter()
 
@@ -58,6 +59,7 @@ export default function DashboardClient() {
                     setUnjoinedSports(data.unjoinedSports)
                     setRecentMatches(data.recentMatches)
                     setMyProfiles(data.myProfiles)
+                    setVerificationStatus(data.verificationStatus)
 
                     // Distinguish Active vs Inactive
                     const activeS: Sport[] = []
@@ -256,10 +258,26 @@ export default function DashboardClient() {
                                         </Select>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-3 pt-2">
-                                        <Button onClick={join} disabled={submitting} className="w-full font-semibold shadow-lg shadow-primary/20">
-                                            {submitting ? 'Joining…' : 'Join Ladder'}
-                                        </Button>
+                                    <div className="pt-2 space-y-3">
+                                        {(verificationStatus === 'pending' || verificationStatus === 'rejected') ? (
+                                            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 p-3 rounded-md text-sm">
+                                                <p className="font-bold flex items-center gap-2">
+                                                    <span className="relative flex h-2 w-2">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                                    </span>
+                                                    Account Pending Approval
+                                                </p>
+                                                <p className="mt-1 text-xs opacity-90">
+                                                    An admin must verify your account before you can join ladders. {user.email?.endsWith('iima.ac.in') ? 'IIMA emails should be auto-verified.' : ''}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <Button onClick={join} disabled={submitting} className="w-full font-semibold shadow-lg shadow-primary/20">
+                                                {submitting ? 'Joining…' : 'Join Ladder'}
+                                            </Button>
+                                        )}
+
                                         <Button onClick={() => router.push('/ladder')} variant="outline" className="w-full bg-background/50">
                                             View All
                                         </Button>
