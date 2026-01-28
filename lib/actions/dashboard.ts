@@ -23,7 +23,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
     const steps: any[] = [
         getCachedSports(),
         getCachedAllPlayers(),
-        supabase.from('matches').select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, sports(id, name)').order('created_at', { ascending: false }).limit(5)
+        supabase.from('matches').select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, sports(id, name)').order('created_at', { ascending: false }).limit(50)
     ]
 
     if (userId) {

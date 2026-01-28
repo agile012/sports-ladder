@@ -5,16 +5,16 @@ import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
-import Link from 'next/link'
+import { Trophy } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import PendingChallenges from '@/components/profile/PendingChallenges'
+import RecentMatchesList from '@/components/matches/RecentMatchesList'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
 import { motion } from 'framer-motion'
 import { toast } from "sonner"
-import { Trophy, ArrowRight, Activity, Calendar } from 'lucide-react'
 import { DashboardData } from '@/lib/actions/dashboard'
 
 export default function DashboardClient() {
@@ -238,83 +238,7 @@ export default function DashboardClient() {
             {/* Main Content */}
             <main className="md:col-span-2 space-y-8">
 
-                {/* Recent Matches Section */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-4"
-                >
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-primary" />
-                            Recent Activity
-                        </h2>
-                        <Link href="/match-history" className="text-sm font-medium text-primary hover:text-primary/80 flex items-center gap-1 transition-colors group">
-                            View full history <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-                        </Link>
-                    </div>
-
-                    <div className="grid gap-3">
-                        {recentMatches.length === 0 && (
-                            <div className="p-8 border border-dashed rounded-xl text-center text-muted-foreground bg-muted/20">
-                                No recent matches found
-                            </div>
-                        )}
-                        {recentMatches.map((m, i) => (
-                            <motion.div
-                                key={m.id}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.1 + (i * 0.05) }}
-                            >
-                                <Link
-                                    href={`/matches/${m.id}`}
-                                    className="block group p-4 rounded-xl border bg-card/50 backdrop-blur-sm hover:bg-card hover:shadow-md transition-all duration-300"
-                                >
-                                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                                        <div className="space-y-1">
-                                            <div className="font-semibold text-lg flex items-center gap-2 flex-wrap">
-                                                <span className="hover:text-primary transition-colors">
-                                                    {m.player1?.full_name ?? 'Player 1'}
-                                                </span>
-                                                <span className="text-muted-foreground text-sm font-normal">vs</span>
-                                                <span className="hover:text-primary transition-colors">
-                                                    {m.player2?.full_name ?? 'Player 2'}
-                                                </span>
-                                            </div>
-                                            <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
-                                                <span className="bg-secondary px-2 py-0.5 rounded text-secondary-foreground">
-                                                    {sports.find(s => s.id === m.sport_id)?.name ?? 'Sport'}
-                                                </span>
-                                                <span>•</span>
-                                                <span className="flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" />
-                                                    {new Date(m.created_at).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="text-sm self-start sm:self-center">
-                                            {m.winner_id ? (
-                                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20">
-                                                    <Trophy className="h-3 w-3" />
-                                                    <span className="font-semibold">
-                                                        {(m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id)} won
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-muted-foreground italic px-3 py-1">Pending result</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Link>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.section>
-
-                {/* Ladders Tabs */}
+                {/* Sport Dashboard Tabs */}
                 {sports.length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -323,7 +247,7 @@ export default function DashboardClient() {
                     >
                         <Tabs defaultValue={sports[0].id} className="w-full space-y-6">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold">Top Rankings</h2>
+                                <h2 className="text-xl font-bold">Sport Dashboard</h2>
                                 <TabsList className='bg-muted/50 p-1'>
                                     {sports.map((s) => (
                                         <TabsTrigger
@@ -338,15 +262,23 @@ export default function DashboardClient() {
                             </div>
 
                             {sports.map(s => (
-                                <TabsContent key={s.id} value={s.id} className="mt-0">
-                                    <LadderList
-                                        sports={[s]}
-                                        topLists={topLists}
-                                        challengeLists={challengeLists}
-                                        loadingLists={false}
-                                        submitting={submitting}
-                                        handleChallenge={handleChallenge}
+                                <TabsContent key={s.id} value={s.id} className="mt-0 space-y-8">
+                                    <RecentMatchesList
+                                        matches={recentMatches.filter(m => m.sport_id === s.id).slice(0, 5)}
+                                        sport={s}
                                     />
+
+                                    <div>
+                                        <h3 className="text-lg font-bold mb-4">Rankings</h3>
+                                        <LadderList
+                                            sports={[s]}
+                                            topLists={topLists}
+                                            challengeLists={challengeLists}
+                                            loadingLists={false}
+                                            submitting={submitting}
+                                            handleChallenge={handleChallenge}
+                                        />
+                                    </div>
                                 </TabsContent>
                             ))}
                         </Tabs>
