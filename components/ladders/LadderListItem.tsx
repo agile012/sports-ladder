@@ -45,6 +45,9 @@ export default function LadderListItem({
     action: () => void
   }>({ open: false, title: '', description: '', action: () => { } })
 
+  /* New state for sorting */
+  const [sortBy, setSortBy] = useState<'ladder' | 'rating'>('ladder')
+
   const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
 
   const confirmChallenge = (p: RankedPlayerProfile) => {
@@ -56,6 +59,19 @@ export default function LadderListItem({
       action: () => handleChallenge(sport.id, p.id)
     })
   }
+
+  // Sort logic for display
+  const displayList = [...(topList || [])].sort((a, b) => {
+    if (sortBy === 'ladder') {
+      // If ladder_rank missing, fallback to rating (which is filtered descending usually)
+      // But actually topList from server is sorted by Rank.
+      // Just ensure order.
+      return (a.ladder_rank ?? 999999) - (b.ladder_rank ?? 999999)
+    } else {
+      // Rating desc
+      return b.rating - a.rating
+    }
+  })
 
   return (
     <>
@@ -74,6 +90,25 @@ export default function LadderListItem({
             <Link href={`/ladder?sport=${sport.id}`}>View full ladder</Link>
           </Button>
         </div>
+
+        {/* Sort Controls */}
+        <div className="flex justify-end gap-2 mt-2">
+          <span className="text-xs text-muted-foreground self-center">Sort by:</span>
+          <div className="flex bg-muted rounded-md p-1 h-8">
+            <button
+              onClick={() => setSortBy('ladder')}
+              className={`px-3 text-xs font-medium rounded-sm transition-all ${sortBy === 'ladder' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Ladder
+            </button>
+            <button
+              onClick={() => setSortBy('rating')}
+              className={`px-3 text-xs font-medium rounded-sm transition-all ${sortBy === 'rating' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Elo
+            </button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="pt-6">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
@@ -83,18 +118,25 @@ export default function LadderListItem({
         <div className="p-1">
           <Table>
             <TableBody>
-              {(topList || []).map((p, i) => (
+              {displayList.map((p, i) => (
                 <motion.tr
                   key={p.id}
                   initial={{ opacity: 0, x: -10 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.1 }}
+                  layout // animate reordering
                   className="group border-b last:border-0 hover:bg-muted/50 transition-colors"
                 >
                   <TableCell className="p-3">
                     <div className="flex items-center gap-4">
-                      <div className="font-mono text-muted-foreground font-bold w-4 text-center">{i + 1}</div>
+                      <div className="font-mono text-muted-foreground font-bold w-6 text-center">
+                        {p.ladder_rank ? (
+                          <span title="Ladder Rank">#{p.ladder_rank}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </div>
                       <Link href={`/player/${p.id}`}>
                         <div className="relative h-10 w-10 rounded-full overflow-hidden ring-2 ring-transparent group-hover:ring-primary transition-all bg-muted">
                           {(p.avatar_url ?? (p.user_metadata as UserMeta)?.avatar_url) ? (

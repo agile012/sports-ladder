@@ -5,6 +5,12 @@ import { PlayerProfile, RankedPlayerProfile, ScoringConfig } from '@/lib/types'
  * Returns the list with 'rank' property added.
  */
 export function calculateRanks(players: PlayerProfile[]): RankedPlayerProfile[] {
+    // If players have ladder_rank, use it directly as the source of truth for 'rank'.
+    // This assumes that if one player has it, they all do (or we default to existing logic).
+    if (players.length > 0 && typeof players[0].ladder_rank === 'number') {
+        return players.map(p => ({ ...p, rank: p.ladder_rank! }))
+    }
+
     const ranks: number[] = []
     let lastRank = 0
     for (let i = 0; i < players.length; i++) {

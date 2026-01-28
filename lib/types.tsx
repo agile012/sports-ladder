@@ -33,6 +33,7 @@ export type PlayerProfile = {
   user_metadata?: unknown
   full_name?: string
   avatar_url?: string
+  ladder_rank: number | null
   is_admin?: boolean
 }
 

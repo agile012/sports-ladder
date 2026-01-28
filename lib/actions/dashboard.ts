@@ -28,7 +28,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
 
     if (userId) {
         // Add user profiles fetch if logged in
-        steps.push(supabase.from('player_profiles').select('id, user_id, sport_id, rating, matches_played, is_admin').eq('user_id', userId))
+        steps.push(supabase.from('player_profiles').select('id, user_id, sport_id, rating, matches_played, ladder_rank, is_admin').eq('user_id', userId))
     }
 
     const results = await Promise.all(steps)
