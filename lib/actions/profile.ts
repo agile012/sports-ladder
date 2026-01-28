@@ -11,7 +11,7 @@ export async function getProfilePageData(userId: string) {
     const [userProfilesRes, sports, allPlayers] = await Promise.all([
         supabase
             .from('player_profiles_view')
-            .select('id, sport_id, rating, matches_played, full_name, avatar_url, is_admin')
+            .select('id, user_id, sport_id, rating, matches_played, full_name, avatar_url, is_admin, deactivated, deactivated_at, last_active_rank')
             .eq('user_id', userId)
             .order('rating', { ascending: false }),
         getCachedSports(),
