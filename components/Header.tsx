@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -9,11 +10,13 @@ import { Moon, Sun, Monitor, Menu, X, Trophy } from "lucide-react"
 import { User } from '@supabase/supabase-js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { AnalyticsNav } from './AnalyticsNav'
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
+  const [sports, setSports] = useState<{ id: string, name: string }[]>([])
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -21,6 +24,11 @@ export default function Header() {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+    })
+
+    // Fetch sports
+    supabase.from('sports').select('id, name').order('name').then(({ data }) => {
+      if (data) setSports(data)
     })
 
     const handleScroll = () => {
@@ -104,6 +112,8 @@ export default function Header() {
             </Link>
           ))}
 
+          <AnalyticsNav sports={sports} />
+
           <div className="flex items-center gap-2 pl-4 border-l border-border/50">
             <ModeToggle />
             {user ? (
@@ -150,6 +160,27 @@ export default function Header() {
                   {link.name}
                 </Link>
               ))}
+
+              {/* Analytics Mobile */}
+              <div className="py-2 border-b border-border/50">
+                <span className="text-lg font-medium text-muted-foreground block mb-2">Analytics</span>
+                <div className="pl-4 space-y-2">
+                  {sports.map(s => (
+                    <Link
+                      key={s.id}
+                      href={`/analytics/${s.id}`}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={cn(
+                        "block text-base",
+                        pathname === `/analytics/${s.id}` ? "text-primary font-bold" : "text-muted-foreground"
+                      )}
+                    >
+                      {s.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
               <div className="pt-4 flex flex-col gap-3">
                 {user ? (
                   <Button onClick={() => { signOut(); setIsMenuOpen(false); }} variant='ghost' className='w-full text-destructive hover:bg-destructive/10 hover:text-destructive font-medium'>Sign out</Button>
