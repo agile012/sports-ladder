@@ -104,7 +104,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <AdminUserActions profileId={p.id} isAdmin={p.is_admin || false} />
+                                    <AdminUserActions profileId={p.id} isAdmin={p.is_admin || false} sportId={p.sport_id} />
                                 </TableCell>
                             </TableRow>
                         ))}

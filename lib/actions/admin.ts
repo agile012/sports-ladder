@@ -167,6 +167,31 @@ export async function createAdminMatch(sportId: string, player1Id: string, playe
     if (error) throw new Error(error.message)
 
     revalidatePath('/admin/matches')
+    revalidatePath('/admin/matches')
     revalidatePath('/match-history')
     return data
+}
+
+export async function deactivatePlayer(sportId: string, profileId: string) {
+    const { supabase } = await verifySportAdmin(sportId)
+
+    // We need userId to call leave_ladder RPC
+    const { data: profile } = await supabase
+        .from('player_profiles')
+        .select('user_id')
+        .eq('id', profileId)
+        .single()
+
+    if (!profile) throw new Error('Profile not found')
+
+    const { error } = await supabase.rpc('leave_ladder', {
+        p_sport_id: sportId,
+        p_user_id: profile.user_id,
+    })
+
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/admin/users')
+    revalidatePath('/ladder')
+    return { success: true }
 }
