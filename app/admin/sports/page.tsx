@@ -28,6 +28,7 @@ export default function AdminSportsPage() {
     // Ladder Rules
     const [maxChallengeRange, setMaxChallengeRange] = useState(5)
     const [challengeWindowDays, setChallengeWindowDays] = useState(7)
+    const [autoVerifyWindowDays, setAutoVerifyWindowDays] = useState(3)
     const [rematchCooldownDays, setRematchCooldownDays] = useState(7)
     const [maxChallengeBelow, setMaxChallengeBelow] = useState(0)
 
@@ -63,6 +64,7 @@ export default function AdminSportsPage() {
         setCap(30)
         setMaxChallengeRange(5)
         setChallengeWindowDays(7)
+        setAutoVerifyWindowDays(3)
         setRematchCooldownDays(7)
         setMaxChallengeBelow(0)
         setNotifyOnChallenge(true)
@@ -83,6 +85,7 @@ export default function AdminSportsPage() {
         setCap(config.cap || 30)
         setMaxChallengeRange(config.max_challenge_range || 5)
         setChallengeWindowDays(config.challenge_window_days || 7)
+        setAutoVerifyWindowDays(config.auto_verify_window_days || 3)
         setRematchCooldownDays(config.rematch_cooldown_days || 7)
         setMaxChallengeBelow(config.max_challenge_below || 0)
 
@@ -106,6 +109,7 @@ export default function AdminSportsPage() {
             type: scoringType,
             max_challenge_range: Number(maxChallengeRange),
             challenge_window_days: Number(challengeWindowDays),
+            auto_verify_window_days: Number(autoVerifyWindowDays),
             rematch_cooldown_days: Number(rematchCooldownDays),
             max_challenge_below: Number(maxChallengeBelow),
             notifications: {
@@ -220,6 +224,11 @@ export default function AdminSportsPage() {
                                         <Label className="text-xs">Deadline (Days)</Label>
                                         <Input type="number" value={challengeWindowDays} onChange={e => setChallengeWindowDays(Number(e.target.value))} min={1} />
                                         <p className="text-[10px] text-muted-foreground">Days to play match</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Auto-Verify (Days)</Label>
+                                        <Input type="number" value={autoVerifyWindowDays} onChange={e => setAutoVerifyWindowDays(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Days to confirm result</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Rematch Cooldown</Label>

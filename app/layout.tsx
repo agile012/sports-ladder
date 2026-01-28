@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
               </PageTransition>
             </main>
-            <Toaster />
+            <Toaster position="top-center" />
           </div>
         </ThemeProvider>
       </body>
