@@ -173,6 +173,77 @@ $$;
 ALTER FUNCTION "public"."match_replace_action_token_on_status_change"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."process_auto_verify_matches"() RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  m RECORD;
+  cfg jsonb;
+  verify_days integer;
+  cutoff timestamptz;
+  processed_count integer := 0;
+  processed_matches jsonb := '[]'::jsonb;
+BEGIN
+  FOR m IN
+    SELECT *
+    FROM public.matches
+    WHERE status = 'PROCESSING'::match_status
+      AND updated_at IS NOT NULL
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    -- Load sport scoring config; skip if missing
+    SELECT s.scoring_config INTO cfg
+    FROM public.sports s
+    WHERE s.id = m.sport_id
+    LIMIT 1;
+
+    IF cfg IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    -- Extract auto_verify_window_days (default to 3 if missing)
+    BEGIN
+      verify_days := (cfg ->> 'auto_verify_window_days')::int;
+    EXCEPTION WHEN others THEN
+      verify_days := 3;
+    END;
+
+    IF verify_days IS NULL THEN
+      verify_days := 3;
+    END IF;
+
+    -- Calculate cutoff: updated_at (time result was entered) + verify window
+    cutoff := m.updated_at + (verify_days || ' days')::interval;
+
+    IF now() >= cutoff THEN
+      -- Auto-verify the match
+      UPDATE public.matches
+      SET status = 'CONFIRMED'::match_status,
+          updated_at = now()
+      WHERE id = m.id;
+
+      processed_matches := processed_matches || jsonb_build_object(
+        'match_id', m.id,
+        'sport_id', m.sport_id,
+        'cutoff', cutoff,
+        'auto_verified', true
+      );
+
+      processed_count := processed_count + 1;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'processed_count', processed_count,
+    'processed_matches', processed_matches
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."process_auto_verify_matches"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."process_expired_challenges"() RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -188,7 +259,7 @@ BEGIN
   FOR m IN
     SELECT *
     FROM public.matches
-    WHERE status = 'CHALLENGED'::match_status
+    WHERE status IN ('CHALLENGED'::match_status, 'PENDING'::match_status) -- UPDATED: Added PENDING
       AND player1_id IS NOT NULL
       AND created_at IS NOT NULL
     FOR UPDATE SKIP LOCKED
@@ -225,6 +296,8 @@ BEGIN
         new_scores := m.scores || jsonb_build_object('reason', 'forfeit');
       END IF;
 
+      -- Determine winner: Explicitly set Player 1 (Challenger) as winner
+      -- This applies to both CHALLENGED (ignored) and PENDING (accepted but timed out)
       UPDATE public.matches
       SET winner_id = player1_id,
           scores = new_scores,
@@ -237,7 +310,8 @@ BEGIN
         'player1_id', m.player1_id,
         'player2_id', m.player2_id,
         'sport_id', m.sport_id,
-        'cutoff', cutoff
+        'cutoff', cutoff,
+        'status_was', m.status
       );
 
       processed_count := processed_count + 1;
@@ -253,6 +327,108 @@ $$;
 
 
 ALTER FUNCTION "public"."process_expired_challenges"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."process_ladder_match"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+DECLARE
+    v_winner_id UUID;
+    v_loser_id UUID;
+    v_winner_rank INTEGER;
+    v_loser_rank INTEGER;
+    v_winner_name TEXT;
+    v_loser_name TEXT;
+    v_sport_id UUID;
+BEGIN
+    -- Only process if match is COMPLETED or CONFIRMED
+    IF NEW.status NOT IN ('COMPLETED', 'CONFIRMED') THEN
+        RETURN NEW;
+    END IF;
+
+    -- If status wasn't already complete, proceed
+    IF OLD.status IN ('COMPLETED', 'CONFIRMED') THEN
+        RETURN NEW;
+    END IF;
+
+    v_winner_id := NEW.winner_id;
+    v_sport_id := NEW.sport_id;
+
+    -- Identify loser
+    IF v_winner_id = NEW.player1_id THEN
+        v_loser_id := NEW.player2_id;
+    ELSE
+        v_loser_id := NEW.player1_id;
+    END IF;
+
+    -- Get current ranks and names
+    SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name 
+    FROM player_profiles_view 
+    WHERE sport_id = v_sport_id AND user_id = v_winner_id;
+    
+    SELECT ladder_rank, full_name INTO v_loser_rank, v_loser_name 
+    FROM player_profiles_view 
+    WHERE sport_id = v_sport_id AND user_id = v_loser_id;
+
+    -- Fallback for names
+    IF v_winner_name IS NULL THEN v_winner_name := 'Opponent'; END IF;
+    IF v_loser_name IS NULL THEN v_loser_name := 'Opponent'; END IF;
+
+    -- If either has no rank (unranked), or if Winner is already higher (lower number) than Loser, no leapfrog needed usually?
+    -- Actually, if Defender (Higher Rank) wins, nothing changes in Leapfrog usually.
+    -- Leapfrog only happens if Challenger (Lower Rank / Higher Number) beats Defender (Higher Rank / Lower Number).
+    
+    IF v_winner_rank IS NULL OR v_loser_rank IS NULL THEN
+        -- Handle unranked logic if needed, but for now ignore
+        RETURN NEW;
+    END IF;
+
+    -- Check for Leapfrog: Winner Rank > Loser Rank (e.g. 5 beats 2)
+    IF v_winner_rank > v_loser_rank THEN
+        -- 1. Log History BEFORE update
+        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
+        SELECT id, NEW.id, ladder_rank, v_loser_rank, 'Victory (Leapfrog) vs ' || v_loser_name, NOW()
+        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_winner_id;
+
+        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
+        SELECT id, NEW.id, ladder_rank, ladder_rank + 1, 'Defeated (Shift) by ' || v_winner_name, NOW()
+        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_loser_id;
+
+        -- 2. Shift everyone between LoserRank and WinnerRank down by 1
+        -- Range: [LoserRank, WinnerRank - 1] -> +1
+        UPDATE player_profiles
+        SET ladder_rank = ladder_rank + 1
+        WHERE sport_id = v_sport_id
+          AND ladder_rank >= v_loser_rank
+          AND ladder_rank < v_winner_rank;
+        
+        -- 3. Move Winner to LoserRank
+        UPDATE player_profiles
+        SET ladder_rank = v_loser_rank
+        WHERE sport_id = v_sport_id
+          AND user_id = v_winner_id;
+
+    ELSE
+        -- Defender Won (or Winner was already higher rank) -> No Rank Change usually
+        -- But let's log "Defended" event just for history? 
+        -- Or maybe just don't log if no change.
+        -- User wants "Rank History" in match details. Explicitly saying "No Change" is nice.
+        
+        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
+        SELECT id, NEW.id, ladder_rank, ladder_rank, 'Victory (Defended) vs ' || v_loser_name, NOW()
+        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_winner_id;
+
+        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
+        SELECT id, NEW.id, ladder_rank, ladder_rank, 'Defeat (No Change) vs ' || v_winner_name, NOW()
+        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_loser_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."process_ladder_match"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") RETURNS "void"
@@ -458,41 +634,125 @@ CREATE OR REPLACE FUNCTION "public"."recalc_ladder_history"() RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
-  s RECORD;
-  p RECORD;
-  m RECORD;
-  current_rank integer;
+    m RECORD;
+    v_winner_id UUID;
+    v_loser_id UUID;
+    v_winner_rank INTEGER;
+    v_loser_rank INTEGER;
+    v_winner_name TEXT;
+    v_loser_name TEXT;
+    v_sport_id UUID;
 BEGIN
-  -- 1. Reset all ranks based on Join Date (created_at) per Sport
-  FOR s IN SELECT id FROM public.sports LOOP
-    current_rank := 1;
-    FOR p IN 
-      SELECT id 
-      FROM public.player_profiles 
-      WHERE sport_id = s.id 
-      ORDER BY created_at ASC 
-    LOOP
-      UPDATE public.player_profiles
-      SET ladder_rank = current_rank
-      WHERE id = p.id;
-      
-      current_rank := current_rank + 1;
-    END LOOP;
-  END LOOP;
-  
-  -- Clear History
-  TRUNCATE TABLE public.ladder_rank_history;
+    -- 1. Clear History
+    TRUNCATE TABLE ladder_rank_history;
 
-  -- 2. Replay Matches
-  FOR m IN 
-    SELECT id, status, updated_at 
-    FROM public.matches 
-    WHERE status IN ('CONFIRMED', 'PROCESSED') 
-    ORDER BY COALESCE(created_at, now()) ASC 
-  LOOP
-    PERFORM public.process_ladder_match(m.id);
-  END LOOP;
-  
+    -- 2. Reset Ranks (Based on join date)
+    -- We'll use a temporary approach: Update directly using a window function logic via UPDATE FROM?
+    -- Postgres UPDATE doesn't support direct window functions nicely in the SET clause on the same table without a subquery.
+    
+    WITH ranked_players AS (
+        SELECT id, ROW_NUMBER() OVER (PARTITION BY sport_id ORDER BY created_at ASC) as initial_rank
+        FROM player_profiles
+        WHERE deactivated = FALSE -- Only active players get a rank initially? Or all? 
+        -- If we are determining "Initial State", we should probably include everyone who was ever active?
+        -- Actually, simplified: Reset active players to join order. Deactivated ones stay null/deactivated.
+    )
+    UPDATE player_profiles pp
+    SET ladder_rank = rp.initial_rank,
+        last_active_rank = NULL -- Reset this too?
+    FROM ranked_players rp
+    WHERE pp.id = rp.id;
+
+    -- 3. Replay Matches
+    FOR m IN 
+        SELECT * FROM matches 
+        WHERE status IN ('PROCESSED', 'CONFIRMED') 
+        ORDER BY created_at ASC
+    LOOP
+        v_winner_id := m.winner_id;
+        v_sport_id := m.sport_id;
+        
+        -- Skip if no winner (shouldn't happen for these statuses but good check)
+        IF v_winner_id IS NULL THEN CONTINUE; END IF;
+
+        IF v_winner_id = m.player1_id THEN
+            v_loser_id := m.player2_id;
+        ELSE
+            v_loser_id := m.player1_id;
+        END IF;
+
+        -- Get current ranks (these have been updated by previous loops)
+        -- Need Names for the history log!
+        -- We can fetch names from player_profiles directly (if we added updated view logic or joined auth.users)
+        -- Or just fetch from the view.
+        
+        -- Note: player_profiles_view might be slow in a loop, but fine for backfill tool.
+        
+        SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name 
+        FROM player_profiles_view 
+        WHERE id = v_winner_id;
+
+        SELECT ladder_rank, full_name INTO v_loser_rank, v_loser_name 
+        FROM player_profiles_view 
+        WHERE id = v_loser_id;
+        
+        -- Fallback names
+        IF v_winner_name IS NULL THEN v_winner_name := 'Opponent'; END IF;
+        IF v_loser_name IS NULL THEN v_loser_name := 'Opponent'; END IF;
+
+        -- Logic Mirroring process_ladder_match
+        
+        IF v_winner_rank IS NOT NULL AND v_loser_rank IS NOT NULL THEN
+            IF v_winner_rank > v_loser_rank THEN
+                -- LEAPFROG
+                -- Log
+                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
+                VALUES (
+                    v_winner_id, m.sport_id, m.id, v_winner_rank, v_loser_rank, 'Victory (Leapfrog) vs ' || v_loser_name, m.created_at
+                );
+
+                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
+                VALUES (
+                    v_loser_id, m.sport_id, m.id, v_loser_rank, v_loser_rank + 1, 'Defeated (Shift) by ' || v_winner_name, m.created_at
+                );
+                SET CONSTRAINTS public.player_profiles_sport_rank_key DEFERRED;
+
+                -- Update Ranks
+                -- Shift Down [Loser, Winner-1] -> +1
+                WITH affected AS (
+                    SELECT id,
+                        sport_id,
+                        ladder_rank,
+                        CASE
+                            -- shift down players in [v_loser_rank, v_winner_rank)
+                            WHEN sport_id = v_sport_id AND ladder_rank >= v_loser_rank AND ladder_rank < v_winner_rank THEN ladder_rank + 1
+                            -- move winner to v_loser_rank
+                            WHEN id = v_winner_id THEN v_loser_rank
+                            ELSE ladder_rank
+                        END AS new_rank
+                    FROM player_profiles
+                    WHERE sport_id = v_sport_id
+                      AND (ladder_rank >= v_loser_rank AND ladder_rank <= v_winner_rank OR id = v_winner_id)
+                )
+                UPDATE player_profiles p
+                SET ladder_rank = a.new_rank
+                FROM affected a
+                WHERE p.id = a.id;
+
+            ELSE
+                -- DEFENDED / NO CHANGE
+                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
+                VALUES (
+                    v_winner_id, m.sport_id, m.id, v_winner_rank, v_winner_rank, 'Victory (Defended) vs ' || v_loser_name, m.created_at
+                );
+
+                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
+                VALUES (
+                    v_loser_id, m.sport_id, m.id, v_loser_rank, v_loser_rank, 'Defeat (No Change) vs ' || v_winner_name, m.created_at
+                );
+            END IF;
+        END IF;
+    END LOOP;
 END;
 $$;
 
@@ -663,7 +923,6 @@ DECLARE
     v_target_rank INTEGER;
     v_max_rank INTEGER;
 BEGIN
-    -- Get inactive profile
     SELECT id, last_active_rank, deactivated_at INTO v_profile_id, v_last_rank, v_deactivated_at
     FROM player_profiles
     WHERE sport_id = p_sport_id AND user_id = p_user_id AND deactivated = TRUE;
@@ -672,23 +931,16 @@ BEGIN
         RAISE EXCEPTION 'Deactivated profile not found';
     END IF;
 
-    -- Calculate penalty
-    -- If never active/ranked before, treat as new player (bottom)?
     IF v_last_rank IS NULL THEN
-         -- Just reactivate and assign to bottom
          UPDATE player_profiles SET deactivated = FALSE, deactivated_at = NULL WHERE id = v_profile_id;
-         -- Trigger 'assign_initial_ladder_rank' might not fire on update, so handle manually or let it be null and handled?
-         -- Let's assign max + 1
          SELECT COALESCE(MAX(ladder_rank), 0) INTO v_max_rank FROM player_profiles WHERE sport_id = p_sport_id;
          v_target_rank := v_max_rank + 1;
     ELSE
-         -- Calculate weeks away (ceil)
          v_weeks_away := CEIL(EXTRACT(EPOCH FROM (NOW() - v_deactivated_at)) / 604800);
          IF v_weeks_away < 0 THEN v_weeks_away := 0; END IF;
          
          v_target_rank := v_last_rank + v_weeks_away;
          
-         -- Clamp to max rank + 1
          SELECT COALESCE(MAX(ladder_rank), 0) INTO v_max_rank FROM player_profiles WHERE sport_id = p_sport_id;
          
          IF v_target_rank > v_max_rank + 1 THEN
@@ -696,14 +948,12 @@ BEGIN
          END IF;
     END IF;
 
-    -- Shift players DOWN to make space at v_target_rank
     UPDATE player_profiles
     SET ladder_rank = ladder_rank + 1
     WHERE sport_id = p_sport_id
       AND ladder_rank >= v_target_rank
       AND deactivated = FALSE;
 
-    -- Activate player
     UPDATE player_profiles
     SET 
         deactivated = FALSE,
@@ -712,9 +962,9 @@ BEGIN
         ladder_rank = v_target_rank
     WHERE id = v_profile_id;
 
-    -- Insert history record
-    INSERT INTO ladder_rank_history (player_profile_id, old_rank, new_rank, match_id, reason)
-    VALUES (v_profile_id, v_last_rank, v_target_rank, NULL, 'Rejoined Ladder');
+    -- FIX: Included sport_id in insert
+    INSERT INTO ladder_rank_history (sport_id, player_profile_id, old_rank, new_rank, match_id, reason)
+    VALUES (p_sport_id, v_profile_id, v_last_rank, v_target_rank, NULL, 'Rejoined Ladder');
 
     RETURN v_target_rank;
 END;
@@ -833,7 +1083,8 @@ CREATE TABLE IF NOT EXISTS "public"."player_profiles" (
     "is_admin" boolean DEFAULT false NOT NULL,
     "ladder_rank" integer,
     "deactivated_at" timestamp with time zone,
-    "last_active_rank" integer
+    "last_active_rank" integer,
+    "contact_number" "text"
 );
 
 
@@ -851,6 +1102,7 @@ CREATE OR REPLACE VIEW "public"."player_profiles_view" AS
     "pp"."deactivated",
     "pp"."deactivated_at",
     "pp"."last_active_rank",
+    "pp"."contact_number",
     "au"."email" AS "user_email",
     "au"."raw_user_meta_data" AS "user_metadata",
     COALESCE(("au"."raw_user_meta_data" ->> 'full_name'::"text"), ("au"."raw_user_meta_data" ->> 'name'::"text"), ("au"."email")::"text") AS "full_name",
@@ -1277,9 +1529,21 @@ GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() T
 
 
 
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "anon";
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "anon";
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "anon";
+GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "service_role";
 
 
 
