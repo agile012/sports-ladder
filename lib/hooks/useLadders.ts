@@ -18,8 +18,9 @@ export default function useLadders() {
     // Use the view that joins `auth.users` so we can show email/avatar/name
     let query = supabase
       .from('player_profiles_view')
-      .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, is_admin')
+      .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, ladder_rank, is_admin')
       .eq('sport_id', sportId)
+      .order('ladder_rank', { ascending: true, nullsFirst: false })
       .order('rating', { ascending: false })
 
     if (limit) query = query.limit(limit)
@@ -32,7 +33,7 @@ export default function useLadders() {
   const getUserProfileForSport = useCallback(async (userId: string, sportId: string): Promise<PlayerProfile | null> => {
     const { data } = await supabase
       .from('player_profiles')
-      .select('id, user_id, sport_id, rating, matches_played, is_admin')
+      .select('id, user_id, sport_id, rating, matches_played, ladder_rank, is_admin')
       .eq('user_id', userId)
       .eq('sport_id', sportId)
       .limit(1)
@@ -224,7 +225,8 @@ export default function useLadders() {
   const getAllPlayers = useCallback(async (): Promise<PlayerProfile[]> => {
     const { data } = await supabase
       .from('player_profiles_view')
-      .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, is_admin')
+      .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, ladder_rank, is_admin')
+      .order('ladder_rank', { ascending: true, nullsFirst: false })
       .order('rating', { ascending: false })
 
     return (data as PlayerProfile[]) ?? []

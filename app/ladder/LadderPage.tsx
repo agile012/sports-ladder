@@ -10,10 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
 import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
-import { getCachedSports } from '@/lib/cached-data' // We'll implement a client wrapper or use direct call
-
-// Since we are client-side only now, we need to fetch sports.
-// Actually, `useLadders` doesn't expose `getSports`. We should add it or use direct client.
 import { createBrowserClient } from '@supabase/ssr'
 
 export default function LadderPage() {
@@ -24,6 +20,7 @@ export default function LadderPage() {
   const [selectedSport, setSelectedSport] = useState<Sport | null>(null)
   const [players, setPlayers] = useState<RankedPlayerProfile[]>([])
   const [loading, setLoading] = useState(true)
+  const [sortBy, setSortBy] = useState<'ladder' | 'rating'>('ladder')
 
   const [recentMap, setRecentMap] = useState<Record<string, any[]>>({})
   const [challengables, setChallengables] = useState<Set<string>>(new Set())
@@ -31,13 +28,11 @@ export default function LadderPage() {
 
   const router = useRouter()
   const searchParams = useSearchParams()
-  const playerRefs = useMemo(() => Array(players.length).fill(0).map(() => createRef<HTMLTableRowElement>()), [players])
 
   // Initial Data Load (Sports)
   useEffect(() => {
     const loadSports = async () => {
       try {
-        // Simple direct fetch for sports
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -46,7 +41,6 @@ export default function LadderPage() {
         if (data) {
           setSports(data as Sport[])
 
-          // Set initial sport from URL or first in list
           const paramSport = searchParams.get('sport')
           if (paramSport) {
             const found = data.find(s => s.id === paramSport)
@@ -63,14 +57,13 @@ export default function LadderPage() {
       }
     }
     loadSports()
-  }, []) // Run once on mount
+  }, [])
 
   // Effect: Fetch players when selected sport changes
   useEffect(() => {
     if (!selectedSport) return
 
-    setPlayers([]) // Clear current players while loading new ones? Or keep stale? Keeping stale is better UX usually, but clearing shows loading.
-    // Let's clear to avoid confusion if IDs mismatch.
+    setPlayers([])
 
     let cancelled = false
     const loadPlayers = async () => {
@@ -173,18 +166,27 @@ export default function LadderPage() {
     return () => { cancelled = true }
   }, [user, selectedSport, players, getUserProfileForSport, getMatchesSince])
 
+  // Sort players
+  const sortedPlayers = useMemo(() => {
+    if (sortBy === 'ladder') return players;
+    return [...players].sort((a, b) => b.rating - a.rating)
+  }, [players, sortBy])
+
+  const ranks = useMemo(() => sortedPlayers.map(p => p.rank), [sortedPlayers])
+
+  // Refs need to match sorted list length
+  const playerRefs = useMemo(() => Array(sortedPlayers.length).fill(0).map(() => createRef<HTMLTableRowElement>()), [sortedPlayers])
+
   // Scroll to profile
   useEffect(() => {
     const profileId = searchParams.get('profile')
-    if (profileId && players.length > 0) {
-      const playerIndex = players.findIndex(p => p.id === profileId)
+    if (profileId && sortedPlayers.length > 0) {
+      const playerIndex = sortedPlayers.findIndex(p => p.id === profileId)
       if (playerIndex !== -1 && playerRefs[playerIndex]?.current) {
         playerRefs[playerIndex].current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }
-  }, [players, searchParams, playerRefs])
-
-  const ranks = useMemo(() => players.map(p => p.rank), [players])
+  }, [sortedPlayers, searchParams, playerRefs])
 
   async function handleChallenge(opponentProfileId: string) {
     if (!selectedSport || !user) {
@@ -255,17 +257,41 @@ export default function LadderPage() {
                 </Button>
               </CardDescription>
             )}
+
+            {selectedSport && (
+              <div className="flex justify-end mt-2">
+                <div className="flex items-center space-x-2 bg-muted p-1 rounded-md">
+                  <span className="text-xs font-medium px-2 text-muted-foreground">Sort By:</span>
+                  <Button
+                    variant={sortBy === 'ladder' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setSortBy('ladder')}
+                  >
+                    Ladder
+                  </Button>
+                  <Button
+                    variant={sortBy === 'rating' ? 'default' : 'ghost'}
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setSortBy('rating')}
+                  >
+                    Elo
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {selectedSport ? (
               <RankingsTable
-                players={players}
+                players={sortedPlayers}
                 ranks={ranks}
                 challengables={challengables}
                 submittingChallenge={submittingChallenge}
                 handleChallenge={handleChallenge}
                 selectedSport={selectedSport}
-                user={user}
+                user={user!}
                 playerRefs={playerRefs}
                 recentMap={recentMap}
               />
