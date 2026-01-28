@@ -39,6 +39,7 @@ export type PlayerProfile = {
   deactivated?: boolean
   deactivated_at?: string
   last_active_rank?: number | null
+  contact_number?: string
 }
 
 export type PlayerBasic = {

@@ -7,20 +7,29 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PlayerProfileExtended } from '@/lib/types'
-import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna, LogOut } from 'lucide-react'
+import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna, LogOut, Phone, Pencil, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import RankHistory from './RankHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { leaveLadder } from '@/lib/actions/ladderActions'
+import { updateContactInfo } from '@/lib/actions/profileActions' // Keeping for now to avoid break if referenced, but actually unused logic will be removed.
 import { toast } from "sonner"
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import useUser from '@/lib/hooks/useUser'
 
 export default function PlayerProfile({ player, isPublic = false }: { player: PlayerProfileExtended; isPublic?: boolean }) {
   const winRate = player.stats?.winRate ?? 0
   const router = useRouter()
+  const { user } = useUser()
   const [loading, setLoading] = useState(false)
+
+  // Removed local contact logic
+
 
   async function handleLeave() {
     if (!confirm('Are you sure you want to leave this ladder? You will lose your current rank. You can rejoin later (penalty applies).')) return;
@@ -50,6 +59,9 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Performance Summary</p>
           </div>
         </div>
+
+        {/* Removed Contact Info from here */}
+
         {!isPublic && (
           <div className="flex gap-2">
             <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">

@@ -6,7 +6,14 @@ import { PlayerProfileExtended } from '@/lib/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
-import { Shield, Mail, User as UserIcon } from 'lucide-react'
+import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2 } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useState } from 'react'
+import { updateContactInfo } from '@/lib/actions/profileActions'
+import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export interface UserInfo {
   id: string
@@ -28,6 +35,29 @@ export default function UserProfile({
   // Derive full name from the first player profile if available
   const fullName = myPlayers[0]?.full_name || userInfo.email?.split('@')[0] || 'Unknown User'
   const displayEmail = userInfo.email
+
+  const router = useRouter()
+  // Global Contact State (from first player match, or empty)
+  const [editingContact, setEditingContact] = useState(false)
+  const [contactNumber, setContactNumber] = useState(myPlayers[0]?.contact_number || '')
+  const [savingContact, setSavingContact] = useState(false)
+
+  // Use the contact number from the first profile as the "global" display
+  const displayContact = (myPlayers[0]?.contact_number) || 'No contact info'
+
+  async function handleUpdateContact() {
+    setSavingContact(true)
+    try {
+      await updateContactInfo(contactNumber) // Global update
+      toast.success('Contact info updated')
+      setEditingContact(false)
+      router.refresh()
+    } catch (e: any) {
+      toast.error('Failed to update: ' + e.message)
+    } finally {
+      setSavingContact(false)
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -54,7 +84,7 @@ export default function UserProfile({
 
           <div className="flex-1 text-center md:text-left space-y-2">
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{fullName}</h1>
-            <div className="flex flex-col md:flex-row items-center gap-3 text-muted-foreground">
+            <div className="flex flex-col md:flex-row items-center gap-3 text-muted-foreground justify-center md:justify-start">
               {displayEmail && (
                 <div className="flex items-center gap-1.5 bg-background/50 px-3 py-1 rounded-full text-sm backdrop-blur border">
                   <Mail className="h-3.5 w-3.5" />
@@ -64,6 +94,42 @@ export default function UserProfile({
               <div className="flex items-center gap-1.5 bg-background/50 px-3 py-1 rounded-full text-sm backdrop-blur border">
                 <UserIcon className="h-3.5 w-3.5" />
                 <span className="font-mono text-xs">{userInfo.id.substring(0, 8)}...</span>
+              </div>
+
+              {/* Contact Info Header Item */}
+              <div className="flex items-center gap-1.5 bg-background/50 px-3 py-1 rounded-full text-sm backdrop-blur border">
+                <Phone className="h-3.5 w-3.5" />
+                <span>{displayContact}</span>
+                {!isPublic && (
+                  <Dialog open={editingContact} onOpenChange={setEditingContact}>
+                    <DialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-4 w-4 ml-1 hover:bg-black/5 rounded-full p-0">
+                        <Pencil className="h-2.5 w-2.5" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Update Global Contact Number</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Phone Number</Label>
+                          <Input
+                            value={contactNumber}
+                            onChange={e => setContactNumber(e.target.value)}
+                            placeholder="+91 99999 99999"
+                          />
+                          <p className="text-xs text-muted-foreground">This number will be visible to other players on all your profiles.</p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleUpdateContact} disabled={savingContact}>
+                          {savingContact && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
               </div>
             </div>
           </div>
