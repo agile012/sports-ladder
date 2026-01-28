@@ -26,7 +26,7 @@ export async function getProfilePageData(userId: string) {
     const sportMap = sports.reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {} as Record<string, string>)
 
     // 2. Bulk Fetch Related Data (Matches, Challenges, History)
-    const [matchesRes, pendingRes, historyRes] = await Promise.all([
+    const [matchesRes, pendingRes, historyRes, rankHistoryRes] = await Promise.all([
         // Get last ~10 matches for each profile combined (approx limit 5 * num_profiles, or just 50 global)
         supabase
             .from('matches')
@@ -47,13 +47,20 @@ export async function getProfilePageData(userId: string) {
             .from('ratings_history')
             .select('player_profile_id, new_rating, created_at')
             .in('player_profile_id', profileIds)
+            .order('created_at', { ascending: false }),
+
+        // Rank History
+        supabase
+            .from('ladder_rank_history')
+            .select('player_profile_id, match_id, old_rank, new_rank, reason, created_at')
+            .in('player_profile_id', profileIds)
             .order('created_at', { ascending: false })
-        // .limit(50), -- limit if website becomes too slow
     ])
 
     const matchesRaw = matchesRes.data || []
     const pendingRaw = pendingRes.data || []
     const historyRaw = historyRes.data || []
+    const rankHistoryRaw = rankHistoryRes.data || []
 
     // Pre-process all players map for quick lookup
     const playerMap = new Map<string, PlayerProfile>()
@@ -130,6 +137,12 @@ export async function getProfilePageData(userId: string) {
             recentMatches,
             pendingChallenges: myPending,
             ratingHistory: myHistory,
+            rankHistory: rankHistoryRaw.filter(rh => rh.player_profile_id === pId).map(rh => ({
+                created_at: rh.created_at,
+                new_rank: rh.new_rank,
+                old_rank: rh.old_rank,
+                reason: rh.reason
+            })),
             stats: { total: p.matches_played ?? 0, wins: 0, losses: 0, winRate: 0 } // Filled in next step
         }
     })

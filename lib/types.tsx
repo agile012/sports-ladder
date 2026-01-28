@@ -35,6 +35,9 @@ export type PlayerProfile = {
   avatar_url?: string
   ladder_rank: number | null
   is_admin?: boolean
+  deactivated?: boolean
+  deactivated_at?: string
+  last_active_rank?: number | null
 }
 
 export type PlayerBasic = {

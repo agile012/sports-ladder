@@ -7,14 +7,35 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PlayerProfileExtended } from '@/lib/types'
-import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna } from 'lucide-react'
+import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import RankHistory from './RankHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { leaveLadder } from '@/lib/actions/ladderActions'
+import { toast } from "sonner"
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 export default function PlayerProfile({ player, isPublic = false }: { player: PlayerProfileExtended; isPublic?: boolean }) {
   const winRate = player.stats?.winRate ?? 0
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+
+  async function handleLeave() {
+    if (!confirm('Are you sure you want to leave this ladder? You will lose your current rank. You can rejoin later (penalty applies).')) return;
+
+    setLoading(true)
+    try {
+      await leaveLadder(player.sport_id, player.user_id)
+      toast.success('Left the ladder.')
+      window.location.reload()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to leave')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <Card className="overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
@@ -30,11 +51,16 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
           </div>
         </div>
         {!isPublic && (
-          <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
-            <Link href={`/ladder?sport=${player.sport_id}`}>
-              View Ladder <ExternalLink className="h-3 w-3" />
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
+              <Link href={`/ladder?sport=${player.sport_id}`}>
+                View Ladder <ExternalLink className="h-3 w-3" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" disabled={loading} onClick={handleLeave} className="gap-2 text-muted-foreground hover:text-destructive">
+              <LogOut className="h-3 w-3" /> Leave
+            </Button>
+          </div>
         )}
       </div>
 

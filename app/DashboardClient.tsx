@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
-import { Trophy } from 'lucide-react'
+import { Trophy, History } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers } from '@/lib/types'
 import { motion } from 'framer-motion'
 import { toast } from "sonner"
-import { DashboardData } from '@/lib/actions/dashboard'
+import { rejoinLadder } from '@/lib/actions/ladderActions'
 
 export default function DashboardClient() {
     const { user, loading: userLoading } = useUser()
@@ -24,13 +24,15 @@ export default function DashboardClient() {
     const [loadingData, setLoadingData] = useState(true)
     const [sportId, setSportId] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
-    const [sports, setSports] = useState<Sport[]>([])
+    const [activeSports, setActiveSports] = useState<Sport[]>([])
+    const [inactiveSports, setInactiveSports] = useState<Sport[]>([])
     const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>({})
     const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>({})
     const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>([])
     const [userProfileIds, setUserProfileIds] = useState<string[]>([])
     const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
     const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
+    const [myProfiles, setMyProfiles] = useState<PlayerProfile[]>([])
 
     const router = useRouter()
 
@@ -49,18 +51,34 @@ export default function DashboardClient() {
                 const data = await getDashboardData(user?.id)
 
                 if (!cancelled) {
-                    setSports(data.sports)
                     setTopLists(data.topLists)
                     setChallengeLists(data.challengeLists)
                     setPendingChallenges(data.pendingChallenges)
                     setUserProfileIds(data.userProfileIds)
                     setUnjoinedSports(data.unjoinedSports)
                     setRecentMatches(data.recentMatches)
+                    setMyProfiles(data.myProfiles)
+
+                    // Distinguish Active vs Inactive
+                    const activeS: Sport[] = []
+                    const inactiveS: Sport[] = []
+
+                    data.sports.forEach(s => {
+                        const profile = data.myProfiles.find(p => p.sport_id === s.id)
+                        if (profile && profile.deactivated) {
+                            inactiveS.push(s)
+                        } else {
+                            activeS.push(s)
+                        }
+                    })
+
+                    setActiveSports(activeS)
+                    setInactiveSports(inactiveS)
 
                     // Set default sport if not set
-                    if (!sportId && data.sports.length > 0) {
-                        setSportId(data.sports[0].id)
-                    } else if (!sportId && data.sports.length === 0) {
+                    if (!sportId && activeS.length > 0) {
+                        setSportId(activeS[0].id)
+                    } else if (!sportId && activeS.length === 0) {
                         setSportId(null)
                     }
 
@@ -104,24 +122,7 @@ export default function DashboardClient() {
             return
         }
 
-        toast.success('Joined! Reloading...')
-        // Refresh data via server action
-        try {
-            const { getDashboardData } = await import('@/lib/actions/dashboard')
-            const data = await getDashboardData(user.id)
-            // Update local state
-            setTopLists(data.topLists)
-            setChallengeLists(data.challengeLists)
-            setPendingChallenges(data.pendingChallenges)
-            setUserProfileIds(data.userProfileIds)
-            setUnjoinedSports(data.unjoinedSports)
-            setSports(data.sports) // In case sports list changed? Unlikely
-        } catch (e) {
-            console.error(e)
-        } finally {
-            setSubmitting(false)
-            router.push(`/ladder?sport=${sportId}`)
-        }
+        await refreshData()
     }
 
     async function handleChallenge(sportId: string, opponentProfileId: string) {
@@ -140,16 +141,62 @@ export default function DashboardClient() {
         try {
             await createChallenge(sportId, myProfile.id, opponentProfileId)
             toast.success('Challenge sent!')
-
-            // Optimistic update or refresh
-            const { getDashboardData } = await import('@/lib/actions/dashboard')
-            const data = await getDashboardData(user.id)
-            setTopLists(data.topLists)
-            setChallengeLists(data.challengeLists)
-            setPendingChallenges(data.pendingChallenges)
+            await refreshData()
 
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : 'Unable to create challenge')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    // handleLeaveLadder removed
+
+    async function handleRejoinLadder(sId: string) {
+        setSubmitting(true)
+        try {
+            const { newRank } = await rejoinLadder(sId, user!.id)
+            toast.success(`Welcome back! You have been assigned rank ${newRank}.`)
+            await refreshData()
+        } catch (e: any) {
+            toast.error(e.message || 'Failed to rejoin ladder')
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    async function refreshData() {
+        try {
+            const { getDashboardData } = await import('@/lib/actions/dashboard')
+            const data = await getDashboardData(user!.id)
+
+            setTopLists(data.topLists)
+            setChallengeLists(data.challengeLists)
+            setPendingChallenges(data.pendingChallenges)
+            setUserProfileIds(data.userProfileIds)
+            setUnjoinedSports(data.unjoinedSports)
+            setMyProfiles(data.myProfiles)
+            setRecentMatches(data.recentMatches)
+
+            const activeS: Sport[] = []
+            const inactiveS: Sport[] = []
+
+            data.sports.forEach(s => {
+                const profile = data.myProfiles.find(p => p.sport_id === s.id)
+                if (profile && profile.deactivated) {
+                    inactiveS.push(s)
+                } else {
+                    activeS.push(s)
+                }
+            })
+
+            setActiveSports(activeS)
+            setInactiveSports(inactiveS)
+            if (activeS.length > 0 && (!sportId || !activeS.find(s => s.id === sportId))) {
+                setSportId(activeS[0].id)
+            }
+        } catch (e) {
+            console.error(e)
         } finally {
             setSubmitting(false)
         }
@@ -218,6 +265,31 @@ export default function DashboardClient() {
                                         </Button>
                                     </div>
 
+                                    {/* Inactive Ladders Section */}
+                                    {inactiveSports.length > 0 && (
+                                        <div className="pt-4 border-t mt-4">
+                                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                                                <History className="h-3 w-3" /> Rejoin Ladder
+                                            </h4>
+                                            <ul className="space-y-2">
+                                                {inactiveSports.map(s => (
+                                                    <li key={s.id} className="flex items-center justify-between text-sm p-2 bg-muted/40 rounded-md">
+                                                        <span className="font-medium">{s.name}</span>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            className="h-7 text-xs"
+                                                            onClick={() => handleRejoinLadder(s.id)}
+                                                            disabled={submitting}
+                                                        >
+                                                            Rejoin
+                                                        </Button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
                                 </div>
                             )}
                         </CardContent>
@@ -239,17 +311,17 @@ export default function DashboardClient() {
             <main className="md:col-span-2 space-y-8">
 
                 {/* Sport Dashboard Tabs */}
-                {sports.length > 0 ? (
+                {activeSports.length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
                     >
-                        <Tabs defaultValue={sports[0].id} className="w-full space-y-6">
+                        <Tabs defaultValue={activeSports[0].id} className="w-full space-y-6">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-xl font-bold">Sport Dashboard</h2>
-                                <TabsList className='bg-muted/50 p-1'>
-                                    {sports.map((s) => (
+                                <TabsList className='bg-muted/50 p-1 flex-wrap h-auto'>
+                                    {activeSports.map((s) => (
                                         <TabsTrigger
                                             key={s.id}
                                             value={s.id}
@@ -261,8 +333,10 @@ export default function DashboardClient() {
                                 </TabsList>
                             </div>
 
-                            {sports.map(s => (
+                            {activeSports.map(s => (
                                 <TabsContent key={s.id} value={s.id} className="mt-0 space-y-8">
+                                    {/* Leave Ladder Button REMOVED */}
+
                                     <RecentMatchesList
                                         matches={recentMatches.filter(m => m.sport_id === s.id).slice(0, 5)}
                                         sport={s}
@@ -285,7 +359,7 @@ export default function DashboardClient() {
                     </motion.div>
                 ) : (
                     <div className="text-center p-12 text-muted-foreground bg-muted/10 rounded-xl border border-dashed">
-                        No sports available.
+                        {inactiveSports.length > 0 ? 'You have inactive ladders. Rejoin to compete!' : 'No active sports. Join a ladder to get started!'}
                     </div>
                 )}
             </main>
