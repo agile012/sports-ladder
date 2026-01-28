@@ -50,6 +50,13 @@ export default async function MatchPage({ params }: Props) {
     .eq('match_id', id)
   const history = historyData || []
 
+  // fetch rank history
+  const { data: rankHistoryData } = await supabase
+    .from('ladder_rank_history')
+    .select('*')
+    .eq('match_id', id)
+  const rankHistory = rankHistoryData || []
+
   return (
     <MatchDetailsView
       match={match}
@@ -59,6 +66,7 @@ export default async function MatchPage({ params }: Props) {
       currentUser={user}
       allowedToSubmit={allowedToSubmit}
       history={history}
+      rankHistory={rankHistory}
     />
   )
 }

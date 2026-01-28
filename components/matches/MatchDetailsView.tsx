@@ -6,11 +6,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash } from 'lucide-react'
+import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
-import { RatingHistoryEntry } from '@/lib/types'
+import { RatingHistoryEntry, RankHistoryItem } from '@/lib/types'
 
 type Player = {
     id: string
@@ -26,6 +26,7 @@ type MatchDetailsProps = {
     currentUser?: any
     allowedToSubmit: boolean
     history?: RatingHistoryEntry[]
+    rankHistory?: any[] // Using any[] to bypass strict check for now, or update types
 }
 
 export default function MatchDetailsView({
@@ -35,9 +36,14 @@ export default function MatchDetailsView({
     sportName,
     currentUser,
     allowedToSubmit,
-    history = []
+    history = [],
+    rankHistory = []
 }: MatchDetailsProps) {
     const winnerId = match.winner_id
+
+    // Determine Roles: Player 1 is ALWAYS Challenger (initiator), Player 2 is Defender
+    const p1Label = "Challenger"
+    const p2Label = "Defender"
 
     const getStatusColor = (status: string) => {
         switch (status.toLowerCase()) {
@@ -106,6 +112,19 @@ export default function MatchDetailsView({
                             {player.full_name ?? 'Unknown Player'}
                         </h2>
                     </Link>
+
+                    {/* Role Badge */}
+                    <div className="flex gap-2 mb-2">
+                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wider bg-background/50 backdrop-blur">
+                            {isLeft ? p1Label : p2Label}
+                        </Badge>
+                        {isWinner && (
+                            <Badge className={cn("text-[10px] uppercase tracking-wider animate-pulse", isLeft ? "bg-amber-500 hover:bg-amber-600" : "bg-emerald-500 hover:bg-emerald-600")}>
+                                {isLeft ? "Challenger Won" : "Defender Won"}
+                            </Badge>
+                        )}
+                    </div>
+
 
                     {/* Rating Delta Badge */}
                     {delta !== undefined && (
@@ -257,6 +276,52 @@ export default function MatchDetailsView({
                         </CardContent>
                     </Card>
                 </motion.div>
+
+                {/* Rank History Changes */}
+                {rankHistory && rankHistory.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 }}
+                    >
+                        <Card className="border-muted bg-card/30 backdrop-blur-sm shadow-sm overflow-hidden">
+                            <CardContent className="p-6">
+                                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <TrendingUp className="w-4 h-4" />
+                                    Ladder Impact
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {rankHistory.map((rh, i) => {
+                                        let playerName = 'Unknown'
+                                        if (rh.player_profile_id === player1.id) playerName = player1.full_name || 'Challenger'
+                                        else if (rh.player_profile_id === player2.id) playerName = player2.full_name || 'Defender'
+
+                                        if (playerName === 'Unknown') return null
+
+                                        return (
+                                            <div key={i} className="flex items-center justify-between p-4 bg-muted/20 rounded-lg border">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-10 w-10">
+                                                        <AvatarFallback>{playerName[0]}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-semibold">{playerName}</p>
+                                                        <p className="text-xs text-muted-foreground">{rh.reason}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3 text-sm font-mono">
+                                                    <span className="text-muted-foreground">#{rh.old_rank}</span>
+                                                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                                                    <span className="font-bold text-foreground">#{rh.new_rank}</span>
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                )}
             </div>
         </div>
     )
