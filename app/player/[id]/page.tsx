@@ -46,14 +46,15 @@ export default async function PublicPlayerProfile({ params }: { params: { id: st
 
     const myPlayers = await Promise.all(
         profileRows.map(async (p): Promise<PlayerProfileExtended> => {
-            const [stats, matches, rankInfo, pendingChallenges, ratingHistory] = await Promise.all([
+            const [stats, matches, rankInfo, pendingChallenges, ratingHistory, rankHistory] = await Promise.all([
                 helpers.getProfileStats(p.id),
                 helpers.getMatchesForProfile(p.id, 5),
                 helpers.getRankForProfile(p.id, p.sport_id),
                 helpers.getPendingChallengesForProfile(p.id),
                 helpers.getRatingHistory(p.id),
+                helpers.getRankHistory(p.id)
             ])
-            return { ...p, stats, recentMatches: matches, rankInfo, pendingChallenges, ratingHistory }
+            return { ...p, stats, recentMatches: matches, rankInfo, pendingChallenges, ratingHistory, rankHistory }
         })
     )
 

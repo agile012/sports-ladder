@@ -10,6 +10,8 @@ import { PlayerProfileExtended } from '@/lib/types'
 import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import RankHistory from './RankHistory'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function PlayerProfile({ player, isPublic = false }: { player: PlayerProfileExtended; isPublic?: boolean }) {
   const winRate = player.stats?.winRate ?? 0
@@ -84,14 +86,29 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* Rating Chart */}
+            {/* History Charts with Tabs */}
             <div className="rounded-xl border bg-card p-1 shadow-sm">
-              <div className="px-4 py-3 border-b flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                <h4 className="font-semibold text-sm">Rating History</h4>
-              </div>
-              <div className="p-4">
-                <RatingHistory ratingHistory={player.ratingHistory} />
-              </div>
+              <Tabs defaultValue="rank" className="w-full">
+                <div className="px-4 py-3 border-b flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    <h4 className="font-semibold text-sm">Performance History</h4>
+                  </div>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="rank" className="text-xs h-6 px-2">Rank</TabsTrigger>
+                    <TabsTrigger value="rating" className="text-xs h-6 px-2">Rating</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <div className="p-4">
+                  <TabsContent value="rating" className="mt-0">
+                    <RatingHistory ratingHistory={player.ratingHistory} />
+                  </TabsContent>
+                  <TabsContent value="rank" className="mt-0">
+                    <RankHistory rankHistory={player.rankHistory} />
+                  </TabsContent>
+                </div>
+              </Tabs>
             </div>
 
             {/* Pending Challenges Area - Full Width in this column */}

@@ -206,3 +206,19 @@ export async function getRatingHistory(profileId: string, limit = 100): Promise<
     new_rating: item.new_rating,
   }))
 }
+
+export async function getRankHistory(profileId: string, limit = 100): Promise<import('@/lib/types').RankHistoryItem[]> {
+  const { data } = await supabase
+    .from('ladder_rank_history')
+    .select('id, match_id, old_rank, new_rank, reason, created_at')
+    .eq('player_profile_id', profileId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  return ((data as any[]) || []).map((item) => ({
+    created_at: item.created_at,
+    new_rank: item.new_rank,
+    old_rank: item.old_rank,
+    reason: item.reason
+  }))
+}
