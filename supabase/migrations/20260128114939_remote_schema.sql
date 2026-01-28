@@ -101,6 +101,199 @@ $$;
 ALTER FUNCTION "public"."assign_initial_ladder_rank"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") RETURNS json
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+    v_total_matches INTEGER;
+    v_challenger_wins INTEGER;
+    v_defender_wins INTEGER;
+    v_league_pulse JSON;
+    v_hall_of_fame_workhorse JSON;
+    v_hall_of_fame_flawless JSON;
+    v_hall_of_fame_fortress JSON;
+    v_hall_of_fame_skyrocketing JSON;
+    v_hall_of_fame_aggressor JSON;
+    v_hall_of_fame_wanted JSON;
+    v_rivalries JSON;
+BEGIN
+    -- 1. League Pulse
+    ---------------------------------------------------
+    SELECT COUNT(*) INTO v_total_matches FROM matches 
+    WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED');
+
+    -- Challenger Wins
+    SELECT COUNT(*) INTO v_challenger_wins FROM matches 
+    WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND winner_id = player1_id;
+    
+    -- Defender Wins
+    SELECT COUNT(*) INTO v_defender_wins FROM matches 
+    WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND winner_id = player2_id;
+
+    -- Matches Per Week
+    WITH weekly AS (
+        SELECT date_trunc('week', created_at) as week_start, count(*) as count
+        FROM matches
+        WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY 1
+        ORDER BY 1
+    )
+    SELECT json_agg(weekly) INTO v_league_pulse FROM weekly;
+
+    -- 2. Hall of Fame
+    ---------------------------------------------------
+    
+    -- "The Workhorse" (Most Matches Played)
+    WITH workhorse AS (
+        SELECT pp.id, pp.full_name, pp.avatar_url, count(m.id) as matches_count
+        FROM player_profiles_view pp
+        JOIN matches m ON (pp.id = m.player1_id OR pp.id = m.player2_id)
+        WHERE pp.sport_id = p_sport_id AND m.sport_id = p_sport_id AND m.status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY pp.id, pp.full_name, pp.avatar_url
+        ORDER BY matches_count DESC
+        LIMIT 5
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_workhorse FROM (
+        SELECT id, matches_count, full_name as name, avatar_url as avatar FROM workhorse
+    ) t;
+
+    -- "Flawless Victor" (Highest Win %) - Min 5 matches
+    WITH wins_stats AS (
+        SELECT pp.id, pp.full_name, pp.avatar_url,
+            COUNT(m.id) as total_matches,
+            COUNT(CASE WHEN m.winner_id = pp.id THEN 1 END) as wins
+        FROM player_profiles_view pp
+        JOIN matches m ON (pp.id = m.player1_id OR pp.id = m.player2_id)
+        WHERE pp.sport_id = p_sport_id AND m.sport_id = p_sport_id AND m.status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY pp.id, pp.full_name, pp.avatar_url
+        HAVING COUNT(m.id) >= 5
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_flawless FROM (
+        SELECT id, wins, total_matches, 
+               ROUND((wins::numeric / total_matches::numeric) * 100, 1) as win_pct,
+               full_name as name, avatar_url as avatar
+        FROM wins_stats
+        ORDER BY win_pct DESC, total_matches DESC
+        LIMIT 5
+    ) t;
+
+    -- "The Fortress" (Highest Defense Rate) - Min 5 defenses
+    WITH defense_stats AS (
+        SELECT pp.id, pp.full_name, pp.avatar_url,
+            COUNT(m.id) as total_defenses,
+            COUNT(CASE WHEN m.winner_id = pp.id THEN 1 END) as defense_wins
+        FROM player_profiles_view pp
+        JOIN matches m ON (pp.id = m.player2_id)
+        WHERE pp.sport_id = p_sport_id AND m.sport_id = p_sport_id AND m.status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY pp.id, pp.full_name, pp.avatar_url
+        HAVING COUNT(m.id) >= 5
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_fortress FROM (
+        SELECT id, total_defenses, defense_wins,
+               ROUND((defense_wins::numeric / total_defenses::numeric) * 100, 1) as defense_pct,
+               full_name as name, avatar_url as avatar
+        FROM defense_stats
+        ORDER BY defense_pct DESC, total_defenses DESC
+        LIMIT 5
+    ) t;
+
+    -- "Aggressor-in-Chief" (Most Challenges Issued)
+    WITH aggressor_stats AS (
+        SELECT pp.id, pp.full_name, pp.avatar_url, COUNT(m.id) as challenges_issued
+        FROM player_profiles_view pp
+        JOIN matches m ON pp.id = m.player1_id
+        WHERE pp.sport_id = p_sport_id AND m.sport_id = p_sport_id AND m.status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY pp.id, pp.full_name, pp.avatar_url
+        ORDER BY challenges_issued DESC
+        LIMIT 5
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_aggressor FROM (
+        SELECT id, challenges_issued, full_name as name, avatar_url as avatar FROM aggressor_stats
+    ) t;
+
+    -- "Most Wanted" (Most Challenges Received)
+    WITH wanted_stats AS (
+        SELECT pp.id, pp.full_name, pp.avatar_url, COUNT(m.id) as challenges_received
+        FROM player_profiles_view pp
+        JOIN matches m ON pp.id = m.player2_id
+        WHERE pp.sport_id = p_sport_id AND m.sport_id = p_sport_id AND m.status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY pp.id, pp.full_name, pp.avatar_url
+        ORDER BY challenges_received DESC
+        LIMIT 5
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_wanted FROM (
+        SELECT id, challenges_received, full_name as name, avatar_url as avatar FROM wanted_stats
+    ) t;
+
+    -- "Skyrocketing Contender" (Biggest Rank Jump)
+    WITH jumps AS (
+        SELECT lrh.player_profile_id, lrh.old_rank, lrh.new_rank, (lrh.old_rank - lrh.new_rank) as jump_size, lrh.created_at,
+               ROW_NUMBER() OVER(PARTITION BY lrh.player_profile_id ORDER BY (lrh.old_rank - lrh.new_rank) DESC) as rn
+        FROM ladder_rank_history lrh
+        WHERE lrh.old_rank > lrh.new_rank
+          AND lrh.sport_id = p_sport_id
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_hall_of_fame_skyrocketing FROM (
+        SELECT j.player_profile_id as id, j.jump_size, j.old_rank, j.new_rank, j.created_at,
+               pp.full_name as name, pp.avatar_url as avatar
+        FROM jumps j
+        JOIN player_profiles_view pp ON pp.id = j.player_profile_id
+        WHERE j.rn = 1
+        ORDER BY jump_size DESC
+        LIMIT 5
+    ) t;
+    
+    -- 3. Rivalries
+    ---------------------------------------------------
+    -- Needs names for both parties
+    WITH pairs AS (
+        SELECT 
+            LEAST(player1_id, player2_id) as p1, 
+            GREATEST(player1_id, player2_id) as p2,
+            COUNT(*) as matches
+        FROM matches
+        WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED')
+        GROUP BY 1, 2
+        ORDER BY 3 DESC
+        LIMIT 5
+    )
+    SELECT json_agg(row_to_json(r)) INTO v_rivalries FROM (
+        SELECT p.*,
+            (SELECT full_name FROM player_profiles_view WHERE id = p.p1) as p1_name,
+            (SELECT full_name FROM player_profiles_view WHERE id = p.p2) as p2_name,
+            (SELECT avatar_url FROM player_profiles_view WHERE id = p.p1) as p1_avatar,
+            (SELECT avatar_url FROM player_profiles_view WHERE id = p.p2) as p2_avatar,
+            
+            (SELECT COUNT(*) FROM matches WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND 
+                ((player1_id = p.p1 AND player2_id = p.p2 AND winner_id = p.p1) OR (player1_id = p.p2 AND player2_id = p.p1 AND winner_id = p.p1))
+            ) as p1_wins
+        FROM pairs p
+    ) r;
+
+    RETURN json_build_object(
+        'overview', json_build_object(
+            'total_matches', v_total_matches,
+            'challenger_wins', v_challenger_wins,
+            'defender_wins', v_defender_wins,
+            'matches_per_week', v_league_pulse
+        ),
+        'leaderboards', json_build_object(
+            'workhorse', v_hall_of_fame_workhorse,
+            'flawless', v_hall_of_fame_flawless,
+            'fortress', v_hall_of_fame_fortress,
+            'skyrocketing', v_hall_of_fame_skyrocketing,
+            'aggressor', v_hall_of_fame_aggressor,
+            'wanted', v_hall_of_fame_wanted
+        ),
+        'rivalries', v_rivalries
+    );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -329,108 +522,6 @@ $$;
 ALTER FUNCTION "public"."process_expired_challenges"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."process_ladder_match"() RETURNS "trigger"
-    LANGUAGE "plpgsql"
-    AS $$
-DECLARE
-    v_winner_id UUID;
-    v_loser_id UUID;
-    v_winner_rank INTEGER;
-    v_loser_rank INTEGER;
-    v_winner_name TEXT;
-    v_loser_name TEXT;
-    v_sport_id UUID;
-BEGIN
-    -- Only process if match is COMPLETED or CONFIRMED
-    IF NEW.status NOT IN ('COMPLETED', 'CONFIRMED') THEN
-        RETURN NEW;
-    END IF;
-
-    -- If status wasn't already complete, proceed
-    IF OLD.status IN ('COMPLETED', 'CONFIRMED') THEN
-        RETURN NEW;
-    END IF;
-
-    v_winner_id := NEW.winner_id;
-    v_sport_id := NEW.sport_id;
-
-    -- Identify loser
-    IF v_winner_id = NEW.player1_id THEN
-        v_loser_id := NEW.player2_id;
-    ELSE
-        v_loser_id := NEW.player1_id;
-    END IF;
-
-    -- Get current ranks and names
-    SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name 
-    FROM player_profiles_view 
-    WHERE sport_id = v_sport_id AND user_id = v_winner_id;
-    
-    SELECT ladder_rank, full_name INTO v_loser_rank, v_loser_name 
-    FROM player_profiles_view 
-    WHERE sport_id = v_sport_id AND user_id = v_loser_id;
-
-    -- Fallback for names
-    IF v_winner_name IS NULL THEN v_winner_name := 'Opponent'; END IF;
-    IF v_loser_name IS NULL THEN v_loser_name := 'Opponent'; END IF;
-
-    -- If either has no rank (unranked), or if Winner is already higher (lower number) than Loser, no leapfrog needed usually?
-    -- Actually, if Defender (Higher Rank) wins, nothing changes in Leapfrog usually.
-    -- Leapfrog only happens if Challenger (Lower Rank / Higher Number) beats Defender (Higher Rank / Lower Number).
-    
-    IF v_winner_rank IS NULL OR v_loser_rank IS NULL THEN
-        -- Handle unranked logic if needed, but for now ignore
-        RETURN NEW;
-    END IF;
-
-    -- Check for Leapfrog: Winner Rank > Loser Rank (e.g. 5 beats 2)
-    IF v_winner_rank > v_loser_rank THEN
-        -- 1. Log History BEFORE update
-        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
-        SELECT id, NEW.id, ladder_rank, v_loser_rank, 'Victory (Leapfrog) vs ' || v_loser_name, NOW()
-        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_winner_id;
-
-        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
-        SELECT id, NEW.id, ladder_rank, ladder_rank + 1, 'Defeated (Shift) by ' || v_winner_name, NOW()
-        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_loser_id;
-
-        -- 2. Shift everyone between LoserRank and WinnerRank down by 1
-        -- Range: [LoserRank, WinnerRank - 1] -> +1
-        UPDATE player_profiles
-        SET ladder_rank = ladder_rank + 1
-        WHERE sport_id = v_sport_id
-          AND ladder_rank >= v_loser_rank
-          AND ladder_rank < v_winner_rank;
-        
-        -- 3. Move Winner to LoserRank
-        UPDATE player_profiles
-        SET ladder_rank = v_loser_rank
-        WHERE sport_id = v_sport_id
-          AND user_id = v_winner_id;
-
-    ELSE
-        -- Defender Won (or Winner was already higher rank) -> No Rank Change usually
-        -- But let's log "Defended" event just for history? 
-        -- Or maybe just don't log if no change.
-        -- User wants "Rank History" in match details. Explicitly saying "No Change" is nice.
-        
-        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
-        SELECT id, NEW.id, ladder_rank, ladder_rank, 'Victory (Defended) vs ' || v_loser_name, NOW()
-        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_winner_id;
-
-        INSERT INTO ladder_rank_history (player_profile_id, match_id, old_rank, new_rank, reason, created_at)
-        SELECT id, NEW.id, ladder_rank, ladder_rank, 'Defeat (No Change) vs ' || v_winner_name, NOW()
-        FROM player_profiles WHERE sport_id = v_sport_id AND user_id = v_loser_id;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION "public"."process_ladder_match"() OWNER TO "postgres";
-
-
 CREATE OR REPLACE FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
@@ -440,6 +531,8 @@ DECLARE
   loser_id uuid;
   winner_rank integer;
   loser_rank integer;
+  winner_name text;
+  loser_name text;
   sport_uuid uuid;
 BEGIN
   -- Fetch Match Data
@@ -459,42 +552,60 @@ BEGIN
   
   sport_uuid := m.sport_id;
 
-  -- Get Current Ranks (Locking rows)
+  -- Get Current Ranks AND Names (Locking rows? Views can't be locked easily, so lock base table first)
   SELECT ladder_rank INTO winner_rank FROM public.player_profiles WHERE id = winner_id FOR UPDATE;
   SELECT ladder_rank INTO loser_rank FROM public.player_profiles WHERE id = loser_id FOR UPDATE;
 
+  -- Fetch Names for history logging
+  SELECT full_name INTO winner_name FROM public.player_profiles_view WHERE id = winner_id;
+  SELECT full_name INTO loser_name FROM public.player_profiles_view WHERE id = loser_id;
+
+  -- Fallbacks
+  IF winner_name IS NULL THEN winner_name := 'Opponent'; END IF;
+  IF loser_name IS NULL THEN loser_name := 'Opponent'; END IF;
+
+
   -- LEAPFROG LOGIC
   -- Only change if Winner (Lower Rank/Higher Number) beats Loser (Higher Rank/Lower Number)
-  -- Example: Winner Rank 15 beats Loser Rank 12.
-  -- Winner becomes 12.
-  -- Old 12 becomes 13, 13->14, 14->15.
   
   IF winner_rank > loser_rank THEN
-    -- Defer constraint check if possible, or assume deferrable constraint is set
-    SET CONSTRAINTS public.player_profiles_sport_rank_key DEFERRED;
+    -- Defer constraint check if possible
 
-    -- 1. Shift everyone between [Loser Rank, Winner Rank - 1] down by 1
-    UPDATE public.player_profiles
-    SET ladder_rank = ladder_rank + 1
-    WHERE sport_id = sport_uuid
-      AND ladder_rank >= loser_rank
-      AND ladder_rank < winner_rank;
-
-    -- 2. Move Winner to Loser's old rank
-    UPDATE public.player_profiles
-    SET ladder_rank = loser_rank
-    WHERE id = winner_id;
+    -- Update Ranks
+    -- Shift Down [Loser, Winner-1] -> +1
+    WITH affected AS (
+        SELECT id,
+            sport_id,
+            ladder_rank,
+            CASE
+                -- shift down players in [v_loser_rank, v_winner_rank)
+                WHEN sport_id = sport_uuid AND ladder_rank >= loser_rank AND ladder_rank < winner_rank THEN ladder_rank + 1
+                -- move winner to v_loser_rank
+                WHEN id = winner_id THEN loser_rank
+                ELSE ladder_rank
+            END AS new_rank
+        FROM player_profiles
+        WHERE sport_id = sport_uuid
+            AND (ladder_rank >= loser_rank AND ladder_rank <= winner_rank OR id = winner_id)
+    )
+    UPDATE player_profiles p
+    SET ladder_rank = a.new_rank
+    FROM affected a
+    WHERE p.id = a.id;
     
-    -- Record History
+    -- Record History with Detailed Reasons
     INSERT INTO public.ladder_rank_history (sport_id, player_profile_id, match_id, old_rank, new_rank, reason)
     VALUES 
-      (sport_uuid, winner_id, m.id, winner_rank, loser_rank, 'Victory: Leapfrog'),
-      (sport_uuid, loser_id, m.id, loser_rank, loser_rank + 1, 'Defeat: Displaced');
+      (sport_uuid, winner_id, m.id, winner_rank, loser_rank, 'Victory (Leapfrog) vs ' || loser_name),
+      (sport_uuid, loser_id, m.id, loser_rank, loser_rank + 1, 'Defeated (Shift) by ' || winner_name);
       
   ELSE
     -- Higher ranked player won (or equal), do nothing to ranks
     -- Optionally record "Defended" history
-    NULL;
+    INSERT INTO public.ladder_rank_history (sport_id, player_profile_id, match_id, old_rank, new_rank, reason)
+    VALUES 
+      (sport_uuid, winner_id, m.id, winner_rank, winner_rank, 'Victory (Defended) vs ' || loser_name),
+      (sport_uuid, loser_id, m.id, loser_rank, loser_rank, 'Defeat (No Change) vs ' || winner_name);
   END IF;
 
 END;
@@ -1517,6 +1628,12 @@ GRANT ALL ON FUNCTION "public"."assign_initial_ladder_rank"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "service_role";
@@ -1538,12 +1655,6 @@ GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "service_role"
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "anon";
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "service_role";
-
-
-
-GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "anon";
-GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."process_ladder_match"() TO "service_role";
 
 
 
