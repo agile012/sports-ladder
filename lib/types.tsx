@@ -136,4 +136,12 @@ export type PlayerProfileExtended = PlayerProfile & {
   recentMatches?: MatchHistoryItem[]
   pendingChallenges?: PendingChallengeItem[]
   ratingHistory?: RatingHistoryItem[]
+  rankHistory?: RankHistoryItem[]
+}
+
+export type RankHistoryItem = {
+  created_at: string
+  new_rank: number
+  old_rank: number
+  reason: string
 }
