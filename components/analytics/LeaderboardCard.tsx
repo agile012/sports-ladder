@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { Medal, Trophy, TrendingUp, Shield, Swords } from "lucide-react"
+import { Medal, Trophy } from "lucide-react"
 
 import Link from "next/link"
 

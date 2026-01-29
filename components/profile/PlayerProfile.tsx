@@ -3,23 +3,17 @@
 import MatchHistory from './MatchHistory'
 import PendingChallenges from './PendingChallenges'
 import RatingHistory from './RatingHistory'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PlayerProfileExtended } from '@/lib/types'
-import { Trophy, TrendingUp, TrendingDown, Activity, ExternalLink, Dna, LogOut, Phone, Pencil, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Trophy, TrendingUp, Activity, ExternalLink, Dna, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import RankHistory from './RankHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { leaveLadder } from '@/lib/actions/ladderActions'
-import { updateContactInfo } from '@/lib/actions/profileActions' // Keeping for now to avoid break if referenced, but actually unused logic will be removed.
 import { toast } from "sonner"
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import useUser from '@/lib/hooks/useUser'
 
 export default function PlayerProfile({ player, isPublic = false }: { player: PlayerProfileExtended; isPublic?: boolean }) {

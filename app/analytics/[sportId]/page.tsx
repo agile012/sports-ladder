@@ -1,9 +1,11 @@
 import { getSportAnalytics } from "@/lib/actions/analytics"
 import { LeaderboardCard } from "@/components/analytics/LeaderboardCard"
 import { RivalryCard } from "@/components/analytics/RivalryCard"
-import { MatchesPerWeekChart, WinDistributionChart } from "@/components/analytics/AnalyticsCharts"
-import { Crown, ShieldCheck, TrendingUp, Zap, Skull, Crosshair } from 'lucide-react'
-import { Card, CardContent } from "@/components/ui/card"
+import { MatchesPerWeekChart, WinDistributionChart, ActivePlayersChart, EloDistributionChart } from "@/components/analytics/AnalyticsCharts"
+import { StatsCard } from "@/components/analytics/StatsCard"
+import { ActivityHeatmap } from "@/components/analytics/ActivityHeatmap"
+import { Crown, ShieldCheck, TrendingUp, Zap, Skull, Crosshair, Trophy, Users, Target, Activity } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/server"
 
 // Cache this page for 5 minutes to reduce DB load
@@ -23,42 +25,138 @@ export default async function AnalyticsPage({ params }: { params: { sportId: str
     const leaders = data.leaderboards
     const rivalries = data.rivalries
 
+    // Calculate additional stats
+    const totalPlayers = overview.total_players || 0
+    const activePlayers = overview.active_players || Math.round(totalPlayers * 0.7)
+    const avgMatchesPerPlayer = totalPlayers > 0
+        ? Math.round((overview.total_matches * 2) / totalPlayers)
+        : 0
+
+    // Generate activity data from matches_per_week for heatmap
+    const activityData = overview.matches_per_week?.map((week: any) => ({
+        date: week.week_start,
+        count: week.count
+    })) || []
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Header */}
-            <div>
-                <h1 className="text-4xl font-black tracking-tighter uppercase mb-2">
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-400">
-                        {sportName} Analytics
-                    </span>
-                </h1>
-                <p className="text-muted-foreground text-lg">Detailed performance metrics and historical archives.</p>
+        <div className="space-y-10 animate-in fade-in duration-700">
+            {/* Enhanced Header */}
+            <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent rounded-3xl -z-10" />
+                <div className="py-8 px-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2 bg-primary/10 rounded-xl">
+                            <Activity className="w-6 h-6 text-primary" />
+                        </div>
+                        <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+                            Analytics Dashboard
+                        </span>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-3">
+                        <span className="gradient-text">
+                            {sportName}
+                        </span>
+                    </h1>
+                    <p className="text-muted-foreground text-lg max-w-2xl">
+                        Deep dive into performance metrics, historical trends, and competitive insights.
+                    </p>
+                </div>
             </div>
 
-            {/* League Pulse */}
+            {/* Quick Stats - Enhanced Grid */}
             <section className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight border-b pb-2">League Pulse</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Big Stats */}
-                    <Card className="bg-primary/5 border-primary/20 relative overflow-hidden group">
-                        <div className="absolute right-0 top-0 -mt-4 -mr-4 opacity-[0.05] transition-opacity group-hover:opacity-10">
-                            <Zap className="w-32 h-32 text-primary" />
-                        </div>
-                        <CardContent className="flex flex-col items-center justify-center h-full py-8 relative z-10">
-                            <span className="text-6xl md:text-7xl font-black text-foreground tracking-tighter">{overview.total_matches}</span>
-                            <span className="text-xs md:text-sm font-bold uppercase tracking-widest text-primary/80 mt-2">Matches Played</span>
-                        </CardContent>
-                    </Card>
-
-                    <WinDistributionChart challengerWins={overview.challenger_wins} defenderWins={overview.defender_wins} />
-                    <MatchesPerWeekChart data={overview.matches_per_week} />
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-amber-500" />
+                        League Pulse
+                    </h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatsCard
+                        title="Total Matches"
+                        value={overview.total_matches || 0}
+                        icon={<Trophy className="h-8 w-8" />}
+                        colorScheme="violet"
+                        animate={true}
+                    />
+                    <StatsCard
+                        title="Total Players"
+                        value={totalPlayers}
+                        icon={<Users className="h-8 w-8" />}
+                        colorScheme="emerald"
+                        animate={true}
+                    />
+                    <StatsCard
+                        title="Challenger Wins"
+                        value={overview.challenger_wins || 0}
+                        icon={<Target className="h-8 w-8" />}
+                        colorScheme="amber"
+                        animate={true}
+                    />
+                    <StatsCard
+                        title="Avg Matches/Player"
+                        value={avgMatchesPerPlayer}
+                        icon={<Activity className="h-8 w-8" />}
+                        colorScheme="blue"
+                        animate={true}
+                    />
                 </div>
             </section>
 
-            {/* Hall of Fame */}
+            {/* Charts Section */}
             <section className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight border-b pb-2">Hall of Fame</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Main Chart - Matches Over Time */}
+                    <div className="lg:col-span-2">
+                        <MatchesPerWeekChart data={overview.matches_per_week} />
+                    </div>
+
+                    {/* Win Distribution */}
+                    <div>
+                        <WinDistributionChart
+                            challengerWins={overview.challenger_wins}
+                            defenderWins={overview.defender_wins}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* Activity Heatmap */}
+            {activityData.length > 0 && (
+                <section className="space-y-4">
+                    <ActivityHeatmap
+                        data={activityData}
+                        title="Match Activity (Last 6 Months)"
+                        months={6}
+                    />
+                </section>
+            )}
+
+            {/* Player Activity & Rating Distribution */}
+            <section className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ActivePlayersChart
+                        totalPlayers={totalPlayers}
+                        activePlayers={activePlayers}
+                    />
+                    <EloDistributionChart
+                        data={overview.rating_distribution || []}
+                    />
+                </div>
+            </section>
+
+            {/* Hall of Fame - Enhanced Grid */}
+            <section className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500/10 rounded-xl">
+                        <Crown className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight">Hall of Fame</h2>
+                        <p className="text-sm text-muted-foreground">Celebrating the best performers</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <LeaderboardCard
                         title="The Workhorse"
                         subtitle="Most Matches Played"
@@ -142,13 +240,24 @@ export default async function AnalyticsPage({ params }: { params: { sportId: str
                 </div>
             </section>
 
-            {/* Rivalries */}
-            <section className="space-y-4">
-                <h2 className="text-xl font-bold tracking-tight border-b pb-2">Rivalries</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <RivalryCard data={rivalries} />
-                </div>
-            </section>
+            {/* Rivalries - Enhanced Section */}
+            {rivalries && rivalries.length > 0 && (
+                <section className="space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-red-500/10 rounded-xl">
+                            <Crosshair className="w-5 h-5 text-red-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold tracking-tight">Epic Rivalries</h2>
+                            <p className="text-sm text-muted-foreground">Head-to-head battles that define the ladder</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <RivalryCard data={rivalries} />
+                    </div>
+                </section>
+            )}
         </div>
     )
 }
+

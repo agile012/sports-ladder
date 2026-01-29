@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
-import { supabase } from '../supabase/client'
 
 // Helper to get authenticated user and their admin profiles
 async function getAdminUser() {
