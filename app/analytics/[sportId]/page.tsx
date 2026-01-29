@@ -41,25 +41,39 @@ export default async function AnalyticsPage({ params }: { params: { sportId: str
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             {/* Enhanced Header */}
-            <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-violet-500/5 to-transparent rounded-3xl -z-10" />
-                <div className="py-8 px-6">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-primary/10 rounded-xl">
-                            <Activity className="w-6 h-6 text-primary" />
+            <div className="relative overflow-hidden rounded-2xl border bg-card">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-violet-500/10" />
+                <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="relative py-8 px-6 md:px-8">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2">
+                                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                    <Activity className="w-5 h-5 text-emerald-500" />
+                                </div>
+                                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                    Analytics Dashboard
+                                </span>
+                            </div>
+                            <h1 className="text-3xl md:text-4xl font-black tracking-tight">
+                                <span className="text-foreground">{sportName}</span>
+                                <span className="text-muted-foreground font-medium ml-2">Stats</span>
+                            </h1>
+                            <p className="text-muted-foreground text-sm md:text-base max-w-xl">
+                                Performance metrics, historical trends, and competitive insights for the {sportName} ladder.
+                            </p>
                         </div>
-                        <span className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
-                            Analytics Dashboard
-                        </span>
+                        <div className="flex gap-3">
+                            <div className="text-center p-4 rounded-xl bg-background/60 backdrop-blur-sm border">
+                                <div className="text-2xl font-black text-emerald-500">{overview.total_matches || 0}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Matches</div>
+                            </div>
+                            <div className="text-center p-4 rounded-xl bg-background/60 backdrop-blur-sm border">
+                                <div className="text-2xl font-black text-violet-500">{totalPlayers}</div>
+                                <div className="text-xs text-muted-foreground uppercase tracking-wide">Players</div>
+                            </div>
+                        </div>
                     </div>
-                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter mb-3">
-                        <span className="gradient-text">
-                            {sportName}
-                        </span>
-                    </h1>
-                    <p className="text-muted-foreground text-lg max-w-2xl">
-                        Deep dive into performance metrics, historical trends, and competitive insights.
-                    </p>
                 </div>
             </div>
 

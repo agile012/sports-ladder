@@ -171,26 +171,25 @@ export async function getPendingChallengesForProfile(profileId: string): Promise
 }
 
 export async function getRankForProfile(profileId: string, sportId: string): Promise<RankInfo> {
-  const { data } = await supabase
+  // Fetch the specific player's ladder_rank
+  const { data: profile } = await supabase
     .from('player_profiles_view')
-    .select('id, rating')
+    .select('ladder_rank')
+    .eq('id', profileId)
+    .single()
+
+  // Count total active players in this sport
+  const { count } = await supabase
+    .from('player_profiles')
+    .select('id', { count: 'exact', head: true })
     .eq('sport_id', sportId)
-    .order('rating', { ascending: false })
+    .eq('deactivated', false)
+    .not('ladder_rank', 'is', null)
 
-  const players = (data as Pick<PlayerProfile, 'id' | 'rating'>[]) || []
-  const ranks: number[] = []
-  let lastRank = 0
-  for (let i = 0; i < players.length; i++) {
-    if (i === 0) { ranks.push(1); lastRank = 1 }
-    else {
-      if (players[i].rating === players[i - 1].rating) { ranks.push(lastRank) }
-      else { ranks.push(i + 1); lastRank = i + 1 }
-    }
+  return {
+    rank: profile?.ladder_rank ?? null,
+    total: count ?? 0
   }
-
-  const idx = players.findIndex((p) => p.id === profileId)
-  if (idx === -1) return { rank: null, total: players.length }
-  return { rank: ranks[idx], total: players.length }
 }
 
 export async function getRatingHistory(profileId: string, limit = 100): Promise<RatingHistoryItem[]> {

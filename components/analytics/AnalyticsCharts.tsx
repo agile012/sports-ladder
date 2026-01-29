@@ -31,24 +31,26 @@ export function MatchesPerWeekChart({ data }: { data: any[] }) {
                     <AreaChart data={chartData}>
                         <defs>
                             <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
                             </linearGradient>
                         </defs>
                         <XAxis
                             dataKey="label"
-                            stroke="#888888"
+                            stroke="currentColor"
                             fontSize={10}
                             tickLine={false}
                             axisLine={false}
                             minTickGap={20}
+                            className="text-muted-foreground"
                         />
                         <YAxis
-                            stroke="#888888"
+                            stroke="currentColor"
                             fontSize={10}
                             tickLine={false}
                             axisLine={false}
                             width={30}
+                            className="text-muted-foreground"
                         />
                         <Tooltip
                             content={({ active, payload, label }) => {
@@ -83,8 +85,8 @@ export function MatchesPerWeekChart({ data }: { data: any[] }) {
                         <Area
                             type="monotone"
                             dataKey="count"
-                            stroke="hsl(var(--primary))"
-                            strokeWidth={2}
+                            stroke="#10b981"
+                            strokeWidth={2.5}
                             fill="url(#colorCount)"
                         />
                     </AreaChart>

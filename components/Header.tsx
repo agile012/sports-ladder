@@ -11,6 +11,7 @@ import { User } from '@supabase/supabase-js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { AnalyticsNav } from './AnalyticsNav'
+import { LaddersNav } from './LaddersNav'
 
 export default function Header() {
   const router = useRouter()
@@ -65,7 +66,6 @@ export default function Header() {
   }
 
   const navLinks = [
-    { name: 'Ladders', href: '/ladder' },
     { name: 'Matches', href: '/match-history' },
     ...(user ? [{ name: 'Profile', href: '/profile' }] : [])
   ]
@@ -93,6 +93,8 @@ export default function Header() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-8">
+          <LaddersNav sports={sports} />
+
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -147,6 +149,18 @@ export default function Header() {
             className="md:hidden border-b bg-background/95 backdrop-blur-xl overflow-hidden"
           >
             <nav className="flex flex-col p-6 gap-4">
+              {/* Mobile Ladders Link */}
+              <Link
+                href="/ladder"
+                onClick={() => setIsMenuOpen(false)}
+                className={cn(
+                  "text-lg font-medium py-2 border-b border-border/50",
+                  pathname?.startsWith('/ladder') ? "text-primary" : "text-muted-foreground"
+                )}
+              >
+                Ladders
+              </Link>
+
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
