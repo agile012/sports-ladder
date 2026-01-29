@@ -36,13 +36,20 @@ export default async function PublicPlayerProfile({ params }: { params: { id: st
     }
 
     // Now fetch all profiles for this user
-    const [{ data: profiles }, { data: sports }] = await Promise.all([
+    const [{ data: profiles }, { data: sports }, { data: contacts }] = await Promise.all([
         supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url').eq('user_id', userId).order('rating', { ascending: false }),
         supabase.from('sports').select('id, name'),
+        supabase.from('player_profiles').select('id, contact_number').eq('user_id', userId)
     ])
 
     const sportMap = ((sports as Sport[]) || []).reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {} as Record<string, string>)
-    const profileRows = ((profiles as PlayerProfile[]) || []).map((p) => ({ ...p, sport_name: sportMap[p.sport_id] ?? p.sport_id }))
+    const contactMap = ((contacts as any[]) || []).reduce((acc, c) => ({ ...acc, [c.id]: c.contact_number }), {} as Record<string, string>)
+
+    const profileRows = ((profiles as PlayerProfile[]) || []).map((p) => ({
+        ...p,
+        sport_name: sportMap[p.sport_id] ?? p.sport_id,
+        contact_number: contactMap[p.id]
+    }))
 
     const myPlayers = await Promise.all(
         profileRows.map(async (p): Promise<PlayerProfileExtended> => {

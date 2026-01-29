@@ -11,7 +11,7 @@ export async function getProfilePageData(userId: string) {
     const [userProfilesRes, sports, allPlayers] = await Promise.all([
         supabase
             .from('player_profiles_view')
-            .select('id, user_id, sport_id, rating, matches_played, full_name, avatar_url, is_admin, deactivated, deactivated_at, last_active_rank, contact_number')
+            .select('id, user_id, sport_id, rating, ladder_rank, matches_played, full_name, avatar_url, is_admin, deactivated, deactivated_at, last_active_rank, contact_number')
             .eq('user_id', userId)
             .order('rating', { ascending: false }),
         getCachedSports(),
@@ -78,13 +78,13 @@ export async function getProfilePageData(userId: string) {
         const pId = p.id
         const sportPlayers = allPlayers.filter(ap => ap.sport_id === p.sport_id)
 
-        // A. Rank Info (In-Memory)
-        // Players are already sorted by rating desc in cached list
-        // Handle ties if needed, or just index
-        const rankIndex = sportPlayers.findIndex(x => x.id === pId)
+        // A. Rank Info
+        // Use actual ladder_rank from database, not ELO-based index
+        // Count only active players for total
+        const activeSportPlayers = sportPlayers.filter(x => !x.deactivated && x.ladder_rank !== null)
         const rankInfo: RankInfo = {
-            rank: rankIndex >= 0 ? rankIndex + 1 : null,
-            total: sportPlayers.length
+            rank: p.ladder_rank ?? null,
+            total: activeSportPlayers.length
         }
 
         // B. Recent Matches

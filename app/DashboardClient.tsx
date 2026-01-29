@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
-import { Trophy, History } from 'lucide-react'
+import { Trophy, History, Sparkles, Activity, Users, Target, ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -215,7 +215,40 @@ export default function DashboardClient() {
     )
 
     return (
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mt-4">
+            {/* Welcome Hero - Only for logged-out users */}
+            {!user && (
+                <div className="md:col-span-3 relative overflow-hidden rounded-2xl border bg-card mb-4 shadow-sm">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-violet-500/10" />
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                    <div className="relative py-10 px-6 md:px-10 flex flex-col md:flex-row items-center gap-8">
+                        <div className="p-5 bg-background/60 backdrop-blur-sm rounded-2xl border shadow-sm hidden md:block">
+                            <Trophy className="h-10 w-10 text-primary" />
+                        </div>
+
+                        <div className="space-y-4 text-center md:text-left flex-1">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+                                <Sparkles className="h-3 w-3" /> Welcome
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground">
+                                IIMA Sports Ladder
+                            </h1>
+                            <p className="text-muted-foreground text-lg max-w-2xl mx-auto md:mx-0 leading-relaxed">
+                                Compete, climb the rankings, and prove you're the best. Join the community of athletes striving for excellence.
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+                                <Button onClick={() => router.push('/login')} size="lg" className="font-bold shadow-lg shadow-primary/20 px-8">
+                                    Get Started <Target className="ml-2 h-4 w-4" />
+                                </Button>
+                                <Button onClick={() => router.push('/ladder')} variant="outline" size="lg" className="bg-background/50 backdrop-blur-sm">
+                                    View Ladders
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Sidebar / Secondary Content */}
             <aside className="md:col-span-1 space-y-6 md:order-last">
@@ -337,13 +370,16 @@ export default function DashboardClient() {
                     >
                         <Tabs defaultValue={activeSports[0].id} className="w-full space-y-6">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold">Sport Dashboard</h2>
-                                <TabsList className='bg-muted/50 p-1 flex-wrap h-auto'>
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-primary" />
+                                    Sport Dashboard
+                                </h2>
+                                <TabsList className='bg-muted/50 p-1 flex-wrap h-auto gap-1'>
                                     {activeSports.map((s) => (
                                         <TabsTrigger
                                             key={s.id}
                                             value={s.id}
-                                            className='font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm'
+                                            className='font-semibold data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-violet-500/10 data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all'
                                         >
                                             {s.name}
                                         </TabsTrigger>
@@ -376,8 +412,13 @@ export default function DashboardClient() {
                         </Tabs>
                     </motion.div>
                 ) : (
-                    <div className="text-center p-12 text-muted-foreground bg-muted/10 rounded-xl border border-dashed">
-                        {inactiveSports.length > 0 ? 'You have inactive ladders. Rejoin to compete!' : 'No active sports. Join a ladder to get started!'}
+                    <div className="text-center p-12 text-muted-foreground bg-gradient-to-br from-muted/20 to-transparent rounded-xl border border-dashed">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                            <Trophy className="h-8 w-8 text-primary" />
+                        </div>
+                        <p className="font-medium">
+                            {inactiveSports.length > 0 ? 'You have inactive ladders. Rejoin to compete!' : 'No active sports. Join a ladder to get started!'}
+                        </p>
                     </div>
                 )}
             </main>
