@@ -116,9 +116,14 @@ CREATE OR REPLACE FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") R
     AS $$
 DECLARE
     v_total_matches INTEGER;
+    v_total_players INTEGER;
+    v_active_players INTEGER;
     v_challenger_wins INTEGER;
     v_defender_wins INTEGER;
     v_league_pulse JSON;
+    v_rating_distribution JSON;
+    v_win_streaks JSON;
+    v_upsets JSON;
     v_hall_of_fame_workhorse JSON;
     v_hall_of_fame_flawless JSON;
     v_hall_of_fame_fortress JSON;
@@ -127,20 +132,27 @@ DECLARE
     v_hall_of_fame_wanted JSON;
     v_rivalries JSON;
 BEGIN
-    -- 1. League Pulse
-    ---------------------------------------------------
     SELECT COUNT(*) INTO v_total_matches FROM matches 
     WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED');
 
-    -- Challenger Wins
+    SELECT COUNT(*) INTO v_total_players FROM player_profiles
+    WHERE sport_id = p_sport_id AND deactivated = FALSE;
+
+    SELECT COUNT(DISTINCT pp.id) INTO v_active_players
+    FROM player_profiles pp
+    JOIN matches m ON (pp.id = m.player1_id OR pp.id = m.player2_id)
+    WHERE pp.sport_id = p_sport_id 
+      AND pp.deactivated = FALSE
+      AND m.sport_id = p_sport_id 
+      AND m.status IN ('PROCESSED', 'CONFIRMED')
+      AND m.created_at >= NOW() - INTERVAL '30 days';
+
     SELECT COUNT(*) INTO v_challenger_wins FROM matches 
     WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND winner_id = player1_id;
     
-    -- Defender Wins
     SELECT COUNT(*) INTO v_defender_wins FROM matches 
     WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND winner_id = player2_id;
 
-    -- Matches Per Week
     WITH weekly AS (
         SELECT date_trunc('week', created_at) as week_start, count(*) as count
         FROM matches
@@ -150,10 +162,141 @@ BEGIN
     )
     SELECT json_agg(weekly) INTO v_league_pulse FROM weekly;
 
-    -- 2. Hall of Fame
-    ---------------------------------------------------
-    
-    -- "The Workhorse" (Most Matches Played)
+    WITH rating_buckets_raw AS (
+        SELECT 
+            CASE 
+                WHEN rating < 900 THEN '< 900'
+                WHEN rating >= 900 AND rating < 1000 THEN '900-999'
+                WHEN rating >= 1000 AND rating < 1100 THEN '1000-1099'
+                WHEN rating >= 1100 AND rating < 1200 THEN '1100-1199'
+                WHEN rating >= 1200 AND rating < 1300 THEN '1200-1299'
+                WHEN rating >= 1300 THEN '1300+'
+                ELSE 'Unknown'
+            END as rating_range,
+            COUNT(*) as count
+        FROM player_profiles
+        WHERE sport_id = p_sport_id 
+          AND deactivated = FALSE 
+          AND rating IS NOT NULL
+        GROUP BY 1
+    ), rating_buckets AS (
+        SELECT rating_range, count FROM rating_buckets_raw
+        ORDER BY
+            CASE rating_range
+                WHEN '< 900' THEN 1
+                WHEN '900-999' THEN 2
+                WHEN '1000-1099' THEN 3
+                WHEN '1100-1199' THEN 4
+                WHEN '1200-1299' THEN 5
+                WHEN '1300+' THEN 6
+                ELSE 7
+            END
+    )
+    SELECT json_agg(row_to_json(rating_buckets)) INTO v_rating_distribution FROM rating_buckets;
+
+    -- Win streaks: compute row numbers and grp without nested window functions
+    WITH player_matches AS (
+        SELECT 
+            pp.id,
+            pp.full_name as name,
+            pp.avatar_url as avatar,
+            m.created_at,
+            CASE WHEN m.winner_id = pp.id THEN 1 ELSE 0 END as won
+        FROM player_profiles_view pp
+        JOIN matches m ON (pp.id = m.player1_id OR pp.id = m.player2_id)
+        WHERE pp.sport_id = p_sport_id 
+          AND m.sport_id = p_sport_id 
+          AND m.status IN ('PROCESSED', 'CONFIRMED')
+    ),
+    pm_numbered AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY created_at DESC) as rn,
+               SUM(CASE WHEN won = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY id ORDER BY created_at DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as zeros_count_desc,
+               SUM(CASE WHEN won = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY id ORDER BY created_at ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as zeros_count_asc
+        FROM player_matches
+    ),
+    -- current streak: count consecutive wins from most recent until first loss
+    current_streaks AS (
+        SELECT id, name, avatar, MAX(win_count) as current_streak
+        FROM (
+            SELECT id, name, avatar, rn, won,
+                   CASE WHEN rn = 1 THEN SUM(CASE WHEN won = 1 THEN 1 ELSE 0 END) OVER (PARTITION BY id ORDER BY rn ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) END as win_count
+            FROM pm_numbered
+        ) s
+        WHERE won = 1
+        GROUP BY id, name, avatar
+    ),
+    -- best streaks: group by runs using zeros_count_asc to define grp
+    best_streaks AS (
+        SELECT id, MAX(streak_len) as best_streak
+        FROM (
+            SELECT id, SUM(won) as streak_len
+            FROM (
+                SELECT id, won, zeros_count_asc as grp
+                FROM pm_numbered
+            ) x
+            GROUP BY id, grp
+            HAVING SUM(won) > 0
+        ) y
+        GROUP BY id
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_win_streaks FROM (
+        SELECT 
+            cs.id,
+            cs.name,
+            cs.avatar,
+            COALESCE(cs.current_streak, 0)::int as current_streak,
+            COALESCE(bs.best_streak, 0)::int as best_streak
+        FROM current_streaks cs
+        LEFT JOIN best_streaks bs ON cs.id = bs.id
+        WHERE cs.current_streak >= 2
+        ORDER BY cs.current_streak DESC, bs.best_streak DESC
+        LIMIT 10
+    ) t;
+
+    -- Upsets
+    WITH upsets AS (
+        SELECT 
+            m.id,
+            m.winner_id,
+            m.created_at as date,
+            winner_pp.full_name as winner_name,
+            winner_pp.avatar_url as winner_avatar,
+            CASE WHEN m.winner_id = m.player1_id THEN lrh_w_p1.old_rank ELSE lrh_w_p2.old_rank END as winner_rank_at_time,
+            loser_pp.full_name as loser_name,
+            loser_pp.avatar_url as loser_avatar,
+            CASE WHEN m.winner_id = m.player1_id THEN lrh_l_p2.old_rank ELSE lrh_l_p1.old_rank END as loser_rank_at_time
+        FROM matches m
+        JOIN player_profiles_view winner_pp ON winner_pp.id = m.winner_id
+        JOIN player_profiles_view loser_pp ON loser_pp.id = CASE WHEN m.winner_id = m.player1_id THEN m.player2_id ELSE m.player1_id END
+        LEFT JOIN ladder_rank_history lrh_w_p1 ON lrh_w_p1.match_id = m.id AND lrh_w_p1.player_profile_id = m.player1_id
+        LEFT JOIN ladder_rank_history lrh_w_p2 ON lrh_w_p2.match_id = m.id AND lrh_w_p2.player_profile_id = m.player2_id
+        LEFT JOIN ladder_rank_history lrh_l_p1 ON lrh_l_p1.match_id = m.id AND lrh_l_p1.player_profile_id = m.player1_id
+        LEFT JOIN ladder_rank_history lrh_l_p2 ON lrh_l_p2.match_id = m.id AND lrh_l_p2.player_profile_id = m.player2_id
+        WHERE m.sport_id = p_sport_id 
+          AND m.status IN ('PROCESSED', 'CONFIRMED')
+          AND m.winner_id IS NOT NULL
+          AND m.created_at >= NOW() - INTERVAL '90 days'
+    )
+    SELECT json_agg(row_to_json(t)) INTO v_upsets FROM (
+        SELECT 
+            id,
+            winner_id,
+            winner_name,
+            winner_avatar,
+            winner_rank_at_time as winner_rank,
+            loser_name,
+            loser_avatar,
+            loser_rank_at_time as loser_rank,
+            (winner_rank_at_time - loser_rank_at_time) as rank_difference,
+            date
+        FROM upsets
+        WHERE winner_rank_at_time > loser_rank_at_time
+          AND (winner_rank_at_time - loser_rank_at_time) >= 3
+        ORDER BY (winner_rank_at_time - loser_rank_at_time) DESC, date DESC
+        LIMIT 10
+    ) t;
+
+    -- Hall of Fame and rivalries as before
     WITH workhorse AS (
         SELECT pp.id, pp.full_name, pp.avatar_url, count(m.id) as matches_count
         FROM player_profiles_view pp
@@ -167,7 +310,6 @@ BEGIN
         SELECT id, matches_count, full_name as name, avatar_url as avatar FROM workhorse
     ) t;
 
-    -- "Flawless Victor" (Highest Win %) - Min 5 matches
     WITH wins_stats AS (
         SELECT pp.id, pp.full_name, pp.avatar_url,
             COUNT(m.id) as total_matches,
@@ -187,7 +329,6 @@ BEGIN
         LIMIT 5
     ) t;
 
-    -- "The Fortress" (Highest Defense Rate) - Min 5 defenses
     WITH defense_stats AS (
         SELECT pp.id, pp.full_name, pp.avatar_url,
             COUNT(m.id) as total_defenses,
@@ -207,7 +348,6 @@ BEGIN
         LIMIT 5
     ) t;
 
-    -- "Aggressor-in-Chief" (Most Challenges Issued)
     WITH aggressor_stats AS (
         SELECT pp.id, pp.full_name, pp.avatar_url, COUNT(m.id) as challenges_issued
         FROM player_profiles_view pp
@@ -221,7 +361,6 @@ BEGIN
         SELECT id, challenges_issued, full_name as name, avatar_url as avatar FROM aggressor_stats
     ) t;
 
-    -- "Most Wanted" (Most Challenges Received)
     WITH wanted_stats AS (
         SELECT pp.id, pp.full_name, pp.avatar_url, COUNT(m.id) as challenges_received
         FROM player_profiles_view pp
@@ -235,7 +374,6 @@ BEGIN
         SELECT id, challenges_received, full_name as name, avatar_url as avatar FROM wanted_stats
     ) t;
 
-    -- "Skyrocketing Contender" (Biggest Rank Jump)
     WITH jumps AS (
         SELECT lrh.player_profile_id, lrh.old_rank, lrh.new_rank, (lrh.old_rank - lrh.new_rank) as jump_size, lrh.created_at,
                ROW_NUMBER() OVER(PARTITION BY lrh.player_profile_id ORDER BY (lrh.old_rank - lrh.new_rank) DESC) as rn
@@ -252,10 +390,7 @@ BEGIN
         ORDER BY jump_size DESC
         LIMIT 5
     ) t;
-    
-    -- 3. Rivalries
-    ---------------------------------------------------
-    -- Needs names for both parties
+
     WITH pairs AS (
         SELECT 
             LEAST(player1_id, player2_id) as p1, 
@@ -283,9 +418,12 @@ BEGIN
     RETURN json_build_object(
         'overview', json_build_object(
             'total_matches', v_total_matches,
+            'total_players', v_total_players,
+            'active_players', v_active_players,
             'challenger_wins', v_challenger_wins,
             'defender_wins', v_defender_wins,
-            'matches_per_week', v_league_pulse
+            'matches_per_week', v_league_pulse,
+            'rating_distribution', v_rating_distribution
         ),
         'leaderboards', json_build_object(
             'workhorse', v_hall_of_fame_workhorse,
@@ -293,7 +431,9 @@ BEGIN
             'fortress', v_hall_of_fame_fortress,
             'skyrocketing', v_hall_of_fame_skyrocketing,
             'aggressor', v_hall_of_fame_aggressor,
-            'wanted', v_hall_of_fame_wanted
+            'wanted', v_hall_of_fame_wanted,
+            'win_streaks', v_win_streaks,
+            'upsets', v_upsets
         ),
         'rivalries', v_rivalries
     );
@@ -480,11 +620,12 @@ DECLARE
   processed_count integer := 0;
   processed_matches jsonb := '[]'::jsonb;
   new_scores jsonb;
+  elo_result jsonb;
 BEGIN
   FOR m IN
     SELECT *
     FROM public.matches
-    WHERE status IN ('CHALLENGED'::match_status, 'PENDING'::match_status) -- UPDATED: Added PENDING
+    WHERE status IN ('CHALLENGED'::match_status, 'PENDING'::match_status)
       AND player1_id IS NOT NULL
       AND created_at IS NOT NULL
     FOR UPDATE SKIP LOCKED
@@ -521,14 +662,33 @@ BEGIN
         new_scores := m.scores || jsonb_build_object('reason', 'forfeit');
       END IF;
 
-      -- Determine winner: Explicitly set Player 1 (Challenger) as winner
-      -- This applies to both CHALLENGED (ignored) and PENDING (accepted but timed out)
+      -- Step 1: Set winner and move to CONFIRMED status (for consistency)
       UPDATE public.matches
       SET winner_id = player1_id,
           scores = new_scores,
-          status = 'PROCESSED'::match_status,
+          status = 'CONFIRMED'::match_status,
           updated_at = now()
       WHERE id = m.id;
+
+      -- Step 2: Process ladder rank changes (leapfrog logic)
+      -- This updates the ladder_rank for winner/loser and inserts history
+      PERFORM process_ladder_match(m.id);
+
+      -- Step 3: Process ELO changes and mark as PROCESSED
+      -- This function will:
+      -- - Update player ratings
+      -- - Insert ratings_history
+      -- - Set status to PROCESSED
+      BEGIN
+        SELECT process_match_elo(m.id) INTO elo_result;
+      EXCEPTION WHEN OTHERS THEN
+        -- Log error but continue - ladder update is more critical
+        RAISE NOTICE 'ELO processing failed for match %: %', m.id, SQLERRM;
+        -- Still mark as processed to avoid infinite retries
+        UPDATE public.matches
+        SET status = 'PROCESSED'::match_status, updated_at = now()
+        WHERE id = m.id;
+      END;
 
       processed_matches := processed_matches || jsonb_build_object(
         'match_id', m.id,
@@ -536,7 +696,8 @@ BEGIN
         'player2_id', m.player2_id,
         'sport_id', m.sport_id,
         'cutoff', cutoff,
-        'status_was', m.status
+        'status_was', m.status,
+        'elo_result', COALESCE(elo_result, '{"error": "failed"}'::jsonb)
       );
 
       processed_count := processed_count + 1;
@@ -603,12 +764,11 @@ BEGIN
   IF winner_rank > loser_rank THEN
     -- Defer constraint check if possible
 
-    -- Update Ranks
-    -- Shift Down [Loser, Winner-1] -> +1
+    -- Update Ranks and Capture Changes
     WITH affected AS (
         SELECT id,
             sport_id,
-            ladder_rank,
+            ladder_rank as old_rank,
             CASE
                 -- shift down players in [v_loser_rank, v_winner_rank)
                 WHEN sport_id = sport_uuid AND ladder_rank >= loser_rank AND ladder_rank < winner_rank THEN ladder_rank + 1
@@ -619,17 +779,29 @@ BEGIN
         FROM player_profiles
         WHERE sport_id = sport_uuid
             AND (ladder_rank >= loser_rank AND ladder_rank <= winner_rank OR id = winner_id)
+    ),
+    updates AS (
+        UPDATE player_profiles p
+        SET ladder_rank = a.new_rank
+        FROM affected a
+        WHERE p.id = a.id
+        RETURNING p.id, p.sport_id, a.old_rank, a.new_rank
     )
-    UPDATE player_profiles p
-    SET ladder_rank = a.new_rank
-    FROM affected a
-    WHERE p.id = a.id;
-    
-    -- Record History with Detailed Reasons
+    -- Insert History for ALL affected players
     INSERT INTO public.ladder_rank_history (sport_id, player_profile_id, match_id, old_rank, new_rank, reason)
-    VALUES 
-      (sport_uuid, winner_id, m.id, winner_rank, loser_rank, 'Victory (Leapfrog) vs ' || loser_name),
-      (sport_uuid, loser_id, m.id, loser_rank, loser_rank + 1, 'Defeated (Shift) by ' || winner_name);
+    SELECT 
+        u.sport_id, 
+        u.id, 
+        m.id, 
+        u.old_rank, 
+        u.new_rank,
+        CASE
+            WHEN u.id = winner_id THEN 'Victory (Leapfrog) vs ' || loser_name
+            WHEN u.id = loser_id THEN 'Defeated (Shift) by ' || winner_name
+            ELSE 'Rank Adjustment: Displaced by ' || winner_name
+        END
+    FROM updates u
+    WHERE u.old_rank IS DISTINCT FROM u.new_rank;
       
   ELSE
     -- Higher ranked player won (or equal), do nothing to ranks
@@ -774,35 +946,31 @@ ALTER FUNCTION "public"."reactivate_profile_on_match"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."recalc_ladder_history"() RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql"
     AS $$
 DECLARE
     m RECORD;
-    v_winner_id UUID;
-    v_loser_id UUID;
-    v_winner_rank INTEGER;
-    v_loser_rank INTEGER;
-    v_winner_name TEXT;
-    v_loser_name TEXT;
-    v_sport_id UUID;
+    v_winner_id uuid;
+    v_loser_id uuid;
+    v_sport_id uuid;
+    v_winner_rank int;
+    v_loser_rank int;
+    v_winner_name text;
+    v_loser_name text;
 BEGIN
     -- 1. Clear History
     TRUNCATE TABLE ladder_rank_history;
 
     -- 2. Reset Ranks (Based on join date)
-    -- We'll use a temporary approach: Update directly using a window function logic via UPDATE FROM?
-    -- Postgres UPDATE doesn't support direct window functions nicely in the SET clause on the same table without a subquery.
-    
+    -- Reset active players to join order. Deactivated ones stay null/deactivated.
     WITH ranked_players AS (
         SELECT id, ROW_NUMBER() OVER (PARTITION BY sport_id ORDER BY created_at ASC) as initial_rank
         FROM player_profiles
-        WHERE deactivated = FALSE -- Only active players get a rank initially? Or all? 
-        -- If we are determining "Initial State", we should probably include everyone who was ever active?
-        -- Actually, simplified: Reset active players to join order. Deactivated ones stay null/deactivated.
+        WHERE deactivated = FALSE 
     )
     UPDATE player_profiles pp
     SET ladder_rank = rp.initial_rank,
-        last_active_rank = NULL -- Reset this too?
+        last_active_rank = NULL
     FROM ranked_players rp
     WHERE pp.id = rp.id;
 
@@ -815,7 +983,7 @@ BEGIN
         v_winner_id := m.winner_id;
         v_sport_id := m.sport_id;
         
-        -- Skip if no winner (shouldn't happen for these statuses but good check)
+        -- Skip if no winner
         IF v_winner_id IS NULL THEN CONTINUE; END IF;
 
         IF v_winner_id = m.player1_id THEN
@@ -824,13 +992,7 @@ BEGIN
             v_loser_id := m.player1_id;
         END IF;
 
-        -- Get current ranks (these have been updated by previous loops)
-        -- Need Names for the history log!
-        -- We can fetch names from player_profiles directly (if we added updated view logic or joined auth.users)
-        -- Or just fetch from the view.
-        
-        -- Note: player_profiles_view might be slow in a loop, but fine for backfill tool.
-        
+        -- Get current ranks
         SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name 
         FROM player_profiles_view 
         WHERE id = v_winner_id;
@@ -848,24 +1010,12 @@ BEGIN
         IF v_winner_rank IS NOT NULL AND v_loser_rank IS NOT NULL THEN
             IF v_winner_rank > v_loser_rank THEN
                 -- LEAPFROG
-                -- Log
-                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
-                VALUES (
-                    v_winner_id, m.sport_id, m.id, v_winner_rank, v_loser_rank, 'Victory (Leapfrog) vs ' || v_loser_name, m.created_at
-                );
-
-                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
-                VALUES (
-                    v_loser_id, m.sport_id, m.id, v_loser_rank, v_loser_rank + 1, 'Defeated (Shift) by ' || v_winner_name, m.created_at
-                );
-                SET CONSTRAINTS public.player_profiles_sport_rank_key DEFERRED;
-
-                -- Update Ranks
-                -- Shift Down [Loser, Winner-1] -> +1
+                
+                -- Update Ranks and Capture Changes
                 WITH affected AS (
                     SELECT id,
                         sport_id,
-                        ladder_rank,
+                        ladder_rank as old_rank,
                         CASE
                             -- shift down players in [v_loser_rank, v_winner_rank)
                             WHEN sport_id = v_sport_id AND ladder_rank >= v_loser_rank AND ladder_rank < v_winner_rank THEN ladder_rank + 1
@@ -876,11 +1026,30 @@ BEGIN
                     FROM player_profiles
                     WHERE sport_id = v_sport_id
                       AND (ladder_rank >= v_loser_rank AND ladder_rank <= v_winner_rank OR id = v_winner_id)
+                ),
+                updates AS (
+                    UPDATE player_profiles p
+                    SET ladder_rank = a.new_rank
+                    FROM affected a
+                    WHERE p.id = a.id
+                    RETURNING p.id, p.sport_id, a.old_rank, a.new_rank
                 )
-                UPDATE player_profiles p
-                SET ladder_rank = a.new_rank
-                FROM affected a
-                WHERE p.id = a.id;
+                -- Insert History for ALL affected players
+                INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
+                SELECT 
+                    u.id,
+                    u.sport_id, 
+                    m.id, 
+                    u.old_rank, 
+                    u.new_rank,
+                    CASE
+                        WHEN u.id = v_winner_id THEN 'Victory (Leapfrog) vs ' || v_loser_name
+                        WHEN u.id = v_loser_id THEN 'Defeated (Shift) by ' || v_winner_name
+                        ELSE 'Rank Adjustment: Displaced by ' || v_winner_name
+                    END,
+                    m.created_at
+                FROM updates u
+                WHERE u.old_rank IS DISTINCT FROM u.new_rank;
 
             ELSE
                 -- DEFENDED / NO CHANGE
