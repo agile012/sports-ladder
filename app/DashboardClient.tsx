@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import LadderList from '@/components/ladders/LadderList'
-import { Trophy, History, Sparkles, Activity, Users, Target } from 'lucide-react'
+import { Trophy, History, Sparkles, Activity, Users, Target, ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -218,22 +218,34 @@ export default function DashboardClient() {
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 mt-4">
             {/* Welcome Hero - Only for logged-out users */}
             {!user && (
-                <div className="md:col-span-3 relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-violet-500/5 to-transparent border p-8 mb-4">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Sparkles className="h-5 w-5 text-primary" />
-                            <span className="text-sm font-bold uppercase tracking-widest text-primary">Welcome</span>
+                <div className="md:col-span-3 relative overflow-hidden rounded-2xl border bg-card mb-4 shadow-sm">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-primary/5 to-violet-500/10" />
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+
+                    <div className="relative py-10 px-6 md:px-10 flex flex-col md:flex-row items-center gap-8">
+                        <div className="p-5 bg-background/60 backdrop-blur-sm rounded-2xl border shadow-sm hidden md:block">
+                            <Trophy className="h-10 w-10 text-primary" />
                         </div>
-                        <h1 className="text-3xl md:text-4xl font-black tracking-tighter mb-3">
-                            <span className="gradient-text">IIMA Sports Ladder</span>
-                        </h1>
-                        <p className="text-muted-foreground max-w-xl mb-6">
-                            Compete, climb the rankings, and prove you're the best. Join the community of athletes striving for excellence.
-                        </p>
-                        <Button onClick={() => router.push('/login')} className="font-bold shadow-lg shadow-primary/20">
-                            Get Started <Trophy className="ml-2 h-4 w-4" />
-                        </Button>
+
+                        <div className="space-y-4 text-center md:text-left flex-1">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+                                <Sparkles className="h-3 w-3" /> Welcome
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-black tracking-tight text-foreground">
+                                IIMA Sports Ladder
+                            </h1>
+                            <p className="text-muted-foreground text-lg max-w-2xl mx-auto md:mx-0 leading-relaxed">
+                                Compete, climb the rankings, and prove you're the best. Join the community of athletes striving for excellence.
+                            </p>
+                            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 pt-2">
+                                <Button onClick={() => router.push('/login')} size="lg" className="font-bold shadow-lg shadow-primary/20 px-8">
+                                    Get Started <Target className="ml-2 h-4 w-4" />
+                                </Button>
+                                <Button onClick={() => router.push('/ladder')} variant="outline" size="lg" className="bg-background/50 backdrop-blur-sm">
+                                    View Ladders
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
