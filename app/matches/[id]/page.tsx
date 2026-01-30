@@ -2,11 +2,15 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import MatchDetailsView from '@/components/matches/MatchDetailsView'
 
-type Props = { params: { id: string } }
+type Props = {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
 
-export default async function MatchPage({ params }: Props) {
+export default async function MatchPage({ params, searchParams }: Props) {
   const supabase = await createClient()
-  const { id } = (await params) as { id: string }
+  const { id } = await params
+  const { token, action, winner, reported_by } = await searchParams
 
   const matchRes = await supabase.from('matches').select('*').eq('id', id).limit(1).maybeSingle()
   if (!matchRes.data) return <div className="max-w-3xl mx-auto p-6">Match not found</div>
@@ -23,21 +27,33 @@ export default async function MatchPage({ params }: Props) {
       ; (profiles || []).forEach((p: any) => { profilesMap[p.id] = p })
   }
 
-  // fetch sport name
+  // fetch sport details
   let sportName: string | null = null
   if (match.sport_id) {
-    const { data: sport } = await supabase.from('sports').select('id, name').eq('id', match.sport_id).maybeSingle()
-    sportName = (sport as any)?.name ?? null
+    const { data: sport } = await supabase.from('sports').select('id, name, scoring_config').eq('id', match.sport_id).maybeSingle()
+    if (sport) {
+      sportName = sport.name
+      match.sport = sport // Attach sport details to match object for MatchDetailsView
+    }
   }
 
   // determine if the current viewer is an authenticated player in this match
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user
   let allowedToSubmit = false
+
+  // Token validation
+  const isValidToken = typeof token === 'string' && token === match.action_token
+
   if (user) {
     const { data: userProfiles } = await supabase.from('player_profiles').select('id').eq('user_id', user.id)
     const pids = (userProfiles || []).map((p: any) => p.id)
     if (pids.find((pid: string) => pid === match.player1_id || pid === match.player2_id)) allowedToSubmit = true
+  }
+
+  // Allow submission if token is valid
+  if (isValidToken) {
+    allowedToSubmit = true
   }
 
   const player1 = match.player1_id ? profilesMap[match.player1_id] ?? { id: match.player1_id } : null
@@ -67,6 +83,10 @@ export default async function MatchPage({ params }: Props) {
       allowedToSubmit={allowedToSubmit}
       history={history}
       rankHistory={rankHistory}
+      initialToken={isValidToken ? token as string : undefined}
+      initialAction={typeof action === 'string' ? action : undefined}
+      initialWinnerId={typeof winner === 'string' ? winner : undefined}
+      initialReporterId={typeof reported_by === 'string' ? reported_by : undefined}
     />
   )
 }

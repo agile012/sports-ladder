@@ -62,19 +62,18 @@ export const sendChallengeEmail = inngest.createFunction(
 
     await step.run("send-email", async () => {
       const acceptUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=accept&token=${match.action_token}`;
-      const rejectUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=reject&token=${match.action_token}`;
       const sportName = match.sport?.name || match.sport_id;
       const msg = {
         to: opponent.user_email,
         from: FROM_EMAIL, // Update this to your verified sender
-        subject: `You were challenged in ${sportName}`, // TODO: replace with sport name
+        subject: `You were challenged in ${sportName}`,
         html: `
           <p><strong>${challengerProfile?.full_name || match.player1_id}</strong> has challenged you in the ladder.</p>
           <p>${match.message ?? ""}</p>
-          <p>You were challenged in ${sportName}.</p><p>
- <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept Challenge</a>
- <a href="${rejectUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">Reject Challenge</a>
- </p>
+          <p>You were challenged in ${sportName}.</p>
+          <p>
+            <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept Challenge</a>
+          </p>
         `,
       };
       await transporter.sendMail(msg);
@@ -118,76 +117,60 @@ export const handleMatchAction = inngest.createFunction(
       return { challenger, opponent };
     });
 
-    if (challenger?.user_email) {
+    // Only send emails for accepted challenges (reject action is no longer supported)
+    if (challenger?.user_email && isAccepted) {
+      const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted! Enter the result.`;
+      const matchPageUrl = `${PUBLIC_SITE_URL}/matches/${match.id}`;
+
       // Email to challenger
-      if (isAccepted) {
-        const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted! Enter the result.`;
-        const profileLink = `${PUBLIC_SITE_URL}/profile`; // Changed to specific match link
-        const submitResultUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/submit-result`;
+      const challengerHtml = `
+        <p>Your challenge for match ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted!</p>
+        <p>It's time to play your match. Once completed, please enter the result.</p>
+        <p>Who won the match?</p>
+        <p>
+          <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
+          <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+        </p>
+        <p>
+          Or view the match details:
+          <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
+        </p>
+      `;
 
-        // Email to challenger
-        const challengerHtml = `
- <p>Your challenge for match ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted!</p>
- <p>It's time to play your match. Once completed, please enter the result.</p>
- <p>Who won the match?</p>
- <p>
- <a href="${submitResultUrl}?winner_profile_id=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
- <a href="${submitResultUrl}?winner_profile_id=${opponent.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
- </p>
- <p>
- Or view the match details:
- <a href="${profileLink}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
- </p>
- `;
+      const challengerMsg = {
+        to: challenger.user_email,
+        from: FROM_EMAIL,
+        subject,
+        html: challengerHtml,
+      };
+      await step.run("send-challenger-email", async () => {
+        await transporter.sendMail(challengerMsg);
+      });
 
-        const challengerMsg = {
-          to: challenger.user_email,
+      // Email to opponent (if available)
+      if (opponent?.user_email) {
+        const opponentHtml = `
+          <p>You have accepted the challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name}!</p>
+          <p>It's time to play your match. Once completed, please enter the result.</p>
+          <p>Who won the match?</p>
+          <p>
+            <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
+            <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+          </p>
+          <p>
+            Or view the match details:
+            <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
+          </p>
+        `;
+
+        const opponentMsg = {
+          to: opponent.user_email,
           from: FROM_EMAIL,
           subject,
-          html: challengerHtml,
+          html: opponentHtml,
         };
-        await step.run("send-challenger-email", async () => {
-          await transporter.sendMail(challengerMsg);
-        });
-
-        // Email to opponent (if available)
-        if (opponent?.user_email) {
-          const opponentHtml = `
- <p>You have accepted the challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name}!</p>
- <p>It's time to play your match. Once completed, please enter the result.</p>
- <p>Who won the match?</p>
- <p>
- <a href="${submitResultUrl}?winner_profile_id=${challenger.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
- <a href="${submitResultUrl}?winner_profile_id=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
- </p>
- <p>
- Or view the match details:
- <a href="${profileLink}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
- </p>
- `;
-
-          const opponentMsg = {
-            to: opponent.user_email,
-            from: FROM_EMAIL,
-            subject,
-            html: opponentHtml,
-          };
-          await step.run("send-opponent-email", async () => {
-            await transporter.sendMail(opponentMsg);
-          });
-        }
-      } else {
-        // If rejected, only notify the challenger
-        const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was rejected by ${opponent?.full_name}`;
-        const html = `<p>Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was rejected by the opponent.</p>`;
-        const msg = {
-          to: challenger.user_email,
-          from: FROM_EMAIL,
-          subject,
-          html,
-        };
-        await step.run("send-rejection-email", async () => {
-          await transporter.sendMail(msg)
+        await step.run("send-opponent-email", async () => {
+          await transporter.sendMail(opponentMsg);
         });
       }
     }

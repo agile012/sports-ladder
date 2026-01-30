@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { PendingChallengeItem } from '@/lib/types'
-import { Check, X, AlertCircle } from 'lucide-react'
+import { Check, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
@@ -75,16 +75,16 @@ export default function PendingChallengeCard({
         }
     }
 
-    const handleChallengeAction = async (action: 'accept' | 'reject') => {
-        const promise = fetch(`/api/matches/${c.id}/action?action=${action}&token=${c.action_token}`, { method: 'POST' })
+    const handleAcceptChallenge = async () => {
+        const promise = fetch(`/api/matches/${c.id}/action?action=accept&token=${c.action_token}`, { method: 'POST' })
             .then(async (res) => {
                 if (!res.ok) throw new Error(await res.text())
                 onAction()
             })
 
         toast.promise(promise, {
-            loading: action === 'accept' ? 'Accepting challenge...' : 'Rejecting challenge...',
-            success: action === 'accept' ? 'Challenge accepted!' : 'Challenge rejected.',
+            loading: 'Accepting challenge...',
+            success: 'Challenge accepted!',
             error: (err) => `Error: ${err.message}`
         })
     }
@@ -103,14 +103,7 @@ export default function PendingChallengeCard({
         })
     }
 
-    const confirmReject = () => {
-        setAlertConfig({
-            open: true,
-            title: "Reject Challenge?",
-            description: "Are you sure you want to reject this challenge?",
-            action: async () => handleChallengeAction('reject')
-        })
-    }
+
 
     const confirmDispute = () => {
         setAlertConfig({
@@ -194,23 +187,13 @@ export default function PendingChallengeCard({
                     {/* Actions */}
                     <div className="flex flex-col gap-2 w-full mt-1">
                         {!isReadOnly && c.status === 'CHALLENGED' && c.player2?.id === currentUserId && (
-                            <div className="grid grid-cols-2 gap-2">
-                                <Button
-                                    size="sm"
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full h-8 text-xs"
-                                    onClick={() => handleChallengeAction('accept')}
-                                >
-                                    <Check className="mr-1 h-3 w-3" /> Accept
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    className='bg-red-500 hover:bg-red-600 w-full h-8 text-xs'
-                                    onClick={confirmReject}
-                                >
-                                    <X className="mr-1 h-3 w-3" /> Reject
-                                </Button>
-                            </div>
+                            <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white w-full h-8 text-xs"
+                                onClick={handleAcceptChallenge}
+                            >
+                                <Check className="mr-1 h-3 w-3" /> Accept Challenge
+                            </Button>
                         )}
 
                         {!isReadOnly && c.status === 'PENDING' && (

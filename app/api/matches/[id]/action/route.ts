@@ -7,7 +7,7 @@ import { Match } from '@/lib/types'
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')
-  
+
   return new NextResponse(
     `<html>
       <head><title>Confirm Action</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const supabase = await createClient()
+  const supabase = await createClient()
   const { id } = await params
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')
@@ -68,21 +68,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.redirect(origin, { status: 303 })
   }
 
-  if (action === 'reject') {
-    const { data: updated, error } = await supabase.from('matches').update({ status: 'CANCELLED' }).eq('id', id).select().maybeSingle()
-    if (error) {
-      console.error('Failed to update match status to CANCELLED:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-    if (!updated) return NextResponse.json({ error: 'No rows updated; match not found or not permitted' }, { status: 500 })
-    // Trigger Inngest event for email notification
-    await inngest.send({
-      name: 'match.action',
-      data: { matchId: updated.id, action: 'reject' },
-    })
-    const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
-    return NextResponse.redirect(origin, { status: 303 })
-  }
+  // Note: reject action has been removed - challenges can no longer be rejected
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
 }

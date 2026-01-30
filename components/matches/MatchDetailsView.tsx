@@ -9,6 +9,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
+import { toast } from "sonner"
+import { useState, useEffect } from 'react'
 
 import { RatingHistoryEntry, RankHistoryItem } from '@/lib/types'
 
@@ -27,6 +46,10 @@ type MatchDetailsProps = {
     allowedToSubmit: boolean
     history?: RatingHistoryEntry[]
     rankHistory?: any[] // Using any[] to bypass strict check for now, or update types
+    initialToken?: string
+    initialAction?: string
+    initialWinnerId?: string
+    initialReporterId?: string
 }
 
 export default function MatchDetailsView({
@@ -37,9 +60,69 @@ export default function MatchDetailsView({
     currentUser,
     allowedToSubmit,
     history = [],
-    rankHistory = []
+    rankHistory = [],
+    initialToken,
+    initialAction,
+    initialWinnerId,
+    initialReporterId
 }: MatchDetailsProps) {
     const winnerId = match.winner_id
+    const [isReportOpen, setIsReportOpen] = useState(false)
+    const [scores, setScores] = useState<ScoreSet[]>([])
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Effect to open dialog if action indicates report
+    useEffect(() => {
+        if (allowedToSubmit && initialAction === 'report' && match.status === 'PENDING') {
+            setIsReportOpen(true)
+        }
+    }, [allowedToSubmit, initialAction, match.status])
+
+    const handleReport = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+
+        const form = e.target as HTMLFormElement
+        const data = new FormData(form)
+        const winner = data.get('winner') as string
+
+        // Filter out empty sets
+        const validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
+
+        // Determine reporter: if using token, use initialReporterId or rely on backend default (winner)
+        // If logged in, use currentUser.id
+        const reporter = currentUser?.id ?? initialReporterId
+
+        const promise = fetch(`/api/matches/${match.id}/submit-result`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                winner_profile_id: winner,
+                reported_by: reporter,
+                token: initialToken, // Passed if available
+                scores: validScores.length > 0 ? validScores : undefined
+            }),
+        }).then(async (res) => {
+            if (!res.ok) throw new Error(await res.text())
+            setIsReportOpen(false)
+            // Ideally revalidate path or reload
+            window.location.reload()
+        })
+
+        toast.promise(promise, {
+            loading: 'Submitting result...',
+            success: 'Result submitted!',
+            error: (err) => `Failed to submit: ${err.message}`
+        })
+
+        try {
+            await promise
+        } catch {
+            // ignored
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
 
     // Determine Roles: Player 1 is ALWAYS Challenger (initiator), Player 2 is Defender
     const p1Label = "Challenger"
@@ -160,9 +243,16 @@ export default function MatchDetailsView({
                         </Link>
                     </Button>
 
-                    <Badge variant="outline" className={cn("px-4 py-1.5 text-sm font-medium uppercase tracking-widest", getStatusColor(match.status))}>
-                        {match.status}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                        {allowedToSubmit && match.status === 'PENDING' && (
+                            <Button size="sm" onClick={() => setIsReportOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                                Report Result
+                            </Button>
+                        )}
+                        <Badge variant="outline" className={cn("px-4 py-1.5 text-sm font-medium uppercase tracking-widest", getStatusColor(match.status))}>
+                            {match.status}
+                        </Badge>
+                    </div>
                 </div>
 
                 {/* Hero Section */}
@@ -323,6 +413,49 @@ export default function MatchDetailsView({
                     </motion.div>
                 )}
             </div>
+
+            <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Report Match Result</DialogTitle>
+                        <DialogDescription>
+                            Enter the final score and select the winner.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleReport} className="space-y-4 pt-4">
+                        {match.sport?.scoring_config?.type && match.sport.scoring_config.type !== 'simple' && (
+                            <div className="border-b pb-4">
+                                <ScoreInput
+                                    config={match.sport.scoring_config}
+                                    player1Name={player1.full_name?.split(' ')[0] ?? 'P1'}
+                                    player2Name={player2.full_name?.split(' ')[0] ?? 'P2'}
+                                    onChange={setScores}
+                                />
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Winner</label>
+                            <Select name="winner" defaultValue={initialWinnerId} required>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select who won" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={player1.id}>{player1.full_name ?? 'Player 1'}</SelectItem>
+                                    <SelectItem value={player2.id}>{player2.full_name ?? 'Player 2'}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setIsReportOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : 'Submit Result'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
