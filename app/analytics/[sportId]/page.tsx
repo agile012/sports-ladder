@@ -32,12 +32,6 @@ export default async function AnalyticsPage({ params }: { params: { sportId: str
         ? Math.round((overview.total_matches * 2) / totalPlayers)
         : 0
 
-    // Generate activity data from matches_per_week for heatmap
-    const activityData = overview.matches_per_week?.map((week: any) => ({
-        date: week.week_start,
-        count: week.count
-    })) || []
-
     return (
         <div className="space-y-10 animate-in fade-in duration-700">
             {/* Enhanced Header */}
@@ -134,17 +128,6 @@ export default async function AnalyticsPage({ params }: { params: { sportId: str
                     </div>
                 </div>
             </section>
-
-            {/* Activity Heatmap */}
-            {activityData.length > 0 && (
-                <section className="space-y-4">
-                    <ActivityHeatmap
-                        data={activityData}
-                        title="Match Activity (Last 6 Months)"
-                        months={6}
-                    />
-                </section>
-            )}
 
             {/* Player Activity & Rating Distribution */}
             <section className="space-y-4">
