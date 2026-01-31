@@ -12,6 +12,7 @@ export type ScoringConfig = {
   rematch_cooldown_days?: number
   penalty_days?: number
   removal_days?: number
+  penalty_rank_drop?: number
   notifications?: {
     on_challenge?: boolean
     on_challenge_action?: boolean

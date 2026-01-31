@@ -19,6 +19,7 @@ export default function AdminSportsPage() {
 
     // Form State
     const [name, setName] = useState('')
+    const [isPaused, setIsPaused] = useState(false)
     const [scoringType, setScoringType] = useState<'simple' | 'sets'>('simple')
     // Scoring Rules
     const [totalSets, setTotalSets] = useState(3)
@@ -31,6 +32,9 @@ export default function AdminSportsPage() {
     const [autoVerifyWindowDays, setAutoVerifyWindowDays] = useState(3)
     const [rematchCooldownDays, setRematchCooldownDays] = useState(7)
     const [maxChallengeBelow, setMaxChallengeBelow] = useState(0)
+    const [penaltyDays, setPenaltyDays] = useState(14)
+    const [removalDays, setRemovalDays] = useState(42)
+    const [penaltyRankDrop, setPenaltyRankDrop] = useState(5)
 
     // Notification Settings
     const [notifyOnChallenge, setNotifyOnChallenge] = useState(true)
@@ -67,16 +71,21 @@ export default function AdminSportsPage() {
         setAutoVerifyWindowDays(3)
         setRematchCooldownDays(7)
         setMaxChallengeBelow(0)
+        setPenaltyDays(14)
+        setRemovalDays(42)
+        setPenaltyRankDrop(5)
         setNotifyOnChallenge(true)
         setNotifyOnAction(true)
         setNotifyOnResult(true)
         setNotifyOnConfirmed(true)
+        setIsPaused(false)
         setMessage('')
     }
 
     function handleEdit(sport: Sport) {
         setEditingId(sport.id)
         setName(sport.name)
+        setIsPaused(sport.is_paused || false)
         const config = sport.scoring_config || { type: 'simple' }
         setScoringType(config.type || 'simple')
         setTotalSets(config.total_sets || 3)
@@ -88,6 +97,9 @@ export default function AdminSportsPage() {
         setAutoVerifyWindowDays(config.auto_verify_window_days || 3)
         setRematchCooldownDays(config.rematch_cooldown_days || 7)
         setMaxChallengeBelow(config.max_challenge_below || 0)
+        setPenaltyDays(config.penalty_days || 14)
+        setRemovalDays(config.removal_days || 42)
+        setPenaltyRankDrop(config.penalty_rank_drop || 5)
 
         const notifs = config.notifications || {}
         setNotifyOnChallenge(notifs.on_challenge !== false)
@@ -112,6 +124,9 @@ export default function AdminSportsPage() {
             auto_verify_window_days: Number(autoVerifyWindowDays),
             rematch_cooldown_days: Number(rematchCooldownDays),
             max_challenge_below: Number(maxChallengeBelow),
+            penalty_days: Number(penaltyDays),
+            removal_days: Number(removalDays),
+            penalty_rank_drop: Number(penaltyRankDrop),
             notifications: {
                 on_challenge: notifyOnChallenge,
                 on_challenge_action: notifyOnAction,
@@ -128,7 +143,7 @@ export default function AdminSportsPage() {
 
         try {
             if (editingId) {
-                await updateSport(editingId, { name, scoring_config: config })
+                await updateSport(editingId, { name, scoring_config: config, is_paused: isPaused })
                 setMessage('Sport updated successfully!')
             } else {
                 await addSport(name, config)
@@ -172,6 +187,20 @@ export default function AdminSportsPage() {
                                     placeholder="e.g. Badminton"
                                 />
                             </div>
+
+                            {editingId && (
+                                <div className="flex items-center space-x-2 bg-amber-50 p-3 rounded-md border border-amber-200">
+                                    <Switch
+                                        id="isPaused"
+                                        checked={isPaused}
+                                        onCheckedChange={setIsPaused}
+                                    />
+                                    <div className="flex flex-col">
+                                        <Label htmlFor="isPaused" className="font-semibold text-amber-900">Pause Ladder</Label>
+                                        <span className="text-xs text-amber-700">Prevent new matches from being created</span>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label>Scoring Type</Label>
@@ -239,6 +268,21 @@ export default function AdminSportsPage() {
                                         <Label className="text-xs">Challenge Below</Label>
                                         <Input type="number" value={maxChallengeBelow} onChange={e => setMaxChallengeBelow(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Max spots below to challenge</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Penalty Days</Label>
+                                        <Input type="number" value={penaltyDays} onChange={e => setPenaltyDays(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Days inactive before rank drop</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Penalty Drop</Label>
+                                        <Input type="number" value={penaltyRankDrop} onChange={e => setPenaltyRankDrop(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Places to drop per penalty</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs">Removal Days</Label>
+                                        <Input type="number" value={removalDays} onChange={e => setRemovalDays(Number(e.target.value))} min={1} />
+                                        <p className="text-[10px] text-muted-foreground">Days inactive before removal</p>
                                     </div>
                                 </div>
                             </div>
@@ -328,8 +372,13 @@ export default function AdminSportsPage() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="text-primary">
-                                        <Pencil className="w-4 h-4" />
+                                    <div className="flex items-center gap-2">
+                                        {sport.is_paused && (
+                                            <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Paused</span>
+                                        )}
+                                        <div className="text-primary">
+                                            <Pencil className="w-4 h-4" />
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

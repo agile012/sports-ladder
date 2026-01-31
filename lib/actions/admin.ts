@@ -63,7 +63,7 @@ export async function addSport(name: string, scoring_config: any = { type: 'simp
     return { success: true }
 }
 
-export async function updateSport(sportId: string, data: { name?: string, scoring_config?: any }) {
+export async function updateSport(sportId: string, data: { name?: string, scoring_config?: any, is_paused?: boolean }) {
     const { supabase } = await verifySportAdmin(sportId) // Verify admin rights for this sport
 
     const { error } = await supabase.from('sports').update(data).eq('id', sportId)

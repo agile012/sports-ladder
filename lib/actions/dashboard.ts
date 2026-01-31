@@ -119,8 +119,16 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
                     ...m,
                     // casting sports because of type definition mismatches in existing codebase
                     sports: m.sports as any,
-                    player1: p1 ? { id: p1.id, full_name: p1.full_name, avatar_url: p1.avatar_url } : { id: 'unknown' },
-                    player2: p2 ? { id: p2.id, full_name: p2.full_name, avatar_url: p2.avatar_url } : { id: 'unknown' },
+                    player1: p1 ? {
+                        id: p1.id,
+                        full_name: p1.full_name || (p1.user_metadata as any)?.full_name || p1.user_email?.split('@')[0] || 'Unknown',
+                        avatar_url: p1.avatar_url
+                    } : { id: 'unknown', full_name: 'Unknown Player' },
+                    player2: p2 ? {
+                        id: p2.id,
+                        full_name: p2.full_name || (p2.user_metadata as any)?.full_name || p2.user_email?.split('@')[0] || 'Unknown',
+                        avatar_url: p2.avatar_url
+                    } : { id: 'unknown', full_name: 'Unknown Player' },
                     reported_by: reporter ? { id: reporter.id } : null
                 }
             })
