@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 type Props = {
   searchParams: { [key: string]: string | string[] | undefined }
@@ -38,7 +39,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
   // Build query
   let query = supabase
     .from('matches')
-    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, sports(id, name)', { count: 'exact' })
+    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(id, name)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
 
@@ -46,7 +47,26 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     query = query.eq('sport_id', sportId)
   }
   if (status !== 'all') {
-    query = query.eq('status', status)
+    switch (status) {
+      case 'WITHDRAWN':
+        query = query.eq('status', 'CANCELLED')
+        break
+      case 'FORFEIT':
+        query = query.eq('status', 'PROCESSED').eq('scores->>reason', 'forfeit')
+        break
+      case 'DONE':
+        query = query.eq('status', 'PROCESSED').or('scores.is.null,scores->>reason.neq.forfeit')
+        break
+      case 'PLAYED':
+        query = query.eq('status', 'PROCESSING')
+        break
+      case 'CHALLENGED':
+        query = query.in('status', ['CHALLENGED', 'PENDING'])
+        break
+      default:
+        // Fallback for direct DB statuses if ever passed manually
+        query = query.eq('status', status)
+    }
   }
   if (playerId !== 'all') {
     query = query.or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
@@ -66,6 +86,30 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
   })
 
   const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
+
+  const getStatusDisplay = (match: any) => {
+    const status = match.status;
+    const scores = match.scores as any;
+
+    if (status === 'CANCELLED') {
+      return { label: 'WITHDRAWN', variant: 'secondary' as const };
+    }
+    if (status === 'PROCESSED') {
+      if (scores?.reason === 'forfeit') {
+        return { label: 'FORFEIT', variant: 'destructive' as const };
+      }
+      return { label: 'DONE', variant: 'default' as const };
+    }
+    if (status === 'CHALLENGED' || status === 'PENDING') {
+      return { label: 'CHALLENGED', variant: 'outline' as const };
+    }
+    if (status === 'PROCESSING') {
+      return { label: 'PLAYED', variant: 'secondary' as const };
+    }
+
+    // Default fallback
+    return { label: status, variant: 'outline' as const };
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -130,14 +174,10 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${m.status === 'CONFIRMED' || m.status === 'PROCESSED'
-                          ? 'bg-green-50 text-green-700 ring-green-600/20'
-                          : m.status === 'PENDING'
-                            ? 'bg-yellow-50 text-yellow-800 ring-yellow-600/20'
-                            : 'bg-gray-50 text-gray-600 ring-gray-500/10'
-                          }`}>
-                          {m.status}
-                        </span>
+                        {(() => {
+                          const statusInfo = getStatusDisplay(m);
+                          return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" asChild>

@@ -74,11 +74,11 @@ export default function MatchFilters({ sports, players, initialSport, initialSta
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                    <SelectItem value="PROCESSED">Processed</SelectItem>
                     <SelectItem value="CHALLENGED">Challenged</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                    <SelectItem value="PLAYED">Played</SelectItem>
+                    <SelectItem value="DONE">Done</SelectItem>
+                    <SelectItem value="FORFEIT">Forfeit</SelectItem>
+                    <SelectItem value="WITHDRAWN">Withdrawn</SelectItem>
                 </SelectContent>
             </Select>
 
