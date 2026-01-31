@@ -3,7 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 import { MatchCSV } from './types';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load .env.local first (Next.js convention), then fall back to .env
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 // Initialize Supabase Admin Client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -56,21 +60,59 @@ async function seedMatches() {
     const records: MatchCSV[] = parsedRecords.filter((r: any) => r['Challenger Name'] && r['Date']);
 
     // 3. Resolve Player IDs Mapping
-    // fetch all profiles for this sport to map Names -> IDs
-    const { data: profiles } = await supabase
-        .from('player_profiles_view') // Use view to get names
-        .select('id, full_name')
-        .eq('sport_id', sportId);
+    // We need to map Names -> IDs. The view filters deactivated users, so we must fetch all Auth Users.
 
-    if (!profiles) {
-        console.error('No profiles found for this sport.');
+    // A. Fetch All Auth Users to get Metadata (Full Name)
+    const allAuthUsers: any[] = [];
+    let page = 1;
+    let keepFetching = true;
+    while (keepFetching) {
+        const { data: { users }, error } = await supabase.auth.admin.listUsers({ perPage: 1000, page: page });
+        if (error) {
+            console.error('Error fetching auth users:', error);
+            process.exit(1);
+        }
+        if (!users || users.length === 0) {
+            keepFetching = false;
+        } else {
+            allAuthUsers.push(...users);
+            page++;
+            if (users.length < 1000) keepFetching = false;
+        }
+    }
+    console.log(`Fetched ${allAuthUsers.length} Auth Users for resolution.`);
+
+    // B. Fetch All Profiles (Table) to map UserID -> ProfileID
+    // Why? Because matches link to Profile ID, not Auth User ID directly (usually).
+    // Let's check: matches schema says 'player1_id' references 'player_profiles(id)'.
+    const { data: allProfiles, error: profilesError } = await supabase
+        .from('player_profiles')
+        .select('id, user_id, sport_id')
+        .eq('sport_id', sportId); // optimization: only this sport
+
+    if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
         process.exit(1);
     }
 
-    // Create a map: Normalized Name -> ID
+    const userIdToProfileId = new Map<string, string>();
+    if (allProfiles) {
+        for (const p of allProfiles) {
+            userIdToProfileId.set(p.user_id, p.id);
+        }
+    }
+
+    // C. Create Name -> ProfileID Map
     const nameToId = new Map<string, string>();
-    for (const p of profiles) {
-        if (p.full_name) nameToId.set(p.full_name.toLowerCase().trim(), p.id);
+    for (const u of allAuthUsers) {
+        const fullName = u.user_metadata?.full_name;
+        if (fullName) {
+            const profileId = userIdToProfileId.get(u.id);
+            if (profileId) {
+                // We have a valid profile for this sport
+                nameToId.set(fullName.toLowerCase().trim(), profileId);
+            }
+        }
     }
 
     // Also try partial matches or manual mapping if needed? taking simple approach first.

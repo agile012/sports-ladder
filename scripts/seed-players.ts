@@ -1,9 +1,12 @@
-
 import { createClient, User } from '@supabase/supabase-js';
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 import { PlayerCSV } from './types';
-import 'dotenv/config';
+import dotenv from 'dotenv';
+
+// Load .env.local first (Next.js convention), then fall back to .env
+dotenv.config({ path: '.env.local' });
+dotenv.config();
 
 // Initialize Supabase Admin Client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -23,7 +26,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 async function seedPlayers() {
     const filePath = 'scripts/data/players.csv'; // Expecting this file
-    const sportName = process.argv[2] || 'Squash Open'; // Default or from arg
+    const sportName = 'Squash Open'; // Default or from arg
 
     if (!fs.existsSync(filePath)) {
         console.error(`Error: File not found at ${filePath}`);
@@ -69,30 +72,61 @@ async function seedPlayers() {
     /* ------------------------------------------------------------------
        3. Pre-fetch All Users (Batched)
        ------------------------------------------------------------------ */
-    console.log('Fetching existing Auth users...');
-    const emailToUserId = new Map<string, string>();
-    let page = 1;
-    const PER_PAGE_USERS = 500;
-    let keepFetching = true;
+    // 3. Get existing users & profiles
+    // We avoid 'player_profiles_view' because it screens out deactivated users.
+    // Instead, we fetch Auth Users (for Email/ID) and Player Profiles (Table) and join them.
 
+    // A. Fetch All Auth Users (Pagination handled if needed, default 50 per page usually, strict limit is 1000? 
+    // supabase-js listUsers default is 50. We need ALL.
+    const allAuthUsers: any[] = [];
+    let page = 1;
+    let keepFetching = true;
     while (keepFetching) {
-        const { data: { users }, error } = await supabase.auth.admin.listUsers({ page, perPage: PER_PAGE_USERS });
+        const { data: { users }, error } = await supabase.auth.admin.listUsers({ perPage: 1000, page: page });
         if (error) {
-            console.error('Error listing users:', error);
+            console.error('Error fetching auth users:', error);
             process.exit(1);
         }
         if (!users || users.length === 0) {
             keepFetching = false;
         } else {
-            (users as User[]).forEach(u => {
-                if (u.email) emailToUserId.set(u.email.toLowerCase(), u.id);
-            });
-            if (users.length < PER_PAGE_USERS) keepFetching = false;
+            allAuthUsers.push(...users);
             page++;
+            // Safety break if needed for huge lists, but 1000 per page loop is fine
+            if (users.length < 1000) keepFetching = false;
         }
     }
-    console.log(`Loaded ${emailToUserId.size} existing Auth users.`);
 
+    console.log(`Fetched ${allAuthUsers.length} Auth Users.`);
+
+    // B. Fetch All Player Profiles (Raw Table)
+    const { data: allProfiles, error: profilesError } = await supabase
+        .from('player_profiles')
+        .select('*');
+
+    if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        process.exit(1);
+    }
+    console.log(`Fetched ${allProfiles?.length} Player Profiles.`);
+
+    // C. Map Email -> { User, Profile }
+    const emailToUserMap = new Map<string, { user: any, profile: any }>();
+    const userIdToProfileMap = new Map<string, any>();
+
+    if (allProfiles) {
+        for (const p of allProfiles) {
+            userIdToProfileMap.set(p.user_id, p);
+        }
+    }
+
+    for (const u of allAuthUsers) {
+        if (u.email) {
+            const normalizedEmail = u.email.toLowerCase().trim();
+            const profile = userIdToProfileMap.get(u.id);
+            emailToUserMap.set(normalizedEmail, { user: u, profile: profile });
+        }
+    }
     /* ------------------------------------------------------------------
        4. Ensure Auth Users Exist (One by One for now, but skipped if exists)
        ------------------------------------------------------------------ */
@@ -104,7 +138,10 @@ async function seedPlayers() {
         if (record['Bracket'] && record['Bracket'] !== 'Open') continue;
         if (!email || !fullName) continue;
 
-        if (!emailToUserId.has(email)) {
+        const cached = emailToUserMap.get(email);
+        const authUserExists = !!cached?.user;
+
+        if (!authUserExists) {
             // Create User
             console.log(`Creating user: ${email}`);
             const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
@@ -116,7 +153,8 @@ async function seedPlayers() {
             if (createError) {
                 console.error(`Failed to create user ${email}: ${createError.message}`);
             } else if (newUser.user) {
-                emailToUserId.set(email, newUser.user.id);
+                // Update map so we can use it below
+                emailToUserMap.set(email, { user: newUser.user, profile: null });
                 newUsersCount++;
             }
         }
@@ -126,13 +164,21 @@ async function seedPlayers() {
     /* ------------------------------------------------------------------
        5. Prepare Profile Data for Bulk Upsert
        ------------------------------------------------------------------ */
+    const isRestoreMode = process.argv.includes('--restore-ranks');
+    console.log(isRestoreMode
+        ? 'Running in RESTORE MODE: Only updating ranks and status. Starting ratings/matches preserved.'
+        : 'Running in RESET MODE: Resetting ratings and match counts to defaults.'
+    );
+
     const profilesToUpsert: any[] = [];
     let currentRankCursor = 1;
 
     for (const record of records) {
         if (record['Bracket'] && record['Bracket'] !== 'Open') continue;
         const email = record['Email ID']?.toLowerCase();
-        const userId = emailToUserId.get(email);
+
+        const cached = emailToUserMap.get(email);
+        const userId = cached?.user?.id;
 
         if (!userId) {
             console.warn(`User ID missing for ${email}, skipping profile.`);
@@ -144,38 +190,48 @@ async function seedPlayers() {
         const csvStatus = record['Status'] || 'Active';
         const isActive = csvStatus === 'Active';
 
-        // If not active, do we overwrite the rank? 
-        // User said: "mark them as deactivated on the Ladder Left On date"
-        // We will assign rank based on CSV order regardless, but set status.
-        // Assuming 'status' column relies on 'Active' | 'Inactive' etc. 
-        // If the DB doesn't have 'status', this ignores it, but based on request we assume it handled.
-
-        // Date handling for "Ladder Left On" -> maybe map to `last_active` or just `updated_at`?
-        // Let's use `updated_at` as the event timestamp if inactive
-        // if (!isActive && record['Ladder Left On']) {
-        //     updatedAt = parseDate(record['Ladder Left On']);
-        //     if (updatedAt.getTime() > new Date().getTime()) updatedAt = new Date(); // Don't date future
-        // }
-
         const rankToAssign = currentRankCursor++;
 
         // Deactivation Logic
         const deactivated = !isActive;
         const deactivatedAt = deactivated ? new Date().toISOString() : null;
 
-        profilesToUpsert.push({
+        // Base payload (Primary Keys + Rank/Status)
+        const payload: any = {
             user_id: userId,
             sport_id: sportId,
-            rating: 1000,
-            ladder_rank: rankToAssign,
-            matches_played: 0,
+            ladder_rank: deactivated ? null : rankToAssign,
             deactivated: deactivated,
             deactivated_at: deactivatedAt,
             last_active_rank: deactivated ? rankToAssign : null, // Set last rank if deactivated
-        });
+        };
+
+        // If NOT in restore mode, reset performance metrics
+        if (!isRestoreMode) {
+            payload.rating = 1000;
+            payload.matches_played = 0;
+        }
+
+        profilesToUpsert.push(payload);
     }
 
     console.log(`Upserting ${profilesToUpsert.length} profiles...`);
+
+    // 6. Clear existing ranks to avoid unique constraint violations during reordering
+    // If we transform 1->2 and 2->1, standard upsert might fail on intermediate state.
+    // Safest way is to set all ranks to null for this sport first.
+    console.log('Clearing existing ranks to prevent unique constraint violations...');
+    const { error: clearError } = await supabase
+        .from('player_profiles')
+        .update({ ladder_rank: null })
+        .eq('sport_id', sportId);
+
+    if (clearError) {
+        console.error('Error clearing ranks:', clearError.message);
+        // Process might continue but could fail on upsert
+    } else {
+        console.log('Ranks cleared successfully.');
+    }
 
     // Bulk Upsert in chunks to avoid payload limits
     const CHUNK_SIZE = 100;
