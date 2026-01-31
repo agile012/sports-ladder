@@ -178,12 +178,11 @@ export async function getRankForProfile(profileId: string, sportId: string): Pro
     .eq('id', profileId)
     .single()
 
-  // Count total active players in this sport
+  // Count total active players in this sport (using view to match ladder display logic)
   const { count } = await supabase
-    .from('player_profiles')
+    .from('player_profiles_view')
     .select('id', { count: 'exact', head: true })
     .eq('sport_id', sportId)
-    .eq('deactivated', false)
     .not('ladder_rank', 'is', null)
 
   return {
