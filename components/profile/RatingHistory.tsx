@@ -13,10 +13,11 @@ export default function RatingHistory({ ratingHistory }: { ratingHistory: Rating
   )
 
   const data = ratingHistory.map(h => ({
+    timestamp: new Date(h.created_at).getTime(),
     date: new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     fullDate: new Date(h.created_at).toLocaleDateString(),
     rating: h.new_rating,
-  })).reverse()
+  })).sort((a, b) => a.timestamp - b.timestamp)
 
   const minRating = Math.min(...data.map(d => d.rating))
   const maxRating = Math.max(...data.map(d => d.rating))
@@ -35,7 +36,10 @@ export default function RatingHistory({ ratingHistory }: { ratingHistory: Rating
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
               <XAxis
-                dataKey="date"
+                dataKey="timestamp"
+                type="number"
+                domain={['dataMin', 'dataMax']}
+                tickFormatter={(unixTime) => new Date(unixTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 stroke="var(--muted-foreground)"
                 fontSize={12}
                 tickLine={false}

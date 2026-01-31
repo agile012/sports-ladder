@@ -13,11 +13,12 @@ export default function RankHistory({ rankHistory }: { rankHistory: RankHistoryI
     )
 
     const data = rankHistory.map(h => ({
+        timestamp: new Date(h.created_at).getTime(),
         date: new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
         fullDate: new Date(h.created_at).toLocaleDateString(),
         rank: h.new_rank,
         reason: h.reason
-    })).reverse() // Chronological
+    })).sort((a, b) => a.timestamp - b.timestamp)
 
     // For rank, lower is better. We want the Y axis to invert.
     const minRank = Math.min(...data.map(d => d.rank))
@@ -37,7 +38,10 @@ export default function RankHistory({ rankHistory }: { rankHistory: RankHistoryI
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
                             <XAxis
-                                dataKey="date"
+                                dataKey="timestamp"
+                                type="number"
+                                domain={['dataMin', 'dataMax']}
+                                tickFormatter={(unixTime) => new Date(unixTime).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                 stroke="var(--muted-foreground)"
                                 fontSize={12}
                                 tickLine={false}
