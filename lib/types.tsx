@@ -84,6 +84,7 @@ export type MatchResult = 'win' | 'loss' | null
 export type MatchHistoryItem = {
   id: string
   created_at: string
+  updated_at?: string
   status: string
   result?: MatchResult
   sport_id?: string

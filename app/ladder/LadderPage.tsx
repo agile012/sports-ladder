@@ -163,7 +163,8 @@ export default function LadderPage() {
           player1_id: m.player1_id || null, // Ensure string | null
           player2_id: m.player2_id || null,
           status: m.status,
-          created_at: m.created_at
+          created_at: m.created_at,
+          updated_at: m.updated_at
         }))
 
         const recentOpponentIds = getCooldownOpponents(mappedMatches, myProfile.id, cooldownDays)

@@ -98,7 +98,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
 
         const cooldownQuery = supabase
             .from('matches')
-            .select('id, sport_id, player1_id, player2_id, created_at, status')
+            .select('id, sport_id, player1_id, player2_id, created_at, updated_at, status')
             .or(`player1_id.in.(${idsFilter}),player2_id.in.(${idsFilter})`)
             .gt('created_at', cutoffDate.toISOString())
 

@@ -63,7 +63,7 @@ export async function getMatchesSince(profileId: string, days: number): Promise<
 
   const { data } = await supabase
     .from('matches')
-    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at')
+    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, updated_at')
     .or(`player1_id.eq.${profileId},player2_id.eq.${profileId}`)
     .gt('created_at', cutoffDate.toISOString())
     .order('created_at', { ascending: false })
@@ -95,12 +95,15 @@ export async function getMatchesSince(profileId: string, days: number): Promise<
     return {
       id: m.id,
       created_at: m.created_at,
+      updated_at: m.updated_at,
       status: m.status,
       sport_id: m.sport_id,
       sport_name: null,
       result,
       scores: null,
       opponent: opponent ? { id: opponent.id, full_name: opponent.full_name, avatar_url: opponent.avatar_url } : null,
+      player1_id: m.player1_id,
+      player2_id: m.player2_id,
     }
   })
 }
