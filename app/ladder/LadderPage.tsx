@@ -4,13 +4,15 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
-import RankingsTable from '@/components/rankings/RankingsTable'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
 import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { createBrowserClient } from '@supabase/ssr'
+import LadderHeader from '@/components/ladder/LadderHeader'
+import LadderView from '@/components/ladder/LadderView'
+import { cn } from '@/lib/utils'
 
 export default function LadderPage() {
   const { user } = useUser()
@@ -233,93 +235,73 @@ export default function LadderPage() {
       setSubmittingChallenge(null)
     }
   }
-
   if (loading) return <div className="p-8 text-center">Loading...</div>
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <aside className="md:col-span-1">
-        <Card>
-          <CardHeader>
-            <CardTitle className='text-center text-2xl font-bold text-shadow-sm'>Sports</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
+    <div className="max-w-4xl mx-auto pb-safe-area-inset-bottom">
+
+      {/* Mobile Sport Selector - Top Position */}
+      <div className="md:hidden overflow-x-auto pb-2 -mx-4 px-4 flex gap-2 no-scrollbar mb-4 sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2">
+        {sports.map(s => (
+          <Button
+            key={s.id}
+            size="sm"
+            variant={selectedSport?.id === s.id ? 'default' : 'outline'}
+            className="rounded-full whitespace-nowrap shadow-sm"
+            onClick={() => setSelectedSport(s)}
+          >
+            {s.name}
+          </Button>
+        ))}
+      </div>
+
+      {/* Mobile-first Header */}
+      <LadderHeader
+        selectedSport={selectedSport}
+        user={user}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+      />
+
+      <div className="md:grid md:grid-cols-4 md:gap-8">
+        {/* Desktop Sidebar for Sports (Hidden on Mobile) */}
+        <aside className="hidden md:block md:col-span-1 space-y-4">
+          <Card className="sticky top-24 border-none shadow-none bg-transparent">
+            <h3 className="font-semibold text-lg px-2 mb-2">Sports</h3>
+            <nav className="space-y-1">
               {sports.map(s => (
-                <li key={s.id}>
-                  <Button
-                    variant={selectedSport?.id === s.id ? 'default' : 'secondary'}
-                    onClick={() => setSelectedSport(s)}
-                    className="w-full justify-start font-bold"
-                  >
-                    {s.name}
-                  </Button>
-                </li>
+                <Button
+                  key={s.id}
+                  variant={selectedSport?.id === s.id ? 'secondary' : 'ghost'}
+                  className={cn("w-full justify-start", selectedSport?.id === s.id && "bg-primary/10 text-primary font-bold")}
+                  onClick={() => setSelectedSport(s)}
+                >
+                  {s.name}
+                </Button>
               ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </aside>
+            </nav>
+          </Card>
+        </aside>
 
-      <section className="md:col-span-3">
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle>{selectedSport ? `${selectedSport.name} Ladder` : 'Select a sport'}</CardTitle>
-            {!user && (
-              <CardDescription>
-                Viewing as guest. Sign in to join ladders and challenge players.
-                <Button asChild size="sm" className="ml-2">
-                  <Link href="/login">Sign in</Link>
-                </Button>
-              </CardDescription>
-            )}
-
-            {selectedSport && (
-              <div className="flex justify-between items-center mt-2">
-                <Button variant="outline" size="sm" asChild className="h-8">
-                  <Link href="/rules">View Rules</Link>
-                </Button>
-                <div className="flex items-center space-x-2 bg-muted p-1 rounded-md">
-                  <span className="text-xs font-medium px-2 text-muted-foreground">Sort By:</span>
-                  <Button
-                    variant={sortBy === 'ladder' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setSortBy('ladder')}
-                  >
-                    Ladder
-                  </Button>
-                  <Button
-                    variant={sortBy === 'rating' ? 'default' : 'ghost'}
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => setSortBy('rating')}
-                  >
-                    Elo
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardHeader>
-          <CardContent>
-            {selectedSport ? (
-              <RankingsTable
-                players={sortedPlayers}
-                ranks={ranks}
-                challengables={challengables}
-                submittingChallenge={submittingChallenge}
-                handleChallenge={handleChallenge}
-                selectedSport={selectedSport}
-                user={user!}
-                playerRefs={playerRefs}
-                recentMap={recentMap}
-              />
-            ) : (
-              <p className="text-muted-foreground">Choose a sport to view its ladder.</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+        {/* Main Content */}
+        <section className="md:col-span-3 min-h-[60vh]">
+          {selectedSport ? (
+            <LadderView
+              players={sortedPlayers}
+              user={user}
+              challengables={challengables}
+              submittingChallenge={submittingChallenge}
+              handleChallenge={handleChallenge}
+              selectedSport={selectedSport}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+              <span className="mb-2 text-4xl">🏅</span>
+              <p>Select a sport to start</p>
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   )
 }

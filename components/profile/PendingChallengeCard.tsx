@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { PendingChallengeItem } from '@/lib/types'
-import { Check, AlertCircle } from 'lucide-react'
+import { Check, AlertCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
@@ -229,283 +229,133 @@ export default function PendingChallengeCard({
 
     return (
         <>
-            <div className="group relative overflow-hidden rounded-lg border bg-background p-4 transition-all hover:shadow-md">
-                <div className="flex flex-col gap-3">
-                    {/* Match Info */}
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <Badge variant={badgeVariant as any} className={cn(
-                                "font-semibold text-xs px-2 py-0.5",
-                                status === 'Challenged' && "bg-blue-500 hover:bg-blue-600",
-                                status === 'Won' && "bg-emerald-500 hover:bg-emerald-600",
-                            )}>
-                                {status}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()}</span>
-                        </div>
+            <div className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-card/80 to-muted/20 backdrop-blur-md shadow-sm transition-all hover:shadow-md">
 
-                        <div className="font-semibold text-sm flex gap-2 items-center">
-                            <span className="truncate max-w-[40%]">
-                                <Link href={`/player/${c.player1.id}`} className="hover:underline">
-                                    {c.player1.full_name ?? 'P1'}
-                                </Link>
-                            </span>
-                            <span className="text-muted-foreground text-[10px] uppercase font-bold px-1">vs</span>
-                            <span className="truncate max-w-[40%]">
-                                <Link href={`/player/${c.player2.id}`} className="hover:underline">
-                                    {c.player2.full_name ?? 'P2'}
-                                </Link>
-                            </span>
-                        </div>
+                {/* Status Strip */}
+                <div className={cn(
+                    "h-1 w-full",
+                    status === 'Challenged' && "bg-blue-500",
+                    status === 'Won' && "bg-emerald-500",
+                    status === 'Lost' && "bg-red-500",
+                    status === 'Pending Result' && "bg-amber-500",
+                )} />
 
-                        {c.message && (
-                            <div className="text-xs text-muted-foreground italic truncate">
-                                "{c.message}"
-                            </div>
-                        )}
+                <div className="p-3 space-y-3">
+                    {/* Header: Status & Date */}
+                    <div className="flex items-center justify-between">
+                        <Badge variant="outline" className={cn(
+                            "h-5 px-1.5 text-[10px] uppercase font-bold tracking-wider border-0 shadow-none",
+                            status === 'Challenged' && "bg-blue-500/10 text-blue-600",
+                            status === 'Won' && "bg-emerald-500/10 text-emerald-600",
+                            status === 'Lost' && "bg-red-500/10 text-red-600",
+                            status === 'Pending Result' && "bg-amber-500/10 text-amber-600",
+                        )}>
+                            {status}
+                        </Badge>
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                            {new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </span>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex flex-col gap-2 w-full mt-1">
-                        {!isReadOnly && c.status === 'CHALLENGED' && c.player2?.id === currentUserId && (
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full h-8 text-xs flex-1"
-                                    onClick={handleAcceptChallenge}
-                                >
-                                    <Check className="mr-1 h-3 w-3" /> Accept
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-red-500 text-red-600 hover:bg-red-50 h-8 text-xs px-2"
-                                    onClick={() => {
-                                        setAlertConfig({
-                                            open: true,
-                                            title: "Forfeit Match",
-                                            description: "Are you sure you want to forfeit? This will count as a loss and your rank will drop.",
-                                            action: async () => {
-                                                const res = await forfeitMatch(c.id)
-                                                if (res.success) {
-                                                    toast.success("Match forfeited")
-                                                    onAction()
-                                                }
-                                            }
-                                        })
-                                    }}
-                                >
-                                    Forfeit (Walkover)
-                                </Button>
+                    {/* Players Row - Compact */}
+                    <div className="flex items-center justify-between gap-3">
+                        {/* Player 1 */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-black text-primary shrink-0">
+                                {c.player1.full_name?.charAt(0).toUpperCase()}
                             </div>
-                        )}
+                            <div className="flex flex-col min-w-0">
+                                <Link href={`/player/${c.player1.id}`} className="font-bold text-xs truncate hover:text-primary transition-colors">
+                                    {c.player1.full_name?.split(' ')[0] ?? 'P1'}
+                                </Link>
+                                {c.player1.id === currentUserId && <span className="text-[9px] text-muted-foreground leading-none">(You)</span>}
+                            </div>
+                        </div>
 
-                        {!isReadOnly && c.status === 'CHALLENGED' && c.player1?.id === currentUserId && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full h-8 text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() => {
-                                    setAlertConfig({
-                                        open: true,
-                                        title: "Withdraw Challenge",
-                                        description: "Are you sure you want to withdraw this challenge? The match will be cancelled.",
-                                        action: async () => {
-                                            const res = await withdrawChallenge(c.id)
-                                            if (res.success) {
-                                                toast.success("Challenge withdrawn")
-                                                onAction()
-                                            }
-                                        }
-                                    })
-                                }}
-                            >
-                                Withdraw Challenge
-                            </Button>
-                        )}
+                        {/* VS */}
+                        <div className="text-[9px] font-black text-muted-foreground/50 italic shrink-0">VS</div>
 
-                        {!isReadOnly && c.status === 'PENDING' && (
-                            <>
-                                {c.sports?.scoring_config?.type === 'simple' ? (
-                                    <div className="flex gap-2">
-                                        {currentUserId === c.player1.id ? (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-emerald-600 hover:bg-emerald-700 w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'You')}
-                                                >
-                                                    I Won
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-red-600 hover:bg-red-700 w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'Opponent')}
-                                                >
-                                                    I Lost
-                                                </Button>
-                                            </>
-                                        ) : currentUserId === c.player2.id ? (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-emerald-600 hover:bg-emerald-700 w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'You')}
-                                                >
-                                                    I Won
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-red-600 hover:bg-red-700 w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'Opponent')}
-                                                >
-                                                    I Lost
-                                                </Button>
-                                            </>
-                                        ) : (
-                                            <div className="flex gap-2 w-full">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'P1')}
-                                                >
-                                                    {c.player1.full_name || 'P1'} Won
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full h-8 text-xs flex-1"
-                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'P2')}
-                                                >
-                                                    {c.player2.full_name || 'P2'} Won
-                                                </Button>
-                                            </div>
-                                        )}
+                        {/* Player 2 */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
+                            <div className="flex flex-col min-w-0 items-end">
+                                <Link href={`/profile/${c.player2.id}`} className="font-bold text-xs truncate hover:text-primary transition-colors">
+                                    {c.player2.full_name?.split(' ')[0] ?? 'P2'}
+                                </Link>
+                                {c.player2.id === currentUserId && <span className="text-[9px] text-muted-foreground leading-none">(You)</span>}
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-xs font-black text-indigo-600 shrink-0">
+                                {c.player2.full_name?.charAt(0).toUpperCase()}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Message */}
+                    {c.message && (
+                        <div className="text-[10px] text-muted-foreground bg-muted/30 px-2 py-1 rounded truncate">
+                            "{c.message}"
+                        </div>
+                    )}
+
+                    {/* Action Area */}
+                    {!isReadOnly && (
+                        <div className="pt-2 border-t border-border/30">
+                            {/* Challenged - Receive */}
+                            {c.status === 'CHALLENGED' && c.player2?.id === currentUserId && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAcceptChallenge}>
+                                        Accept
+                                    </Button>
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600 hover:bg-red-50" onClick={() => setAlertConfig({
+                                        open: true, title: "Forfeit", description: "Confirm forfeit?", action: async () => { await forfeitMatch(c.id); onAction() }
+                                    })}>
+                                        Decline
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* Challenged - Sent */}
+                            {c.status === 'CHALLENGED' && c.player1?.id === currentUserId && (
+                                <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => setAlertConfig({
+                                    open: true, title: "Withdraw", description: "Withdraw this challenge?", action: async () => { await withdrawChallenge(c.id); onAction() }
+                                })}>
+                                    Withdraw Request
+                                </Button>
+                            )}
+
+                            {/* Pending - Report */}
+                            {c.status === 'PENDING' && (
+                                c.sports?.scoring_config?.type === 'simple' ? (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player1.id : c.player2.id, 'You')}>I Won</Button>
+                                        <Button size="sm" variant="outline" className="h-7 text-xs hover:bg-red-50 text-red-600 border-red-200" onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player2.id : c.player1.id, 'Opponent')}>I Lost</Button>
                                     </div>
                                 ) : (
-                                    <form
-                                        className="flex flex-col gap-2 w-full bg-muted/30 p-2 rounded-md border border-border/50"
-                                        onSubmit={handleReport}
-                                    >
-                                        <div className="mb-1 border-b pb-2">
-                                            <ScoreInput
-                                                config={c.sports.scoring_config}
-                                                player1Name={c.player1.full_name ?? 'P1'}
-                                                player2Name={c.player2.full_name ?? 'P2'}
-                                                onChange={setScores}
-                                            />
+                                    <form onSubmit={handleReport} className="space-y-2">
+                                        <div className="bg-muted/30 p-2 rounded-lg">
+                                            <ScoreInput config={c.sports.scoring_config} player1Name={c.player1.full_name ?? 'P1'} player2Name={c.player2.full_name ?? 'P2'} onChange={setScores} />
                                         </div>
-
-                                        <div className="flex justify-between gap-2 mt-1">
-                                            {/* Challenger (P1) sees Withdraw */}
-                                            {c.player1?.id === currentUserId && (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                    onClick={() => {
-                                                        setAlertConfig({
-                                                            open: true,
-                                                            title: "Withdraw from Match",
-                                                            description: "Are you sure you want to withdraw? This will cancel the match.",
-                                                            action: async () => {
-                                                                const res = await withdrawChallenge(c.id)
-                                                                if (res.success) {
-                                                                    toast.success("Match Cancelled")
-                                                                    onAction()
-                                                                }
-                                                            }
-                                                        })
-                                                    }}
-                                                >
-                                                    Withdraw
-                                                </Button>
-                                            )}
-
-                                            {/* Defender (P2) sees Walkover */}
-                                            {c.player2?.id === currentUserId && (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                    onClick={() => {
-                                                        setAlertConfig({
-                                                            open: true,
-                                                            title: "Grant Walkover",
-                                                            description: "Are you sure you want to grant a walkover? This will count as a loss for you.",
-                                                            action: async () => {
-                                                                const res = await forfeitMatch(c.id)
-                                                                if (res.success) {
-                                                                    toast.success("Walkover Granted")
-                                                                    onAction()
-                                                                }
-                                                            }
-                                                        })
-                                                    }}
-                                                >
-                                                    Walkover
-                                                </Button>
-                                            )}
-
-                                            <Button size="sm" type="submit" disabled={isSubmitting} className="h-8 text-xs px-4 ml-auto">
-                                                {isSubmitting ? '...' : 'Save'}
-                                            </Button>
-                                        </div>
+                                        <Button type="submit" size="sm" disabled={isSubmitting} className="w-full h-7 text-xs font-bold">
+                                            {isSubmitting ? '...' : 'Submit Score'}
+                                        </Button>
                                     </form>
-                                )}
-                            </>
-                        )}
+                                )
+                            )}
 
-                        {!isReadOnly && c.status === 'PROCESSING' &&
-                            (c.reported_by?.id !== currentUserId ? (
-                                <div className="flex flex-col gap-2">
-                                    <div className={cn(
-                                        "px-2 py-1 rounded text-xs font-bold text-center",
-                                        c.winner_id === currentUserId ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                    )}>
-                                        {c.winner_id === currentUserId ? 'Opponent says you Won' : 'Opponent says you Lost'}
-                                    </div>
-
-                                    {/* Show scores if available */}
-                                    {c.scores && Array.isArray(c.scores) && c.scores.length > 0 && (
-                                        <div className="text-xs text-center font-mono py-1 bg-muted/40 rounded border border-border/50">
-                                            {c.scores.map((s: any, i) => (
-                                                <span key={i} className="mx-1">
-                                                    {s.p1}-{s.p2}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-
+                            {/* Processing */}
+                            {c.status === 'PROCESSING' && (
+                                c.reported_by?.id !== currentUserId ? (
                                     <div className="grid grid-cols-2 gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-8 text-xs border-emerald-500 text-emerald-600 hover:bg-emerald-50 w-full"
-                                            onClick={() => handleVerifyAction('yes')}
-                                        >
-                                            Confirm
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-8 text-xs border-red-500 text-red-600 hover:bg-red-50 w-full"
-                                            onClick={confirmDispute}
-                                        >
-                                            Dispute
-                                        </Button>
+                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" onClick={() => handleVerifyAction('yes')}>Confirm</Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600" onClick={confirmDispute}>Dispute</Button>
                                     </div>
-                                </div>
-                            ) : (
-                                <span className="text-xs text-muted-foreground flex items-center justify-center gap-1 py-1 bg-muted/50 rounded">
-                                    <LoaderIcon className="h-3 w-3 animate-spin" />
-                                    Waiting for confirmation
-                                </span>
-                            ))}
-                    </div>
+                                ) : (
+                                    <div className="text-center text-[10px] text-muted-foreground animate-pulse">
+                                        Waiting for opponent confirmation...
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -513,9 +363,7 @@ export default function PendingChallengeCard({
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {alertConfig.description}
-                        </AlertDialogDescription>
+                        <AlertDialogDescription>{alertConfig.description}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={closeAlert}>Cancel</AlertDialogCancel>

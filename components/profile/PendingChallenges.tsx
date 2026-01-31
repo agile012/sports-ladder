@@ -1,15 +1,12 @@
-
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
 import { PendingChallengeItem } from '@/lib/types'
-import { Swords, Check, X, AlertCircle } from 'lucide-react'
+import { Swords, Check, X, Clock, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
 import PendingChallengeCard from './PendingChallengeCard'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function PendingChallenges({
   challenges,
@@ -25,47 +22,49 @@ export default function PendingChallenges({
   if (!challenges || challenges.length === 0) return null
 
   return (
-    <Card className="border-l-4 border-l-primary shadow-md bg-card/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Swords className="h-5 w-5 text-primary" />
-          <CardTitle className="text-lg">Pending Challenges</CardTitle>
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 px-1">
+        <div className="relative">
+          <div className="absolute -inset-1 rounded-full bg-amber-500/20 animate-pulse"></div>
+          <ShieldAlert className="h-5 w-5 text-amber-500 relative z-10" />
         </div>
-        <CardDescription>Action required for these matches</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {challenges.map((c) => {
-          const myProfileId = currentUserIds.find(id => id === c.player1?.id || id === c.player2?.id)
-          return (
-            <PendingChallengeCard
-              key={c.id}
-              challenge={c}
-              currentUserId={myProfileId}
-              onAction={onAction}
-              isReadOnly={isReadOnly}
-            />
-          )
-        })}
-      </CardContent>
-    </Card>
-  )
-}
+        <h3 className="font-bold text-lg bg-gradient-to-r from-amber-600 to-amber-500 bg-clip-text text-transparent">
+          Pending Challenges
+        </h3>
+        <span className="ml-auto text-xs font-mono bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full">
+          {challenges.length}
+        </span>
+      </div>
 
-function LoaderIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AnimatePresence mode='popLayout'>
+          {challenges.map((c) => {
+            const myProfileId = currentUserIds.find(id => id === c.player1?.id || id === c.player2?.id)
+            return (
+              <motion.div
+                key={c.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <div className="relative group">
+                  {/* Glow effect */}
+                  <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/20 to-primary/20 rounded-2xl blur opacity-50 group-hover:opacity-100 transition duration-500 rounded-lg"></div>
+
+                  <PendingChallengeCard
+                    challenge={c}
+                    currentUserId={myProfileId}
+                    onAction={onAction}
+                    isReadOnly={isReadOnly}
+                  />
+                </div>
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
+      </div>
+    </div>
   )
 }

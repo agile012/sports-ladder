@@ -92,7 +92,6 @@ export function getCooldownOpponents(
     const opponents = new Set<string>()
     const blockingStatuses = ['CONFIRMED', 'PROCESSED', 'PENDING', 'CHALLENGED', 'PROCESSING']
 
-    console.log(matches);
     matches.forEach(m => {
         // Check status
         if (!blockingStatuses.includes(m.status)) return

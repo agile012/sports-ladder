@@ -38,121 +38,136 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
   }
 
   return (
-    <>
-      <Card className="overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
-        {/* Cleaner Sport Header */}
-        <div className="border-b bg-muted/20 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-1 bg-primary rounded-full" /> {/* Visual accent */}
-            <div>
-              <h3 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                {player.sport_name}
-              </h3>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">Performance Summary</p>
+    <div className="relative">
+      {/* Sport Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/25">
+            <Trophy className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-3xl font-black tracking-tight">{player.sport_name}</h3>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider">Active</span>
+              <span>•</span>
+              <span>Joined {new Date(player.created_at).toLocaleDateString()}</span>
             </div>
           </div>
-
-          {/* Removed Contact Info from here */}
-
-          {!isPublic && (
-            <div className="flex gap-2">
-              <Button asChild variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
-                <Link href={`/ladder?sport=${player.sport_id}`}>
-                  View Ladder <ExternalLink className="h-3 w-3" />
-                </Link>
-              </Button>
-              <Button variant="ghost" size="sm" disabled={loading} onClick={() => setShowLeaveDialog(true)} className="gap-2 text-muted-foreground hover:text-destructive">
-                <LogOut className="h-3 w-3" /> Leave
-              </Button>
-            </div>
-          )}
         </div>
 
-        <CardContent className="p-6 space-y-8">
-          {/* Key Stats Grid - Clean & Minimal */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Rank Card */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20 border border-yellow-100 dark:border-yellow-900/50 rounded-xl p-4 flex flex-col justify-center">
-              <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Trophy className="h-16 w-16 text-yellow-600" />
+        {!isPublic && (
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="rounded-full gap-2 border-primary/20 text-primary hover:bg-primary/5 hover:text-primary">
+              <Link href={`/ladder?sport=${player.sport_id}`}>
+                View Ladder <ExternalLink className="h-3 w-3" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" disabled={loading} onClick={() => setShowLeaveDialog(true)} className="rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Leave Ladder">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Key Stats Grid - Floating Glass Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Rank Card - Gold/Amber Theme */}
+        <div className="group relative overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-500/10 bg-gradient-to-br from-amber-50/80 to-orange-50/50 dark:from-amber-950/20 dark:to-orange-950/10 backdrop-blur-xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <Trophy className="h-20 w-20 text-amber-600" />
+          </div>
+
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <span className="text-xs font-bold text-amber-600/80 dark:text-amber-500 uppercase tracking-widest">Current Rank</span>
+            <div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-black text-amber-900 dark:text-amber-100 tracking-tighter">#{player.rankInfo?.rank ?? '-'}</span>
+                <span className="text-sm font-bold text-amber-700/60 dark:text-amber-400">/ {player.rankInfo?.total}</span>
               </div>
-              <span className="text-xs font-bold text-yellow-700 dark:text-yellow-500 uppercase tracking-wider mb-1">Current Rank</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-foreground">{player.rankInfo?.rank ?? '-'}</span>
-                <span className="text-sm text-muted-foreground font-medium">/ {player.rankInfo?.total ?? '-'}</span>
+              <div className="h-1 w-full bg-amber-100 dark:bg-amber-900/30 rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500" style={{ width: `${Math.max(5, ((player.rankInfo?.total - (player.rankInfo?.rank || player.rankInfo?.total)) / player.rankInfo?.total) * 100)}%` }} />
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Rating Card */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/50 rounded-xl p-4 flex flex-col justify-center">
-              <div className="absolute top-0 right-0 p-3 opacity-10">
-                <Dna className="h-16 w-16 text-blue-600" />
-              </div>
-              <span className="text-xs font-bold text-blue-700 dark:text-blue-500 uppercase tracking-wider mb-1">Rating Points</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-foreground">{player.rating}</span>
-                <span className="text-sm text-green-600 font-bold flex items-center">
-                  <Activity className="h-3 w-3 mr-1" /> Active
+        {/* Rating Card - Blue Theme */}
+        <div className="group relative overflow-hidden rounded-2xl border border-blue-200/50 dark:border-blue-500/10 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/10 backdrop-blur-xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <Dna className="h-20 w-20 text-blue-600" />
+          </div>
+
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <span className="text-xs font-bold text-blue-600/80 dark:text-blue-500 uppercase tracking-widest">Skill Rating</span>
+            <div className="flex flex-col">
+              <span className="text-5xl font-black text-blue-900 dark:text-blue-100 tracking-tighter">{player.rating}</span>
+              <span className="text-xs font-semibold text-blue-600/70 dark:text-blue-400 flex items-center gap-1 mt-1">
+                <Activity className="h-3 w-3" /> ELO System
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Win Rate Card - Emerald Theme */}
+        <div className="group relative overflow-hidden rounded-2xl border border-emerald-200/50 dark:border-emerald-500/10 bg-gradient-to-br from-emerald-50/80 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/10 backdrop-blur-xl p-5 shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 duration-500">
+            <TrendingUp className="h-20 w-20 text-emerald-600" />
+          </div>
+
+          <div className="relative z-10 flex flex-col h-full justify-between">
+            <span className="text-xs font-bold text-emerald-600/80 dark:text-emerald-500 uppercase tracking-widest">Win Rate</span>
+            <div>
+              <span className="text-5xl font-black text-emerald-900 dark:text-emerald-100 tracking-tighter">{winRate}%</span>
+              <div className="flex items-center gap-2 mt-2 text-xs font-bold">
+                <span className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> {player.stats?.wins}W
                 </span>
-              </div>
-            </div>
-
-            {/* Win Rate Card */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border border-emerald-100 dark:border-emerald-900/50 rounded-xl p-4 flex flex-col justify-center">
-              <div className="absolute top-0 right-0 p-3 opacity-10">
-                <TrendingUp className="h-16 w-16 text-emerald-600" />
-              </div>
-              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-500 uppercase tracking-wider mb-1">Win Rate</span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-foreground">{winRate}%</span>
-                <span className="text-sm text-muted-foreground font-medium">
-                  ({player.stats?.wins}W - {player.stats?.losses}L)
+                <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-2 py-0.5 rounded flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> {player.stats?.losses}L
                 </span>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Main Content Split: Chart vs History */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Rating Chart */}
-              {/* History Charts with Tabs */}
-              <div className="rounded-xl border bg-card p-1 shadow-sm">
-                <Tabs defaultValue="rank" className="w-full">
-                  <div className="px-4 py-3 border-b flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-primary" />
-                      <h4 className="font-semibold text-sm">Performance History</h4>
-                    </div>
-                    <TabsList className="h-8">
-                      <TabsTrigger value="rank" className="text-xs h-6 px-2">Rank</TabsTrigger>
-                      <TabsTrigger value="rating" className="text-xs h-6 px-2">Rating</TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <div className="p-4">
-                    <TabsContent value="rating" className="mt-0">
-                      <RatingHistory ratingHistory={player.ratingHistory} />
-                    </TabsContent>
-                    <TabsContent value="rank" className="mt-0">
-                      <RankHistory rankHistory={player.rankHistory} />
-                    </TabsContent>
-                  </div>
-                </Tabs>
+      {/* Main Content Split */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* History / Performance Graphs */}
+          <div className="rounded-2xl border bg-card/50 backdrop-blur-sm p-1 shadow-sm overflow-hidden">
+            <Tabs defaultValue="rank" className="w-full">
+              <div className="px-6 py-4 border-b flex items-center justify-between bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  <h4 className="font-bold text-sm">Trend Analysis</h4>
+                </div>
+                <TabsList className="h-8 bg-background/50 p-1">
+                  <TabsTrigger value="rank" className="text-xs h-6 px-3 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-primary data-[state=active]:shadow-sm">Rank</TabsTrigger>
+                  <TabsTrigger value="rating" className="text-xs h-6 px-3 rounded-md data-[state=active]:bg-white dark:data-[state=active]:bg-primary data-[state=active]:shadow-sm">Rating</TabsTrigger>
+                </TabsList>
               </div>
 
-              {/* Pending Challenges Area - Full Width in this column */}
-              <PendingChallenges challenges={player.pendingChallenges} currentUserIds={[player.id]} isReadOnly={isPublic} />
-            </div>
-
-            <div className="lg:col-span-1">
-              {/* Match History - Sidebar style */}
-              <MatchHistory matches={player.recentMatches} />
-            </div>
+              <div className="p-4 bg-gradient-to-b from-transparent to-muted/10">
+                <TabsContent value="rating" className="mt-0 h-[300px]">
+                  <RatingHistory ratingHistory={player.ratingHistory} />
+                </TabsContent>
+                <TabsContent value="rank" className="mt-0 h-[300px]">
+                  <RankHistory rankHistory={player.rankHistory} />
+                </TabsContent>
+              </div>
+            </Tabs>
           </div>
 
-        </CardContent>
-      </Card>
+          {/* Pending Challenges - Full Width */}
+          <PendingChallenges challenges={player.pendingChallenges} currentUserIds={[player.id]} isReadOnly={isPublic} />
+        </div>
+
+        <div className="lg:col-span-1">
+          {/* Match History - Sidebar style */}
+          <MatchHistory matches={player.recentMatches} />
+        </div>
+      </div>
 
       <ConfirmDialog
         open={showLeaveDialog}
@@ -165,6 +180,6 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
         onConfirm={handleLeave}
         loading={loading}
       />
-    </>
+    </div>
   )
 }

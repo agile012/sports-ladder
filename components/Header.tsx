@@ -82,7 +82,7 @@ export default function Header() {
           : "bg-transparent border-transparent"
       )}
     >
-      <div className="max-w-7xl mx-auto px-4 lg:px-6 h-16 flex items-center justify-between">
+      <div className="hidden md:flex max-w-7xl mx-auto px-4 lg:px-6 h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 group">
           <div className="bg-primary/10 p-2 rounded-lg group-hover:bg-primary/20 transition-colors">
             <Trophy className="h-6 w-6 text-primary" />

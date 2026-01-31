@@ -7,7 +7,7 @@ import { Trophy, ArrowRight } from 'lucide-react'
 export default async function AnalyticsLandingPage() {
     const supabase = await createClient()
 
-    const { data: sports } = await supabase.from('sports').select('id, name')
+    const { data: sports } = await supabase.from('sports').select('id, name').order('name', { ascending: true })
 
     if (!sports || sports.length === 0) {
         return (

@@ -4,12 +4,16 @@ import { ThemeProvider } from "@/components/theme-provider"
 import PageTransition from '@/components/PageTransition'
 
 import Background from '@/components/Background'
+import MobileNav from '@/components/MobileNav'
 
 import { Toaster } from "@/components/ui/sonner"
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-title" content="Sports Ladder" />
+      </head>
       <body>
         <ThemeProvider
           attribute="class"
@@ -25,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {children}
               </PageTransition>
             </main>
+            <MobileNav />
             <Toaster position="top-center" />
           </div>
         </ThemeProvider>

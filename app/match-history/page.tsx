@@ -13,14 +13,15 @@ import {
 } from "@/components/ui/table"
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Calendar, Trophy, ArrowRight, User } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type Props = {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const ITEMS_PER_PAGE = 20
-
-
 
 export default async function MatchHistoryPage({ searchParams }: Props) {
   const supabase = await createClient()
@@ -91,145 +92,226 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     const status = match.status;
     const scores = match.scores as any;
 
-    if (status === 'CANCELLED') {
-      return { label: 'WITHDRAWN', variant: 'secondary' as const };
-    }
+    if (status === 'CANCELLED') return { label: 'Withdrawn', variant: 'secondary' as const, className: 'bg-muted text-muted-foreground' };
     if (status === 'PROCESSED') {
-      if (scores?.reason === 'forfeit') {
-        return { label: 'FORFEIT', variant: 'destructive' as const };
-      }
-      return { label: 'DONE', variant: 'default' as const };
+      if (scores?.reason === 'forfeit') return { label: 'Forfeit', variant: 'destructive' as const };
+      return { label: 'Done', variant: 'default' as const, className: 'bg-emerald-600 hover:bg-emerald-700' };
     }
-    if (status === 'CHALLENGED' || status === 'PENDING') {
-      return { label: 'CHALLENGED', variant: 'outline' as const };
-    }
-    if (status === 'PROCESSING') {
-      return { label: 'PLAYED', variant: 'secondary' as const };
-    }
+    if (status === 'CHALLENGED') return { label: 'Challenged', variant: 'outline' as const, className: 'text-blue-600 border-blue-200 bg-blue-50' };
+    if (status === 'PENDING') return { label: 'Pending', variant: 'secondary' as const, className: 'bg-amber-100 text-amber-700' };
+    if (status === 'PROCESSING') return { label: 'Played', variant: 'secondary' as const, className: 'bg-purple-100 text-purple-700' };
 
-    // Default fallback
     return { label: status, variant: 'outline' as const };
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 pb-24">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold tracking-tight">Match History</h1>
-        <Button variant="outline" asChild>
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Match History</h1>
+          <p className="text-muted-foreground">Recent battles and results</p>
+        </div>
+        <Button variant="outline" asChild className="hidden md:flex">
           <Link href="/rules">View Rules</Link>
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-4 justify-between md:items-center">
-            <CardTitle>Matches</CardTitle>
-            <MatchFilters
-              sports={sports}
-              players={allPlayers as any[]}
-              initialSport={sportId}
-              initialStatus={status}
-              initialPlayer={playerId}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
+      {/* Filters */}
+      <div className="bg-card/50 backdrop-blur-sm border rounded-xl p-4 shadow-sm">
+        <MatchFilters
+          sports={sports}
+          players={allPlayers as any[]}
+          initialSport={sportId}
+          initialStatus={status}
+          initialPlayer={playerId}
+        />
+      </div>
+
+      <div className="space-y-4">
+        {/* Desktop Table View */}
+        <div className="hidden md:block rounded-xl border bg-card/50 backdrop-blur-sm overflow-hidden shadow-sm">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Sport</TableHead>
+                <TableHead>Matchup</TableHead>
+                <TableHead>Winner</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allMatches.length === 0 ? (
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Sport</TableHead>
-                  <TableHead>Player 1</TableHead>
-                  <TableHead>Player 2</TableHead>
-                  <TableHead>Winner</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    No matches found matching your filters.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allMatches.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No matches found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  allMatches.map((m) => (
-                    <TableRow key={m.id}>
+              ) : (
+                allMatches.map((m) => {
+                  const p1 = profilesMap[m.player1_id]
+                  const p2 = profilesMap[m.player2_id]
+                  const statusInfo = getStatusDisplay(m)
+
+                  return (
+                    <TableRow key={m.id} className="hover:bg-muted/30">
                       <TableCell className="whitespace-nowrap">
-                        {new Date(m.created_at).toLocaleDateString()}
+                        <div className="font-medium">{new Date(m.created_at).toLocaleDateString()}</div>
                         <div className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       </TableCell>
-                      <TableCell>{m.sport_name}</TableCell>
-                      <TableCell>{profilesMap[m.player1_id]?.full_name ?? 'Player 1'}</TableCell>
-                      <TableCell>{profilesMap[m.player2_id]?.full_name ?? 'Player 2'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-normal">{m.sport_name}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className={cn("font-medium", m.winner_id === m.player1_id && "text-emerald-600")}>{p1?.full_name ?? 'Player 1'}</span>
+                          <span className="text-muted-foreground text-xs">vs</span>
+                          <span className={cn("font-medium", m.winner_id === m.player2_id && "text-emerald-600")}>{p2?.full_name ?? 'Player 2'}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {m.winner_id ? (
-                          <span className={m.winner_id === m.player1_id || m.winner_id === m.player2_id ? "text-emerald-600 font-medium" : ""}>
-                            {profilesMap[m.winner_id]?.full_name ?? 'Unknown'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <Trophy className="h-3 w-3 text-emerald-500" />
+                            <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                              {profilesMap[m.winner_id]?.full_name ?? 'Unknown'}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          const statusInfo = getStatusDisplay(m);
-                          return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-                        })()}
+                        <Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.label}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/matches/${m.id}`}>View</Link>
+                        <Button variant="ghost" size="sm" asChild className="hover:bg-primary/5">
+                          <Link href={`/matches/${m.id}`}>View Details</Link>
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-end space-x-2 py-4">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                asChild
-              >
-                <Link
-                  href={{
-                    pathname: '/match-history',
-                    query: { ...resolvedSearchParams, page: page - 1 }
-                  }}
-                >
-                  Previous
-                </Link>
-              </Button>
-              <div className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                asChild
-              >
-                <Link
-                  href={{
-                    pathname: '/match-history',
-                    query: { ...resolvedSearchParams, page: page + 1 }
-                  }}
-                >
-                  Next
-                </Link>
-              </Button>
+        {/* Mobile Card View */}
+        <div className="md:hidden space-y-3">
+          {allMatches.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+              No matches found.
             </div>
+          ) : (
+            allMatches.map(m => {
+              const p1 = profilesMap[m.player1_id]
+              const p2 = profilesMap[m.player2_id]
+              const statusInfo = getStatusDisplay(m)
+
+              return (
+                <Link href={`/matches/${m.id}`} key={m.id} className="block">
+                  <Card className="hover:shadow-md transition-shadow active:scale-[0.99] border-l-4" style={{
+                    borderLeftColor: m.status === 'PROCESSED' ? '#10b981' :
+                      m.status === 'CHALLENGED' ? '#3b82f6' :
+                        m.status === 'PENDING' ? '#f59e0b' : '#e5e7eb'
+                  }}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-bold text-muted-foreground uppercase">{m.sport_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(m.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <Badge variant={statusInfo.variant} className={cn("text-[10px] uppercase", statusInfo.className)}>
+                          {statusInfo.label}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <Avatar className="h-8 w-8 border">
+                            <AvatarImage src={p1?.avatar_url} />
+                            <AvatarFallback>{p1?.full_name?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn("text-sm font-semibold truncate", m.winner_id === p1?.id && "text-emerald-600")}>
+                              {p1?.full_name}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-xs font-black text-muted-foreground/30 italic">VS</div>
+
+                        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
+                          <div className="flex flex-col min-w-0">
+                            <span className={cn("text-sm font-semibold truncate", m.winner_id === p2?.id && "text-emerald-600")}>
+                              {p2?.full_name}
+                            </span>
+                          </div>
+                          <Avatar className="h-8 w-8 border">
+                            <AvatarImage src={p2?.avatar_url} />
+                            <AvatarFallback>{p2?.full_name?.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                        </div>
+                      </div>
+
+                      {m.winner_id && (
+                        <div className="flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded w-fit">
+                          <Trophy className="h-3 w-3" />
+                          <span className="font-bold">Winner:</span>
+                          <span>{profilesMap[m.winner_id]?.full_name}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Link>
+              )
+            })
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              asChild
+            >
+              <Link
+                href={{
+                  pathname: '/match-history',
+                  query: { ...resolvedSearchParams, page: page - 1 }
+                }}
+              >
+                Previous
+              </Link>
+            </Button>
+            <div className="text-sm text-muted-foreground font-medium">
+              Page {page} of {totalPages}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              asChild
+            >
+              <Link
+                href={{
+                  pathname: '/match-history',
+                  query: { ...resolvedSearchParams, page: page + 1 }
+                }}
+              >
+                Next
+              </Link>
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile } from '@/lib/types'
+import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile, PlayerProfileExtended } from '@/lib/types'
 import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
 
@@ -12,7 +12,7 @@ export type DashboardData = {
     recentMatches: MatchWithPlayers[]
     pendingChallenges: PendingChallengeItem[]
     userProfileIds: string[]
-    myProfiles: PlayerProfile[]
+    myProfiles: PlayerProfileExtended[] // Updated to Extended to include stats
     unjoinedSports: Sport[]
     verificationStatus: 'pending' | 'verified' | 'rejected' | null
 }
@@ -30,7 +30,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
 
     if (userId) {
         // Add user profiles fetch if logged in
-        steps.push(supabase.from('player_profiles').select('id, user_id, sport_id, rating, matches_played, ladder_rank, is_admin, deactivated, deactivated_at, last_active_rank').eq('user_id', userId))
+        steps.push(supabase.from('player_profiles').select('id, user_id, sport_id, rating, matches_played, ladder_rank, is_admin, created_at, deactivated, deactivated_at, last_active_rank').eq('user_id', userId))
     }
 
     const results = await Promise.all(steps)
@@ -153,6 +153,35 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
         sportPlayersMap[p.sport_id].push(p)
     })
 
+    // Fetch stats for my profiles
+    const myProfilesExtended: any[] = [...userProfiles]
+    if (userId && userProfileIds.length > 0) {
+        // We can use the global recent matches to calculate simple stats if history is complete,
+        // BUT global matches is limited to 50. We need accurate stats.
+        // Let's fetch stats count from db or use a separate query.
+        // Actually, player_profiles table has 'matches_played'. 'wins' is missing.
+        // Let's fetch win counts for these profiles.
+        const { data: winCounts } = await supabase
+            .from('matches')
+            .select('winner_id')
+            .in('winner_id', userProfileIds)
+            .or('status.eq.CONFIRMED,status.eq.PROCESSED') // Only counted matches
+
+        const winMap = new Map<string, number>()
+        winCounts?.forEach((r: any) => {
+            winMap.set(r.winner_id, (winMap.get(r.winner_id) || 0) + 1)
+        })
+
+        myProfilesExtended.forEach(p => {
+            const wins = winMap.get(p.id) || 0
+            p.stats = {
+                wins,
+                losses: p.matches_played - wins,
+                winRate: p.matches_played > 0 ? Math.round((wins / p.matches_played) * 100) : 0
+            }
+        })
+    }
+
     for (const s of sports) {
         const sPlayers = sportPlayersMap[s.id] || []
         // already sorted by rating desc in fetch
@@ -171,6 +200,13 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
                     myProfile.id,
                     cooldownDays
                 )
+
+                // Inject rank into myProfile for the dashboard display
+                const rankedProfile = ranked.find(rp => rp.id === myProfile.id)
+                const extendedProfile = myProfilesExtended.find(mp => mp.id === myProfile.id)
+                if (extendedProfile && rankedProfile) {
+                    extendedProfile.ladder_rank = rankedProfile.rank // Sync rank
+                }
 
                 const challengables = getChallengablePlayers(ranked, myProfile, s.scoring_config, recentOpponentIds)
                 challengeLists[s.id] = challengables
@@ -210,7 +246,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
         recentMatches,
         pendingChallenges: pendingChallengesRef,
         userProfileIds,
-        myProfiles: userProfiles,
+        myProfiles: myProfilesExtended,
         unjoinedSports,
         verificationStatus
     }
