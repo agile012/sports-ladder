@@ -1,0 +1,22 @@
+{
+    "id": "/",
+    "name": "IIMA Sports Ladder",
+    "short_name": "Sports Ladder",
+    "icons": [
+        {
+            "src": "/web-app-manifest-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/web-app-manifest-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#f59e0b",
+    "background_color": "#ffffff",
+    "start_url": "/",
+    "display": "standalone",
+    "orientation": "portrait"
+}

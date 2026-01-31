@@ -4,7 +4,7 @@ import * as helpers from '@/lib/supabase/supabaseHelpers'
 import { PlayerProfile, PlayerProfileExtended, Sport } from '@/lib/types'
 import { notFound } from 'next/navigation'
 
-export default async function PublicPlayerProfile({ params }: { params: { id: string } }) {
+export default async function PublicPlayerProfile({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createClient()
     const id = (await params).id
 

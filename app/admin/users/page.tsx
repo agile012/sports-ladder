@@ -13,7 +13,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
 type Props = {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const ITEMS_PER_PAGE = 20

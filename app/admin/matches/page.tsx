@@ -17,7 +17,7 @@ import RecalculateEloButton from '@/components/admin/RecalculateEloButton'
 import CreateMatchButton from '@/components/admin/CreateMatchButton'
 
 type Props = {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 const ITEMS_PER_PAGE = 20

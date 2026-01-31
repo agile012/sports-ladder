@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server"
 // Cache this page for 5 minutes to reduce DB load
 export const revalidate = 300
 
-export default async function AnalyticsPage({ params }: { params: { sportId: string } }) {
+export default async function AnalyticsPage({ params }: { params: Promise<{ sportId: string }> }) {
     const { sportId } = await params as { sportId: string }
     const supabase = await createClient()
 
