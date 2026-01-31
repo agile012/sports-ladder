@@ -73,3 +73,48 @@ export function getChallengablePlayers(
         !recentOpponentIds.has(p.id)        // Not in cooldown
     )
 }
+
+/**
+ * Helper to extract opponent IDs that are on cooldown or have active challenges.
+ * Filters matches by:
+ * 1. Status: CONFIRMED, PROCESSED (Cooldown) OR PENDING, CHALLENGED, PROCESSING (Active)
+ *    Excludes: CANCELLED, DISPUTED (maybe?)
+ * 2. Date: Within cooldownDays
+ */
+export function getCooldownOpponents(
+    matches: { player1_id: string | null, player2_id: string | null, status: string, created_at: string }[],
+    myProfileId: string,
+    cooldownDays: number
+): Set<string> {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - cooldownDays)
+
+    const opponents = new Set<string>()
+    const blockingStatuses = ['CONFIRMED', 'PROCESSED', 'PENDING', 'CHALLENGED', 'PROCESSING']
+
+    matches.forEach(m => {
+        // Check status
+        if (!blockingStatuses.includes(m.status)) return
+
+        // Check date (only for cooldown statuses? Pending should always block)
+        // Actually, if it's CONFIRMED/PROCESSED, check date. 
+        // If it's PENDING/CHALLENGED, it blocks regardless of date (though they should auto-expire/escalate)
+        // For simplicity, we apply cooldownDays to completed matches, and always block active ones?
+        // But the user said "cooldown check". 
+        // Let's stick to the previous behavior but exclude CANCELLED, 
+        // AND apply the date check properly.
+
+        const isFinished = ['CONFIRMED', 'PROCESSED'].includes(m.status)
+        const matchDate = new Date(m.created_at)
+
+        if (isFinished) {
+            if (matchDate < cutoff) return // Too old
+        }
+        // If PENDING, we block it always (prevent duplicates)
+
+        const opponentId = m.player1_id === myProfileId ? m.player2_id : m.player1_id
+        if (opponentId) opponents.add(opponentId)
+    })
+
+    return opponents
+}

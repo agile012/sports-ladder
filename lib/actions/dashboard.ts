@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile } from '@/lib/types'
-import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
+import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
 
 export type DashboardData = {
@@ -94,7 +94,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
         // Just fetch last 20 matches involving user, that should cover most cooldown periods (usually 7 days)
         // We can filter more strictly by date in JS or simple query
         const cutoffDate = new Date()
-        cutoffDate.setDate(cutoffDate.getDate() - 14) // Safety buffer, usually 7 days
+        cutoffDate.setDate(cutoffDate.getDate() - 60) // Fetch enough history for long cooldowns
 
         const cooldownQuery = supabase
             .from('matches')
@@ -164,16 +164,13 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
             if (myProfile) {
                 // Calculate cooldowns
                 const cooldownDays = s.scoring_config?.rematch_cooldown_days ?? 7
-                const cutoff = new Date()
-                cutoff.setDate(cutoff.getDate() - cooldownDays)
 
-                const recentOpponentIds = new Set<string>()
-                myRecentMatchesRaw
-                    .filter(m => m.sport_id === s.id && new Date(m.created_at) > cutoff)
-                    .forEach(m => {
-                        if (m.player1_id === myProfile.id) recentOpponentIds.add(m.player2_id)
-                        else if (m.player2_id === myProfile.id) recentOpponentIds.add(m.player1_id)
-                    })
+                // Use shared logic
+                const recentOpponentIds = getCooldownOpponents(
+                    myRecentMatchesRaw.filter(m => m.sport_id === s.id),
+                    myProfile.id,
+                    cooldownDays
+                )
 
                 const challengables = getChallengablePlayers(ranked, myProfile, s.scoring_config, recentOpponentIds)
                 challengeLists[s.id] = challengables

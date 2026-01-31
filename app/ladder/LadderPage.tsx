@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
-import { calculateRanks, getChallengablePlayers } from '@/lib/ladderUtils'
+import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { createBrowserClient } from '@supabase/ssr'
 
 export default function LadderPage() {
@@ -148,10 +148,25 @@ export default function LadderPage() {
         }
 
         const cooldownDays = selectedSport.scoring_config?.rematch_cooldown_days ?? 7
-        const recentMatches = await getMatchesSince(myProfile.id, cooldownDays)
-        const recentOpponentIds = new Set(
-          recentMatches.map((m: any) => m.opponent?.id).filter(Boolean) as string[]
-        )
+        // Fetch enough history (e.g. 60 days to be safe) or exact cooldownDays? 
+        // getMatchesSince uses exact days. But getCooldownOpponents handles status checks.
+        // Let's fetch strict range + buffer, or just rely on getMatchesSince logic.
+        // Wait, getMatchesSince filters by date already!
+        // But it includes CANCELLED. getCooldownOpponents filters them OUT.
+        // So we pass the matches to getCooldownOpponents.
+        const recentMatches = await getMatchesSince(myProfile.id, Math.max(cooldownDays, 60)) // Fetch wider range
+
+        // Fix type mismatch: getMatchesSince returns MatchHistoryItem where player1_id is optional (?) 
+        // actually MatchHistoryItem defined in types has optional ps.
+        // We need to ensure we pass strings or nulls.
+        const mappedMatches = recentMatches.map(m => ({
+          player1_id: m.player1_id || null, // Ensure string | null
+          player2_id: m.player2_id || null,
+          status: m.status,
+          created_at: m.created_at
+        }))
+
+        const recentOpponentIds = getCooldownOpponents(mappedMatches, myProfile.id, cooldownDays)
 
         const validOpponents = getChallengablePlayers(players, myProfile, selectedSport.scoring_config, recentOpponentIds)
         if (!cancelled) {
