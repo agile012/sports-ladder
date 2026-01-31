@@ -57,7 +57,6 @@ export default function PendingChallengeCard({
 }) {
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [isForfeit, setIsForfeit] = useState(false)
     const [alertConfig, setAlertConfig] = useState<{
         open: boolean
         title: string
@@ -119,48 +118,113 @@ export default function PendingChallengeCard({
         })
     }
 
+    const handleSimpleWinner = (winnerId: string, winnerName: string) => {
+        setAlertConfig({
+            open: true,
+            title: "Confirm Result",
+            description: `Winner: ${winnerName}. Is this correct?`,
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    const res = await fetch(`/api/matches/${c.id}/submit-result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            winner_profile_id: winnerId,
+                            reported_by: currentUserId,
+                            token: c.action_token,
+                            scores: []
+                        }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    toast.success('Result submitted!')
+                    onAction()
+                } catch (err: any) {
+                    toast.error(`Failed to submit: ${err.message}`)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
+        })
+    }
+
     const handleReport = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
+        const isSimple = c.sports?.scoring_config?.type === 'simple'
 
-        const form = e.target as HTMLFormElement
-        const data = new FormData(form)
-        const winner = data.get('winner') as string
+        if (isSimple) return;
 
-        // Filter out empty sets
-        const validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
+        let validScores: ScoreSet[] = []
+        let calculatedWinnerId = ''
+        let calculatedWinnerName = ''
 
-        const scorePayload = isForfeit
-            ? { reason: 'forfeit', forfeited_by: winner === c.player1.id ? c.player2.id : c.player1.id }  // If P1 wins, P2 forfeited
-            : (validScores.length > 0 ? validScores : undefined)
+        if (isSimple) {
+            const form = e.target as HTMLFormElement
+            const data = new FormData(form)
+            calculatedWinnerId = data.get('winner') as string
 
-        const promise = fetch(`/api/matches/${c.id}/submit-result`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                winner_profile_id: winner,
-                reported_by: currentUserId,
-                token: c.action_token,
-                scores: scorePayload
-            }),
-        }).then(async (res) => {
-            if (!res.ok) throw new Error(await res.text())
-            onAction()
-        })
+            if (calculatedWinnerId === c.player1.id) calculatedWinnerName = c.player1.full_name || 'Player 1'
+            else if (calculatedWinnerId === c.player2.id) calculatedWinnerName = c.player2.full_name || 'Player 2'
+        } else {
+            // Filter out empty sets
+            validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
+            if (validScores.length === 0) {
+                toast.error("Please enter at least one set score")
+                return
+            }
 
-        toast.promise(promise, {
-            loading: 'Submitting result...',
-            success: 'Result submitted!',
-            error: (err) => `Failed to submit: ${err.message}`
-        })
+            // Calculate Winner
+            let p1Sets = 0
+            let p2Sets = 0
+            validScores.forEach(s => {
+                const s1 = Number(s.p1 || 0)
+                const s2 = Number(s.p2 || 0)
+                if (s1 > s2) p1Sets++
+                else if (s2 > s1) p2Sets++
+            })
 
-        try {
-            await promise
-        } catch {
-            // ignored, handled by toast
-        } finally {
-            setIsSubmitting(false)
+            if (p1Sets > p2Sets) {
+                calculatedWinnerId = c.player1.id
+                calculatedWinnerName = c.player1.full_name || 'Player 1'
+            } else if (p2Sets > p1Sets) {
+                calculatedWinnerId = c.player2.id
+                calculatedWinnerName = c.player2.full_name || 'Player 2'
+            } else {
+                toast.error("Scores indicate a draw. Please check the scores.")
+                return
+            }
         }
+
+        // Show Confirmation
+        setAlertConfig({
+            open: true,
+            title: "Confirm Result",
+            description: isSimple
+                ? `Winner: ${calculatedWinnerName}. Is this correct?`
+                : `Scores: ${validScores.map(s => `${s.p1}-${s.p2}`).join(', ')}. Winner: ${calculatedWinnerName}. Is this correct?`,
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    const res = await fetch(`/api/matches/${c.id}/submit-result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            winner_profile_id: calculatedWinnerId,
+                            reported_by: currentUserId,
+                            token: c.action_token,
+                            scores: validScores
+                        }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    toast.success('Result submitted!')
+                    onAction()
+                } catch (err: any) {
+                    toast.error(`Failed to submit: ${err.message}`)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
+        })
     }
 
     return (
@@ -231,7 +295,7 @@ export default function PendingChallengeCard({
                                         })
                                     }}
                                 >
-                                    Forfeit
+                                    Forfeit (Walkover)
                                 </Button>
                             </div>
                         )}
@@ -261,41 +325,138 @@ export default function PendingChallengeCard({
                         )}
 
                         {!isReadOnly && c.status === 'PENDING' && (
-                            <form
-                                className="flex flex-col gap-2 w-full bg-muted/30 p-2 rounded-md border border-border/50"
-                                onSubmit={handleReport}
-                            >
-                                {c.sports?.scoring_config?.type && c.sports.scoring_config.type !== 'simple' && !isForfeit && (
-                                    <div className="mb-1 border-b pb-2">
-                                        <ScoreInput
-                                            config={c.sports.scoring_config}
-                                            player1Name={c.player1.full_name ?? 'P1'}
-                                            player2Name={c.player2.full_name ?? 'P2'}
-                                            onChange={setScores}
-                                        />
+                            <>
+                                {c.sports?.scoring_config?.type === 'simple' ? (
+                                    <div className="flex gap-2">
+                                        {currentUserId === c.player1.id ? (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-emerald-600 hover:bg-emerald-700 w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'You')}
+                                                >
+                                                    I Won
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-red-600 hover:bg-red-700 w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'Opponent')}
+                                                >
+                                                    I Lost
+                                                </Button>
+                                            </>
+                                        ) : currentUserId === c.player2.id ? (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-emerald-600 hover:bg-emerald-700 w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'You')}
+                                                >
+                                                    I Won
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-red-600 hover:bg-red-700 w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'Opponent')}
+                                                >
+                                                    I Lost
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <div className="flex gap-2 w-full">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player1.id, c.player1.full_name || 'P1')}
+                                                >
+                                                    {c.player1.full_name || 'P1'} Won
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full h-8 text-xs flex-1"
+                                                    onClick={() => handleSimpleWinner(c.player2.id, c.player2.full_name || 'P2')}
+                                                >
+                                                    {c.player2.full_name || 'P2'} Won
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
+                                ) : (
+                                    <form
+                                        className="flex flex-col gap-2 w-full bg-muted/30 p-2 rounded-md border border-border/50"
+                                        onSubmit={handleReport}
+                                    >
+                                        <div className="mb-1 border-b pb-2">
+                                            <ScoreInput
+                                                config={c.sports.scoring_config}
+                                                player1Name={c.player1.full_name ?? 'P1'}
+                                                player2Name={c.player2.full_name ?? 'P2'}
+                                                onChange={setScores}
+                                            />
+                                        </div>
+
+                                        <div className="flex justify-between gap-2 mt-1">
+                                            {/* Challenger (P1) sees Withdraw */}
+                                            {c.player1?.id === currentUserId && (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                    onClick={() => {
+                                                        setAlertConfig({
+                                                            open: true,
+                                                            title: "Withdraw from Match",
+                                                            description: "Are you sure you want to withdraw? This will cancel the match.",
+                                                            action: async () => {
+                                                                const res = await withdrawChallenge(c.id)
+                                                                if (res.success) {
+                                                                    toast.success("Match Cancelled")
+                                                                    onAction()
+                                                                }
+                                                            }
+                                                        })
+                                                    }}
+                                                >
+                                                    Withdraw
+                                                </Button>
+                                            )}
+
+                                            {/* Defender (P2) sees Walkover */}
+                                            {c.player2?.id === currentUserId && (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                    onClick={() => {
+                                                        setAlertConfig({
+                                                            open: true,
+                                                            title: "Grant Walkover",
+                                                            description: "Are you sure you want to grant a walkover? This will count as a loss for you.",
+                                                            action: async () => {
+                                                                const res = await forfeitMatch(c.id)
+                                                                if (res.success) {
+                                                                    toast.success("Walkover Granted")
+                                                                    onAction()
+                                                                }
+                                                            }
+                                                        })
+                                                    }}
+                                                >
+                                                    Walkover
+                                                </Button>
+                                            )}
+
+                                            <Button size="sm" type="submit" disabled={isSubmitting} className="h-8 text-xs px-4 ml-auto">
+                                                {isSubmitting ? '...' : 'Save'}
+                                            </Button>
+                                        </div>
+                                    </form>
                                 )}
-
-                                <div className="flex items-center space-x-2 pb-1">
-                                    <Checkbox id={`forfeit-${c.id}`} checked={isForfeit} onCheckedChange={(checked) => setIsForfeit(checked === true)} />
-                                    <Label htmlFor={`forfeit-${c.id}`} className="text-xs">Opponent Forfeited</Label>
-                                </div>
-
-                                <div className="grid grid-cols-[1fr,auto] gap-2">
-                                    <Select name="winner" required>
-                                        <SelectTrigger className="h-8 text-xs w-full bg-background">
-                                            <SelectValue placeholder="Winner?" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={c.player1.id}>{c.player1.full_name ?? 'Player 1'}</SelectItem>
-                                            <SelectItem value={c.player2.id}>{c.player2.full_name ?? 'Player 2'}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Button size="sm" type="submit" disabled={isSubmitting} className="h-8 text-xs px-3">
-                                        {isSubmitting ? '...' : 'Save'}
-                                    </Button>
-                                </div>
-                            </form>
+                            </>
                         )}
 
                         {!isReadOnly && c.status === 'PROCESSING' &&

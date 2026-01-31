@@ -9,7 +9,7 @@ export default function Login() {
 
   async function signInWithGoogle() {
     setLoading(true)
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/' } })
+    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin + '/', queryParams: { prompt: 'consent' } } })
     setLoading(false)
   }
 

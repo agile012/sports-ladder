@@ -25,6 +25,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
 import { useState, useEffect } from 'react'
@@ -70,6 +80,24 @@ export default function MatchDetailsView({
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [alertConfig, setAlertConfig] = useState<{
+        open: boolean
+        title: string
+        description: string
+        action: () => Promise<void>
+    }>({ open: false, title: '', description: '', action: async () => { } })
+
+    const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
+
+    const executeAction = async (action: () => Promise<void>) => {
+        try {
+            await action()
+        } catch (e) {
+            // toast handled in action usually
+        } finally {
+            closeAlert()
+        }
+    }
 
     // Effect to open dialog if action indicates report
     useEffect(() => {
@@ -78,50 +106,119 @@ export default function MatchDetailsView({
         }
     }, [allowedToSubmit, initialAction, match.status])
 
+    const handleSimpleWinner = (winnerId: string, winnerName: string) => {
+        setAlertConfig({
+            open: true,
+            title: "Confirm Result",
+            description: `Winner: ${winnerName}. Is this correct?`,
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    const reporter = currentUser?.id ?? initialReporterId
+                    const res = await fetch(`/api/matches/${match.id}/submit-result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            winner_profile_id: winnerId,
+                            reported_by: reporter,
+                            token: initialToken,
+                            scores: []
+                        }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    setIsReportOpen(false)
+                    toast.success('Result submitted!')
+                    window.location.reload()
+                } catch (err: any) {
+                    toast.error(`Failed to submit: ${err.message}`)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
+        })
+    }
+
     const handleReport = async (e: React.FormEvent) => {
         e.preventDefault()
-        setIsSubmitting(true)
+        const isSimple = match.sport?.scoring_config?.type === 'simple'
 
-        const form = e.target as HTMLFormElement
-        const data = new FormData(form)
-        const winner = data.get('winner') as string
+        if (isSimple) return;
 
-        // Filter out empty sets
-        const validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
+        let validScores: ScoreSet[] = []
+        let calculatedWinnerId = ''
+        let calculatedWinnerName = ''
 
-        // Determine reporter: if using token, use initialReporterId or rely on backend default (winner)
-        // If logged in, use currentUser.id
+        if (isSimple) {
+            const form = e.target as HTMLFormElement
+            const data = new FormData(form)
+            calculatedWinnerId = data.get('winner') as string
+
+            if (calculatedWinnerId === player1.id) calculatedWinnerName = player1.full_name || 'Player 1'
+            else if (calculatedWinnerId === player2.id) calculatedWinnerName = player2.full_name || 'Player 2'
+        } else {
+            // Filter out empty sets
+            validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
+            if (validScores.length === 0) {
+                toast.error("Please enter at least one set score")
+                return
+            }
+
+            // Calculate Winner
+            let p1Sets = 0
+            let p2Sets = 0
+            validScores.forEach(s => {
+                const s1 = Number(s.p1 || 0)
+                const s2 = Number(s.p2 || 0)
+                if (s1 > s2) p1Sets++
+                else if (s2 > s1) p2Sets++
+            })
+
+            if (p1Sets > p2Sets) {
+                calculatedWinnerId = player1.id
+                calculatedWinnerName = player1.full_name || 'Player 1'
+            } else if (p2Sets > p1Sets) {
+                calculatedWinnerId = player2.id
+                calculatedWinnerName = player2.full_name || 'Player 2'
+            } else {
+                toast.error("Scores indicate a draw. Please check the scores.")
+                return
+            }
+        }
+
+        // Determine reporter
         const reporter = currentUser?.id ?? initialReporterId
 
-        const promise = fetch(`/api/matches/${match.id}/submit-result`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                winner_profile_id: winner,
-                reported_by: reporter,
-                token: initialToken, // Passed if available
-                scores: validScores.length > 0 ? validScores : undefined
-            }),
-        }).then(async (res) => {
-            if (!res.ok) throw new Error(await res.text())
-            setIsReportOpen(false)
-            // Ideally revalidate path or reload
-            window.location.reload()
+        // Show Confirmation
+        setAlertConfig({
+            open: true,
+            title: "Confirm Result",
+            description: isSimple
+                ? `Winner: ${calculatedWinnerName}. Is this correct?`
+                : `Scores: ${validScores.map(s => `${s.p1}-${s.p2}`).join(', ')}. Winner: ${calculatedWinnerName}. Is this correct?`,
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    const res = await fetch(`/api/matches/${match.id}/submit-result`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            winner_profile_id: calculatedWinnerId,
+                            reported_by: reporter,
+                            token: initialToken, // Passed if available
+                            scores: validScores // Can be empty for simple
+                        }),
+                    })
+                    if (!res.ok) throw new Error(await res.text())
+                    setIsReportOpen(false)
+                    toast.success('Result submitted!')
+                    window.location.reload()
+                } catch (err: any) {
+                    toast.error(`Failed to submit: ${err.message}`)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
         })
-
-        toast.promise(promise, {
-            loading: 'Submitting result...',
-            success: 'Result submitted!',
-            error: (err) => `Failed to submit: ${err.message}`
-        })
-
-        try {
-            await promise
-        } catch {
-            // ignored
-        } finally {
-            setIsSubmitting(false)
-        }
     }
 
     // Determine Roles: Player 1 is ALWAYS Challenger (initiator), Player 2 is Defender
@@ -427,11 +524,65 @@ export default function MatchDetailsView({
                     <DialogHeader>
                         <DialogTitle>Report Match Result</DialogTitle>
                         <DialogDescription>
-                            Enter the final score and select the winner.
+                            {match.sport?.scoring_config?.type === 'simple'
+                                ? "Who won the match?"
+                                : "Enter the final score. The winner is determined automatically."}
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleReport} className="space-y-4 pt-4">
-                        {match.sport?.scoring_config?.type && match.sport.scoring_config.type !== 'simple' && (
+
+                    {match.sport?.scoring_config?.type === 'simple' ? (
+                        <div className="flex flex-col gap-3 py-4">
+                            {currentUser?.id === player1.id ? (
+                                <>
+                                    <Button
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                        onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'You')}
+                                    >
+                                        I Won
+                                    </Button>
+                                    <Button
+                                        className="w-full bg-red-600 hover:bg-red-700"
+                                        onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'Opponent')}
+                                    >
+                                        I Lost
+                                    </Button>
+                                </>
+                            ) : currentUser?.id === player2.id ? (
+                                <>
+                                    <Button
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                                        onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'You')}
+                                    >
+                                        I Won
+                                    </Button>
+                                    <Button
+                                        className="w-full bg-red-600 hover:bg-red-700"
+                                        onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'Opponent')}
+                                    >
+                                        I Lost
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                        onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'Player 1')}
+                                    >
+                                        {player1.full_name || 'Player 1'} Won
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full justify-start"
+                                        onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'Player 2')}
+                                    >
+                                        {player2.full_name || 'Player 2'} Won
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    ) : (
+                        <form onSubmit={handleReport} className="space-y-4 pt-4">
                             <div className="border-b pb-4">
                                 <ScoreInput
                                     config={match.sport.scoring_config}
@@ -440,30 +591,32 @@ export default function MatchDetailsView({
                                     onChange={setScores}
                                 />
                             </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Winner</label>
-                            <Select name="winner" defaultValue={initialWinnerId} required>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select who won" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={player1.id}>{player1.full_name ?? 'Player 1'}</SelectItem>
-                                    <SelectItem value={player2.id}>{player2.full_name ?? 'Player 2'}</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="ghost" onClick={() => setIsReportOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Submitting...' : 'Submit Result'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
+                            <DialogFooter>
+                                <Button type="button" variant="ghost" onClick={() => setIsReportOpen(false)}>Cancel</Button>
+                                <Button type="submit" disabled={isSubmitting}>
+                                    {isSubmitting ? 'Submitting...' : 'Submit Result'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    )}
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={alertConfig.open} onOpenChange={(open) => !open && closeAlert()}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {alertConfig.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={closeAlert}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => executeAction(alertConfig.action)}>Confirm</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div >
     )
 }
+

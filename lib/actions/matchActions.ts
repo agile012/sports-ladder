@@ -27,7 +27,7 @@ export async function withdrawChallenge(matchId: string) {
 
     if (!profile) throw new Error('You are not the challenger for this match')
 
-    if (match.status !== 'CHALLENGED') throw new Error('Cannot withdraw this challenge')
+    if (!['CHALLENGED', 'PENDING'].includes(match.status)) throw new Error('Cannot withdraw this challenge')
 
     // Change status to WITHDRAWN instead of deleting
     const { error: updateError } = await supabase
@@ -68,7 +68,7 @@ export async function forfeitMatch(matchId: string) {
 
     if (!profile) throw new Error('You are not the defender for this match')
 
-    if (match.status !== 'CHALLENGED') throw new Error('Cannot forfeit this match')
+    if (!['CHALLENGED', 'PENDING'].includes(match.status)) throw new Error('Cannot forfeit this match')
 
     // Set winner to Player 1 (Challenger) and status to CONFIRMED (skips verification)
     const scores = { reason: 'forfeit', forfeited_by: match.player2_id }

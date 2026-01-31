@@ -12,7 +12,8 @@ async function handleResultSubmission(
   scores?: any
 ) {
   // recorded reporter defaults to the winner if not provided (useful for token-based submissions)
-  const reporter = reported_by ?? winner_profile_id
+  // We will determine reporter after auth checks
+  let reporter = reported_by
 
   const supabase = await createClient()
   const matchRes = await supabase.from('matches').select('*').eq('id', id).limit(1).single()
@@ -23,8 +24,20 @@ async function handleResultSubmission(
     // If a token is provided, it must match the match's action_token
     if (match.action_token !== token) return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
   } else {
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    // Check for session-based auth
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+    // If authenticated via session, ensure the reported_by matches the user (or override it)
+    if (reported_by && reported_by !== user.id) {
+      return NextResponse.json({ error: 'Reporter mismatch' }, { status: 403 })
+    }
+    reported_by = user.id
   }
+
+  // If reported_by was still null (e.g. token flow without explicit reporter), default to winner
+  reporter = reported_by ?? winner_profile_id
 
   // validate reporter is one of the match participants
   if (![match.player1_id, match.player2_id].includes(reporter)) {
