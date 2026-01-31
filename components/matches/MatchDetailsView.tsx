@@ -286,8 +286,26 @@ export default function MatchDetailsView({
                     />
                 </div>
 
-                {/* Result Display: Forfeit or Scoreboard */}
-                {(match.scores?.reason === 'forfeit' || (Array.isArray(match.scores) && match.scores.some((s: any) => s.reason === 'forfeit'))) ? (
+                {/* Result Display: Withdrawn, Forfeit or Scoreboard */}
+                {(match.status === 'CANCELLED' && match.scores?.reason === 'withdrawn') ? (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="flex justify-center -mt-6 z-30 relative"
+                    >
+                        <Card className="border-muted bg-muted/40 backdrop-blur shadow-lg">
+                            <CardContent className="px-8 py-4 flex flex-col items-center gap-2">
+                                <div className="flex items-center gap-3">
+                                    <Badge variant="outline" className="text-base px-3 py-0.5 border-muted-foreground/40 text-muted-foreground">WITHDRAWN</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Challenge withdrawn by {match.scores?.withdrawn_by === player1.id ? player1.full_name : match.scores?.withdrawn_by === player2.id ? player2.full_name : 'player'}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ) : (match.scores?.reason === 'forfeit' || (Array.isArray(match.scores) && match.scores.some((s: any) => s.reason === 'forfeit'))) ? (
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -336,14 +354,13 @@ export default function MatchDetailsView({
                 >
                     <Card className="border-muted bg-card/30 backdrop-blur-sm shadow-sm overflow-hidden">
                         <CardContent className="p-0">
-                            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border/50">
-
+                            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/50">
                                 <div className="p-6 flex flex-col items-center justify-center gap-2 text-center hover:bg-muted/30 transition-colors">
                                     <div className="p-3 rounded-full bg-primary/10 text-primary mb-2">
                                         <Clock className="w-6 h-6" />
                                     </div>
                                     <span className="text-sm font-medium text-muted-foreground">Match Date</span>
-                                    <span className="text-lg font-semibold">{new Date(match.created_at).toLocaleString()}</span>
+                                    <span className="text-lg font-semibold">{new Date(match.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
                                 </div>
 
                                 <div className="p-6 flex flex-col items-center justify-center gap-2 text-center hover:bg-muted/30 transition-colors">
@@ -353,15 +370,6 @@ export default function MatchDetailsView({
                                     <span className="text-sm font-medium text-muted-foreground">Sport Category</span>
                                     <span className="text-lg font-semibold">{sportName ?? 'Ladder Match'}</span>
                                 </div>
-
-                                <div className="p-6 flex flex-col items-center justify-center gap-2 text-center hover:bg-muted/30 transition-colors">
-                                    <div className="p-3 rounded-full bg-primary/10 text-primary mb-2">
-                                        <Hash className="w-6 h-6" />
-                                    </div>
-                                    <span className="text-sm font-medium text-muted-foreground">Match ID</span>
-                                    <span className="text-sm font-mono text-foreground/80 bg-muted px-2 py-1 rounded select-all">{match.id}</span>
-                                </div>
-
                             </div>
                         </CardContent>
                     </Card>
@@ -456,6 +464,6 @@ export default function MatchDetailsView({
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     )
 }

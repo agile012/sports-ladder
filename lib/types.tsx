@@ -10,6 +10,8 @@ export type ScoringConfig = {
   challenge_window_days?: number
   auto_verify_window_days?: number
   rematch_cooldown_days?: number
+  penalty_days?: number
+  removal_days?: number
   notifications?: {
     on_challenge?: boolean
     on_challenge_action?: boolean
@@ -22,6 +24,7 @@ export type Sport = {
   id: string
   name: string
   scoring_config?: ScoringConfig
+  is_paused?: boolean
 }
 
 export type PlayerProfile = {
@@ -46,6 +49,7 @@ export type PlayerBasic = {
   id: string
   full_name?: string
   avatar_url?: string
+  ladder_rank?: number | null
 }
 
 export type Match = {

@@ -25,7 +25,7 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
     const steps: any[] = [
         getCachedSports(),
         getCachedAllPlayers(),
-        supabase.from('matches').select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, sports(id, name)').order('created_at', { ascending: false }).limit(50)
+        supabase.from('matches').select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, scores, sports(id, name)').order('created_at', { ascending: false }).limit(50)
     ]
 
     if (userId) {
@@ -60,12 +60,13 @@ export async function getDashboardData(userId?: string): Promise<DashboardData> 
             id: m.id,
             sport_id: m.sport_id,
             sport_name: m.sports?.name || null,
-            player1: p1 ? { id: p1.id, full_name: p1.full_name, avatar_url: p1.avatar_url } : null,
-            player2: p2 ? { id: p2.id, full_name: p2.full_name, avatar_url: p2.avatar_url } : null,
+            player1: p1 ? { id: p1.id, full_name: p1.full_name, avatar_url: p1.avatar_url, ladder_rank: p1.ladder_rank } : null,
+            player2: p2 ? { id: p2.id, full_name: p2.full_name, avatar_url: p2.avatar_url, ladder_rank: p2.ladder_rank } : null,
             winner_id: m.winner_id,
             reported_by: reporter ? { id: reporter.id, full_name: reporter.full_name, avatar_url: reporter.avatar_url } : null,
             status: m.status,
             created_at: m.created_at,
+            scores: m.scores,
         }
     })
 

@@ -259,7 +259,10 @@ export default function LadderPage() {
             )}
 
             {selectedSport && (
-              <div className="flex justify-end mt-2">
+              <div className="flex justify-between items-center mt-2">
+                <Button variant="outline" size="sm" asChild className="h-8">
+                  <Link href="/rules">View Rules</Link>
+                </Button>
                 <div className="flex items-center space-x-2 bg-muted p-1 rounded-md">
                   <span className="text-xs font-medium px-2 text-muted-foreground">Sort By:</span>
                   <Button

@@ -67,6 +67,7 @@ export default function Header() {
 
   const navLinks = [
     { name: 'Matches', href: '/match-history' },
+    { name: 'Rules', href: '/rules' },
     ...(user ? [{ name: 'Profile', href: '/profile' }] : [])
   ]
 

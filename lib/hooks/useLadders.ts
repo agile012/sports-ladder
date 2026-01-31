@@ -9,7 +9,7 @@ export default function useLadders() {
   useEffect(() => {
     supabase
       .from('sports')
-      .select('id, name, scoring_config')
+      .select('id, name, scoring_config, is_paused')
       .order('name')
       .then((res) => setSports((res.data as Sport[]) ?? []))
   }, [])
@@ -43,6 +43,12 @@ export default function useLadders() {
 
   const createChallenge = useCallback(
     async (sportId: string, challengerProfileId: string, opponentProfileId: string, message?: string) => {
+      // Find the sport to check if it's paused
+      const sport = sports.find(s => s.id === sportId)
+      if (sport?.is_paused) {
+        throw new Error('This ladder is currently paused. No new matches can be played.')
+      }
+
       const response = await fetch('/api/challenges', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -55,7 +61,7 @@ export default function useLadders() {
       }
       return data
     },
-    []
+    [sports]
   )
 
   const createMatch = useCallback(async (sportId: string, player1Id: string, player2Id: string) => {

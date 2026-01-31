@@ -71,6 +71,9 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Match History</h1>
+        <Button variant="outline" asChild>
+          <Link href="/rules">View Rules</Link>
+        </Button>
       </div>
 
       <Card>

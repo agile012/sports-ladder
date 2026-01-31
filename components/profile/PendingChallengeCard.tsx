@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { withdrawChallenge, forfeitMatch } from '@/lib/actions/matchActions'
+import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 
 const statusMap: Record<string, string> = {
     PENDING: 'Pending Result',
@@ -53,6 +57,7 @@ export default function PendingChallengeCard({
 }) {
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isForfeit, setIsForfeit] = useState(false)
     const [alertConfig, setAlertConfig] = useState<{
         open: boolean
         title: string
@@ -125,6 +130,10 @@ export default function PendingChallengeCard({
         // Filter out empty sets
         const validScores = scores.filter(s => s.p1 !== '' || s.p2 !== '')
 
+        const scorePayload = isForfeit
+            ? { reason: 'forfeit', forfeited_by: winner === c.player1.id ? c.player2.id : c.player1.id }  // If P1 wins, P2 forfeited
+            : (validScores.length > 0 ? validScores : undefined)
+
         const promise = fetch(`/api/matches/${c.id}/submit-result`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -132,7 +141,7 @@ export default function PendingChallengeCard({
                 winner_profile_id: winner,
                 reported_by: currentUserId,
                 token: c.action_token,
-                scores: validScores.length > 0 ? validScores : undefined
+                scores: scorePayload
             }),
         }).then(async (res) => {
             if (!res.ok) throw new Error(await res.text())
@@ -172,9 +181,17 @@ export default function PendingChallengeCard({
                         </div>
 
                         <div className="font-semibold text-sm flex gap-2 items-center">
-                            <span className="truncate max-w-[40%]">{c.player1.full_name?.split(' ')[0] ?? 'P1'}</span>
+                            <span className="truncate max-w-[40%]">
+                                <Link href={`/player/${c.player1.id}`} className="hover:underline">
+                                    {c.player1.full_name ?? 'P1'}
+                                </Link>
+                            </span>
                             <span className="text-muted-foreground text-[10px] uppercase font-bold px-1">vs</span>
-                            <span className="truncate max-w-[40%]">{c.player2.full_name?.split(' ')[0] ?? 'P2'}</span>
+                            <span className="truncate max-w-[40%]">
+                                <Link href={`/player/${c.player2.id}`} className="hover:underline">
+                                    {c.player2.full_name ?? 'P2'}
+                                </Link>
+                            </span>
                         </div>
 
                         {c.message && (
@@ -187,12 +204,59 @@ export default function PendingChallengeCard({
                     {/* Actions */}
                     <div className="flex flex-col gap-2 w-full mt-1">
                         {!isReadOnly && c.status === 'CHALLENGED' && c.player2?.id === currentUserId && (
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white w-full h-8 text-xs flex-1"
+                                    onClick={handleAcceptChallenge}
+                                >
+                                    <Check className="mr-1 h-3 w-3" /> Accept
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500 text-red-600 hover:bg-red-50 h-8 text-xs px-2"
+                                    onClick={() => {
+                                        setAlertConfig({
+                                            open: true,
+                                            title: "Forfeit Match",
+                                            description: "Are you sure you want to forfeit? This will count as a loss and your rank will drop.",
+                                            action: async () => {
+                                                const res = await forfeitMatch(c.id)
+                                                if (res.success) {
+                                                    toast.success("Match forfeited")
+                                                    onAction()
+                                                }
+                                            }
+                                        })
+                                    }}
+                                >
+                                    Forfeit
+                                </Button>
+                            </div>
+                        )}
+
+                        {!isReadOnly && c.status === 'CHALLENGED' && c.player1?.id === currentUserId && (
                             <Button
                                 size="sm"
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white w-full h-8 text-xs"
-                                onClick={handleAcceptChallenge}
+                                variant="outline"
+                                className="w-full h-8 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                    setAlertConfig({
+                                        open: true,
+                                        title: "Withdraw Challenge",
+                                        description: "Are you sure you want to withdraw this challenge? The match will be cancelled.",
+                                        action: async () => {
+                                            const res = await withdrawChallenge(c.id)
+                                            if (res.success) {
+                                                toast.success("Challenge withdrawn")
+                                                onAction()
+                                            }
+                                        }
+                                    })
+                                }}
                             >
-                                <Check className="mr-1 h-3 w-3" /> Accept Challenge
+                                Withdraw Challenge
                             </Button>
                         )}
 
@@ -201,16 +265,21 @@ export default function PendingChallengeCard({
                                 className="flex flex-col gap-2 w-full bg-muted/30 p-2 rounded-md border border-border/50"
                                 onSubmit={handleReport}
                             >
-                                {c.sports?.scoring_config?.type && c.sports.scoring_config.type !== 'simple' && (
+                                {c.sports?.scoring_config?.type && c.sports.scoring_config.type !== 'simple' && !isForfeit && (
                                     <div className="mb-1 border-b pb-2">
                                         <ScoreInput
                                             config={c.sports.scoring_config}
-                                            player1Name={c.player1.full_name?.split(' ')[0] ?? 'P1'}
-                                            player2Name={c.player2.full_name?.split(' ')[0] ?? 'P2'}
+                                            player1Name={c.player1.full_name ?? 'P1'}
+                                            player2Name={c.player2.full_name ?? 'P2'}
                                             onChange={setScores}
                                         />
                                     </div>
                                 )}
+
+                                <div className="flex items-center space-x-2 pb-1">
+                                    <Checkbox id={`forfeit-${c.id}`} checked={isForfeit} onCheckedChange={(checked) => setIsForfeit(checked === true)} />
+                                    <Label htmlFor={`forfeit-${c.id}`} className="text-xs">Opponent Forfeited</Label>
+                                </div>
 
                                 <div className="grid grid-cols-[1fr,auto] gap-2">
                                     <Select name="winner" required>

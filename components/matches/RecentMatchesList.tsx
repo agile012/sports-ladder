@@ -47,13 +47,15 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
                                 <div className="space-y-1">
                                     <div className="font-semibold text-lg flex items-center gap-2 flex-wrap">
-                                        <span className="hover:text-primary transition-colors">
+                                        <Link href={`/player/${m.player1?.id}`} className="hover:text-primary transition-colors flex items-center gap-1 group/p1">
+                                            {m.player1?.ladder_rank && <span className="text-xs text-muted-foreground font-mono group-hover/p1:text-primary/70">#{m.player1.ladder_rank}</span>}
                                             {m.player1?.full_name ?? 'Player 1'}
-                                        </span>
+                                        </Link>
                                         <span className="text-muted-foreground text-sm font-normal">vs</span>
-                                        <span className="hover:text-primary transition-colors">
+                                        <Link href={`/player/${m.player2?.id}`} className="hover:text-primary transition-colors flex items-center gap-1 group/p2">
+                                            {m.player2?.ladder_rank && <span className="text-xs text-muted-foreground font-mono group-hover/p2:text-primary/70">#{m.player2.ladder_rank}</span>}
                                             {m.player2?.full_name ?? 'Player 2'}
-                                        </span>
+                                        </Link>
                                     </div>
                                     <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
                                         <span className="flex items-center gap-1">
@@ -71,6 +73,10 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                                 {(m.player1?.id === m.winner_id ? m.player1?.full_name : m.player2?.id === m.winner_id ? m.player2?.full_name : m.winner_id)} won
                                             </span>
                                         </div>
+                                    ) : m.status === 'CANCELLED' && (m.scores as any)?.reason === 'withdrawn' ? (
+                                        <span className="text-muted-foreground px-3 py-1 border border-dashed rounded-full text-xs">Withdrawn</span>
+                                    ) : (m.scores as any)?.reason === 'forfeit' ? (
+                                        <span className="text-amber-600 dark:text-amber-500 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-xs font-medium">Forfeit</span>
                                     ) : (
                                         <span className="text-muted-foreground italic px-3 py-1">Pending result</span>
                                     )}

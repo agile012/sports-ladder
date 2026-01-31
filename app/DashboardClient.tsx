@@ -314,6 +314,9 @@ export default function DashboardClient() {
                                         <Button onClick={() => router.push('/ladder')} variant="outline" className="w-full bg-background/50">
                                             View All
                                         </Button>
+                                        <Button onClick={() => router.push('/rules')} variant="ghost" className="w-full text-muted-foreground hover:text-foreground">
+                                            View Rules & Scoring
+                                        </Button>
                                     </div>
 
                                     {/* Inactive Ladders Section */}
