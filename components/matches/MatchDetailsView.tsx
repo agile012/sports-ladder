@@ -539,7 +539,7 @@ export default function MatchDetailsView({
                                     </div>
                                     <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Played On</span>
                                     <span className="text-lg md:text-xl font-bold">
-                                        {formatMatchDate(match.created_at, { dateStyle: 'full', timeStyle: 'short' })}
+                                        {formatMatchDate(match.updated_at, { dateStyle: 'full', timeStyle: 'short' })}
                                     </span>
                                 </div>
                                 <Separator className="bg-border/50 w-1/2" />
