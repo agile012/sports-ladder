@@ -6,7 +6,8 @@ import { PlayerProfileExtended } from '@/lib/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
-import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor } from 'lucide-react'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor, Bell, BellOff } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,6 +24,7 @@ export interface UserInfo {
   avatar_url?: string
 }
 
+
 export default function UserProfile({
   userInfo,
   myPlayers,
@@ -38,6 +40,18 @@ export default function UserProfile({
   const displayEmail = userInfo.email
   const isOwnProfile = !isPublic
   const { theme, setTheme } = useTheme()
+  const { isSupported, subscription, subscribe, unsubscribe, loading: pushLoading } = usePushNotifications()
+
+  const handlePushToggle = async () => {
+    if (subscription) {
+      await unsubscribe()
+      toast.success('Notifications disabled')
+    } else {
+      const result = await subscribe()
+      if (result) toast.success('Notifications enabled')
+      else toast.error('Failed to enable notifications')
+    }
+  }
 
   const router = useRouter()
   const [editingContact, setEditingContact] = useState(false)
@@ -174,6 +188,20 @@ export default function UserProfile({
 
         {isOwnProfile && (
           <div className="flex flex-wrap justify-center gap-2 max-w-full px-2">
+
+            {isSupported && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePushToggle}
+                disabled={pushLoading}
+                className="rounded-full bg-background/50 backdrop-blur border-white/10 shrink-0"
+              >
+                {subscription ? <BellOff className="h-4 w-4 mr-2" /> : <Bell className="h-4 w-4 mr-2" />}
+                {subscription ? 'Disable Notifications' : 'Enable Notifications'}
+              </Button>
+            )}
+
             <Button variant="outline" size="sm" onClick={() => setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')} className="rounded-full bg-background/50 backdrop-blur border-white/10 shrink-0">
               <Sun className={`h-4 w-4 mr-2 transition-all ${theme === 'system' ? 'scale-0 -rotate-90 hidden' : 'scale-100 rotate-0 dark:scale-0 dark:-rotate-90 dark:hidden'}`} />
               <Moon className={`h-4 w-4 mr-2 transition-all ${theme === 'system' ? 'scale-0 rotate-90 hidden' : 'scale-0 rotate-90 hidden dark:scale-100 dark:rotate-0 dark:block'}`} />

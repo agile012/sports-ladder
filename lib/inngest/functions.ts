@@ -1,6 +1,7 @@
 import { inngest } from "./client";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from 'nodemailer';
+import { sendPushToUser } from "@/lib/push";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -78,6 +79,16 @@ export const sendChallengeEmail = inngest.createFunction(
       };
       await transporter.sendMail(msg);
       console.log(`Challenge email sent to ${msg.to}`);
+
+      // Send Push
+      if (opponent.user_id) {
+        await sendPushToUser(opponent.user_id, {
+          title: `New Challenge!`,
+          body: `${challengerProfile?.full_name || 'Someone'} challenged you in ${sportName}.`,
+          url: acceptUrl
+        })
+      }
+
       return { sent: true, to: msg.to };
     });
   }
@@ -145,6 +156,13 @@ export const handleMatchAction = inngest.createFunction(
       };
       await step.run("send-challenger-email", async () => {
         await transporter.sendMail(challengerMsg);
+        if (challenger.user_id) {
+          await sendPushToUser(challenger.user_id, {
+            title: "Challenge Accepted!",
+            body: `${opponent?.full_name} accepted your challenge in ${match.sport?.name}.`,
+            url: matchPageUrl
+          })
+        }
       });
 
       // Email to opponent (if available)
@@ -171,6 +189,13 @@ export const handleMatchAction = inngest.createFunction(
         };
         await step.run("send-opponent-email", async () => {
           await transporter.sendMail(opponentMsg);
+          if (opponent.user_id) {
+            await sendPushToUser(opponent.user_id, {
+              title: "Challenge Accepted!",
+              body: `You accepted the challenge from ${challenger.full_name}.`,
+              url: matchPageUrl
+            })
+          }
         });
       }
     }
@@ -262,6 +287,14 @@ export const handleMatchResult = inngest.createFunction(
           `,
         };
         await transporter.sendMail(msg)
+
+        if (verifier.user_id) {
+          await sendPushToUser(verifier.user_id, {
+            title: "Verify Match Result",
+            body: `${reporter?.full_name} reported: ${resultText}. Please verify.`,
+            url: verifyUrl
+          })
+        }
       });
     }
   }
@@ -282,8 +315,8 @@ export const handleMatchVerification = inngest.createFunction(
           `
           *,
           sport:sports(name, scoring_config),
-          player1:player_profiles_view!player1_id (user_email, full_name),
-          player2:player_profiles_view!player2_id (user_email, full_name)
+          player1:player_profiles_view!player1_id (user_id, user_email, full_name),
+          player2:player_profiles_view!player2_id (user_id, user_email, full_name)
         `
         )
         .eq("id", matchId)
@@ -300,8 +333,8 @@ export const handleMatchVerification = inngest.createFunction(
       return { status: 'skipped', reason: 'notifications_disabled' };
     }
 
-    const player1 = matchWithPlayers.player1 as { user_email: string, full_name: string } | null;
-    const player2 = matchWithPlayers.player2 as { user_email: string, full_name: string } | null;
+    const player1 = matchWithPlayers.player1 as { user_id: string, user_email: string, full_name: string } | null;
+    const player2 = matchWithPlayers.player2 as { user_id: string, user_email: string, full_name: string } | null;
     const emails = [player1?.user_email, player2?.user_email].filter(Boolean);
 
     if (emails.length > 0) {
@@ -321,6 +354,12 @@ export const handleMatchVerification = inngest.createFunction(
 
         const msg = { to: emails, from: FROM_EMAIL, subject, html };
         await transporter.sendMail(msg)
+
+        const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
+        const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
+
+        if (player1?.user_id) await sendPushToUser(player1.user_id, { title: pushTitle, body: pushBody, url: profileLink });
+        if (player2?.user_id) await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
       });
     }
   }
