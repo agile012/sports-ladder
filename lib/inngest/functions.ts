@@ -157,6 +157,7 @@ export const handleMatchAction = inngest.createFunction(
       await step.run("send-challenger-email", async () => {
         await transporter.sendMail(challengerMsg);
         if (challenger.user_id) {
+          console.log("Sending Push Notification to ", challenger.user_id)
           await sendPushToUser(challenger.user_id, {
             title: "Challenge Accepted!",
             body: `${opponent?.full_name} accepted your challenge in ${match.sport?.name}.`,
@@ -190,6 +191,7 @@ export const handleMatchAction = inngest.createFunction(
         await step.run("send-opponent-email", async () => {
           await transporter.sendMail(opponentMsg);
           if (opponent.user_id) {
+            console.log("Sending Push Notification to ", opponent.user_id)
             await sendPushToUser(opponent.user_id, {
               title: "Challenge Accepted!",
               body: `You accepted the challenge from ${challenger.full_name}.`,
@@ -289,6 +291,7 @@ export const handleMatchResult = inngest.createFunction(
         await transporter.sendMail(msg)
 
         if (verifier.user_id) {
+          console.log("Sending Push Notification to ", verifier.user_id)
           await sendPushToUser(verifier.user_id, {
             title: "Verify Match Result",
             body: `${reporter?.full_name} reported: ${resultText}. Please verify.`,
@@ -358,6 +361,7 @@ export const handleMatchVerification = inngest.createFunction(
         const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
         const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
 
+          console.log("Sending Push Notification to ", player1.user_id, player2.user_id)
         if (player1?.user_id) await sendPushToUser(player1.user_id, { title: pushTitle, body: pushBody, url: profileLink });
         if (player2?.user_id) await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
       });
