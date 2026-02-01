@@ -80,6 +80,8 @@ export default function MatchDetailsView({
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isVerifyOpen, setIsVerifyOpen] = useState(false)
+    const [isAcceptOpen, setIsAcceptOpen] = useState(false)
     const [alertConfig, setAlertConfig] = useState<{
         open: boolean
         title: string
@@ -88,6 +90,21 @@ export default function MatchDetailsView({
     }>({ open: false, title: '', description: '', action: async () => { } })
 
     const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
+
+    const handleVerify = async (decision: 'yes' | 'no') => {
+        setIsSubmitting(true)
+        try {
+            const res = await fetch(`/api/matches/${match.id}/verify?token=${initialToken}&verify=${decision}`, { method: 'POST' })
+            if (!res.ok) throw new Error(await res.text())
+            toast.success(decision === 'yes' ? 'Match Verified!' : 'Match Disputed')
+            setIsVerifyOpen(false)
+            window.location.href = `/matches/${match.id}`
+        } catch (e: any) {
+            toast.error(e.message)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
 
     const executeAction = async (action: () => Promise<void>) => {
         try {
@@ -99,12 +116,61 @@ export default function MatchDetailsView({
         }
     }
 
-    // Effect to open dialog if action indicates report
+    // Effect to open dialog if action indicates report, accept, or verify
     useEffect(() => {
-        if (allowedToSubmit && initialAction === 'report' && match.status === 'PENDING') {
+        if (!allowedToSubmit) return
+
+        if (initialAction === 'report' && match.status === 'PENDING') {
             setIsReportOpen(true)
+        } else if (initialAction === 'accept' && match.status === 'CHALLENGED') {
+            setIsAcceptOpen(true)
+        } else if (initialAction === 'verify' && match.status === 'PROCESSING') {
+            setIsVerifyOpen(true)
         }
-    }, [allowedToSubmit, initialAction, match.status])
+    }, [allowedToSubmit, initialAction, match.status, match.id, initialToken])
+
+    const handleAcceptAction = async (type: 'play' | 'forfeit') => {
+        setIsSubmitting(true)
+        try {
+            // 1. Accept Challenge
+            const acceptRes = await fetch(`/api/matches/${match.id}/action?action=accept&token=${initialToken}`, { method: 'POST' })
+            if (!acceptRes.ok) throw new Error(await acceptRes.text())
+
+            if (type === 'play') {
+                toast.success('Challenge Accepted!')
+                window.location.href = `/matches/${match.id}`
+                return
+            }
+
+            // 2. Submit Result for Forfeit
+            const winnerId = player1.id
+            const scores = {
+                reason: 'forfeit',
+                forfeited_by: player2.id
+            }
+
+            const reporter = currentUser?.id ?? initialReporterId ?? player2.id
+
+            const resultRes = await fetch(`/api/matches/${match.id}/submit-result`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    winner_profile_id: winnerId,
+                    reported_by: reporter,
+                    token: initialToken,
+                    scores
+                }),
+            })
+            if (!resultRes.ok) throw new Error(await resultRes.text())
+
+            toast.success('Result submitted!')
+            window.location.href = `/matches/${match.id}`
+
+        } catch (e: any) {
+            toast.error(e.message)
+            setIsSubmitting(false)
+        }
+    }
 
     const handleSimpleWinner = (winnerId: string, winnerName: string) => {
         setAlertConfig({
@@ -636,6 +702,60 @@ export default function MatchDetailsView({
                             </DialogFooter>
                         </form>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isVerifyOpen} onOpenChange={setIsVerifyOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Verify Match Result</DialogTitle>
+                        <DialogDescription>
+                            The result has been reported: <strong>{match.winner_id === player1.id ? player1.full_name : player2.full_name} Won</strong>.
+                            <br />
+                            Is this correct?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="destructive" onClick={() => handleVerify('no')} disabled={isSubmitting}>
+                            Dispute Result
+                        </Button>
+                        <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleVerify('yes')} disabled={isSubmitting}>
+                            Confirm Result
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isAcceptOpen} onOpenChange={setIsAcceptOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Accept Challenge</DialogTitle>
+                        <DialogDescription>
+                            You have been challenged by <strong>{player1.full_name}</strong>.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3 py-4">
+                        <Button
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg font-bold"
+                            onClick={() => handleAcceptAction('play')}
+                            disabled={isSubmitting}
+                        >
+                            Accept & Play
+                        </Button>
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-muted"></div>
+                            <span className="flex-shrink mx-4 text-muted-foreground text-xs uppercase">Or</span>
+                            <div className="flex-grow border-t border-muted"></div>
+                        </div>
+                        <Button
+                            variant="destructive"
+                            className="w-full justify-between"
+                            onClick={() => handleAcceptAction('forfeit')}
+                            disabled={isSubmitting}
+                        >
+                            Forfeit (I Lose)
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
 

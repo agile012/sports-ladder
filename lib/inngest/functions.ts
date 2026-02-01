@@ -41,10 +41,7 @@ export const sendChallengeEmail = inngest.createFunction(
 
     // Check notification settings
     const config = (match.sport as any)?.scoring_config;
-    if (config?.notifications?.on_challenge === false) {
-      console.log(`Skipping challenge email for match ${matchId}: Notifications disabled`);
-      return { status: 'skipped', reason: 'notifications_disabled' };
-    }
+    const emailEnabled = config?.notifications?.on_challenge !== false;
 
     // Fetch challenger and opponent profiles in one go
     const { challengerProfile, opponent } = await step.run("fetch-profiles", async () => {
@@ -63,6 +60,7 @@ export const sendChallengeEmail = inngest.createFunction(
 
     await step.run("send-email", async () => {
       const acceptUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=accept&token=${match.action_token}`;
+      const pushAcceptUrl = `${PUBLIC_SITE_URL}/matches/${match.id}?action=accept&token=${match.action_token}`;
       const sportName = match.sport?.name || match.sport_id;
       const msg = {
         to: opponent.user_email,
@@ -77,15 +75,20 @@ export const sendChallengeEmail = inngest.createFunction(
           </p>
         `,
       };
-      await transporter.sendMail(msg);
-      console.log(`Challenge email sent to ${msg.to}`);
+
+      if (emailEnabled) {
+        await transporter.sendMail(msg);
+        console.log(`Challenge email sent to ${msg.to}`);
+      } else {
+        console.log(`Skipping challenge email: Config disabled`);
+      }
 
       // Send Push
       if (opponent.user_id) {
         await sendPushToUser(opponent.user_id, {
           title: `New Challenge!`,
           body: `${challengerProfile?.full_name || 'Someone'} challenged you in ${sportName}.`,
-          url: acceptUrl
+          url: pushAcceptUrl
         })
       }
 
@@ -110,10 +113,7 @@ export const handleMatchAction = inngest.createFunction(
 
     // Check notification settings for challenge action
     const config = (match.sport as any)?.scoring_config;
-    if (config?.notifications?.on_challenge_action === false) {
-      console.log(`Skipping action email for match ${matchId}: Notifications disabled`);
-      return { status: 'skipped', reason: 'notifications_disabled' };
-    }
+    const emailEnabled = config?.notifications?.on_challenge_action !== false;
 
     // Notify Challenger (player1) about the action
     const { challenger, opponent } = await step.run("fetch-challenger-and-opponent", async () => {
@@ -155,7 +155,7 @@ export const handleMatchAction = inngest.createFunction(
         html: challengerHtml,
       };
       await step.run("send-challenger-email", async () => {
-        await transporter.sendMail(challengerMsg);
+        if (emailEnabled) await transporter.sendMail(challengerMsg);
         if (challenger.user_id) {
           console.log("Sending Push Notification to ", challenger.user_id)
           await sendPushToUser(challenger.user_id, {
@@ -189,7 +189,7 @@ export const handleMatchAction = inngest.createFunction(
           html: opponentHtml,
         };
         await step.run("send-opponent-email", async () => {
-          await transporter.sendMail(opponentMsg);
+          if (emailEnabled) await transporter.sendMail(opponentMsg);
           if (opponent.user_id) {
             console.log("Sending Push Notification to ", opponent.user_id)
             await sendPushToUser(opponent.user_id, {
@@ -227,10 +227,7 @@ export const handleMatchResult = inngest.createFunction(
 
     // Check notification settings for match result
     const config = (match.sport as any)?.scoring_config;
-    if (config?.notifications?.on_match_result === false) {
-      console.log(`Skipping result email for match ${matchId}: Notifications disabled`);
-      return { status: 'skipped', reason: 'notifications_disabled' };
-    }
+    const emailEnabled = config?.notifications?.on_match_result !== false;
 
     // Determine who needs to verify (the player who did NOT report the result)
     const verifierId = match.reported_by === match.player1_id ? match.player2_id : match.player1_id;
@@ -260,6 +257,7 @@ export const handleMatchResult = inngest.createFunction(
     if (verifier?.user_email) {
       await step.run("send-verify-email", async () => {
         const verifyUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/verify?token=${match.action_token}`;
+        const pushVerifyUrl = `${PUBLIC_SITE_URL}/matches/${match.id}?action=verify&token=${match.action_token}`;
         const confirmUrl = `${verifyUrl}&verify=yes`;
         const disputeUrl = `${verifyUrl}&verify=no`;
 
@@ -288,14 +286,14 @@ export const handleMatchResult = inngest.createFunction(
  </p>
           `,
         };
-        await transporter.sendMail(msg)
+        if (emailEnabled) await transporter.sendMail(msg)
 
         if (verifier.user_id) {
           console.log("Sending Push Notification to ", verifier.user_id)
           await sendPushToUser(verifier.user_id, {
             title: "Verify Match Result",
             body: `${reporter?.full_name} reported: ${resultText}. Please verify.`,
-            url: verifyUrl
+            url: pushVerifyUrl
           })
         }
       });
@@ -331,10 +329,7 @@ export const handleMatchVerification = inngest.createFunction(
 
     // Check notification settings for match confirmation/dispute
     const config = (matchWithPlayers.sport as any)?.scoring_config;
-    if (config?.notifications?.on_match_confirmed === false) {
-      console.log(`Skipping verification email for match ${matchId}: Notifications disabled`);
-      return { status: 'skipped', reason: 'notifications_disabled' };
-    }
+    const emailEnabled = config?.notifications?.on_match_confirmed !== false;
 
     const player1 = matchWithPlayers.player1 as { user_id: string, user_email: string, full_name: string } | null;
     const player2 = matchWithPlayers.player2 as { user_id: string, user_email: string, full_name: string } | null;
@@ -356,12 +351,12 @@ export const handleMatchVerification = inngest.createFunction(
  `;
 
         const msg = { to: emails, from: FROM_EMAIL, subject, html };
-        await transporter.sendMail(msg)
+        if (emailEnabled) await transporter.sendMail(msg)
 
         const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
         const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
 
-          console.log("Sending Push Notification to ", player1.user_id, player2.user_id)
+        console.log("Sending Push Notification to ", player1.user_id, player2.user_id)
         if (player1?.user_id) await sendPushToUser(player1.user_id, { title: pushTitle, body: pushBody, url: profileLink });
         if (player2?.user_id) await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
       });
