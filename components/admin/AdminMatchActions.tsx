@@ -29,7 +29,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { cancelMatch, updateMatchResult, processMatchElo } from '@/lib/actions/admin'
+import { cancelMatch, updateMatchResult, processMatchElo, recalculateMatchResult } from '@/lib/actions/admin'
 import { MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { ScoreInput, ScoreSet, ScoringConfig } from '@/components/matches/ScoreInput'
@@ -141,6 +141,19 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
         }
     }
 
+    // Recalculate Result
+    function confirmRecalculate() {
+        setAlertConfig({
+            open: true,
+            title: "Recalculate Result",
+            description: "This will revert history/ranks for this match and re-apply them based on the current winner. It only works if this is the LATEST match for these players.",
+            action: async () => {
+                await recalculateMatchResult(matchId)
+                toast.success("Result recalculated successfully")
+            }
+        })
+    }
+
     function openScoreDialog() {
         if (currentScores && Array.isArray(currentScores)) {
             setScores(currentScores)
@@ -211,9 +224,14 @@ export default function AdminMatchActions({ matchId, currentStatus, currentWinne
                     </DropdownMenuSub>
 
                     {currentStatus === 'CONFIRMED' && (
-                        <DropdownMenuItem onClick={() => handleProcessElo(false)}>
-                            Process ELO
-                        </DropdownMenuItem>
+                        <>
+                            <DropdownMenuItem onClick={() => handleProcessElo(false)}>
+                                Process ELO
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={confirmRecalculate}>
+                                Recalculate Result AND History
+                            </DropdownMenuItem>
+                        </>
                     )}
 
                     <DropdownMenuSeparator />

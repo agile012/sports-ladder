@@ -190,7 +190,18 @@ export async function deactivatePlayer(sportId: string, profileId: string) {
 
     if (error) throw new Error(error.message)
 
-    revalidatePath('/admin/users')
     revalidatePath('/ladder')
     return { success: true }
+}
+
+export async function recalculateMatchResult(matchId: string) {
+    const { supabase } = await verifyMatchAdmin(matchId)
+
+    const { error } = await supabase.rpc('recalculate_match_result', { match_uuid: matchId })
+
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/match-history')
+    revalidatePath('/admin/matches')
+    revalidatePath(`/matches/${matchId}`)
 }
