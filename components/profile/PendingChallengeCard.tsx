@@ -278,7 +278,7 @@ export default function PendingChallengeCard({
                         {/* Player 2 */}
                         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
                             <div className="flex flex-col min-w-0 items-end">
-                                <Link href={`/profile/${c.player2.id}`} className="font-bold text-xs truncate hover:text-primary transition-colors">
+                                <Link href={`/player/${c.player2.id}`} className="font-bold text-xs truncate hover:text-primary transition-colors">
                                     {c.player2.full_name?.split(' ')[0] ?? 'P2'}
                                 </Link>
                                 {c.player2.id === currentUserId && <span className="text-[9px] text-muted-foreground leading-none">(You)</span>}
