@@ -42,8 +42,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (token) {
     if (match.action_token !== token) return NextResponse.json({ error: 'Invalid token' }, { status: 403 })
   } else {
-    // token not provided, require authentication (developers should add auth check here)
-    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    // Check for session-based auth
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { data: profiles } = await supabase.from('player_profiles').select('id').eq('user_id', user.id)
+    const pids = (profiles || []).map((p: any) => p.id)
+    const isParticipant = pids.includes(match.player1_id) || pids.includes(match.player2_id)
+
+    if (!isParticipant) {
+      return NextResponse.json({ error: 'Forbidden: You are not a participant' }, { status: 403 })
+    }
   }
 
   // check match is in a state to accept challenge action

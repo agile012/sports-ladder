@@ -246,22 +246,22 @@ export default function AdminSportsPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs">Challenge Range</Label>
-                                        <Input type="number" value={maxChallengeRange} onChange={e => setMaxChallengeRange(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={maxChallengeRange} onChange={e => setMaxChallengeRange(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Can challenge X spots above</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Deadline (Days)</Label>
-                                        <Input type="number" value={challengeWindowDays} onChange={e => setChallengeWindowDays(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={challengeWindowDays} onChange={e => setChallengeWindowDays(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Days to play match</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Auto-Verify (Days)</Label>
-                                        <Input type="number" value={autoVerifyWindowDays} onChange={e => setAutoVerifyWindowDays(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={autoVerifyWindowDays} onChange={e => setAutoVerifyWindowDays(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Days to confirm result</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Rematch Cooldown</Label>
-                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={rematchCooldownDays} onChange={e => setRematchCooldownDays(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Days before rematch</p>
                                     </div>
                                     <div className="space-y-2">
@@ -271,12 +271,12 @@ export default function AdminSportsPage() {
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Penalty Days</Label>
-                                        <Input type="number" value={penaltyDays} onChange={e => setPenaltyDays(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={penaltyDays} onChange={e => setPenaltyDays(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Days inactive before rank drop</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs">Penalty Drop</Label>
-                                        <Input type="number" value={penaltyRankDrop} onChange={e => setPenaltyRankDrop(Number(e.target.value))} min={1} />
+                                        <Input type="number" value={penaltyRankDrop} onChange={e => setPenaltyRankDrop(Number(e.target.value))} min={0} />
                                         <p className="text-[10px] text-muted-foreground">Places to drop per penalty</p>
                                     </div>
                                     <div className="space-y-2">
