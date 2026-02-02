@@ -9,13 +9,15 @@ import { Trophy, Swords, Shield, Medal } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface LadderViewProps {
     players: RankedPlayerProfile[]
     user: any
     challengables: Set<string>
     submittingChallenge: string | null
-    handleChallenge: (sportId: string, opponentId: string) => void
+    handleChallenge: (opponentId: string) => void
     selectedSport: Sport
 }
 
@@ -27,6 +29,8 @@ export default function LadderView({
     handleChallenge,
     selectedSport
 }: LadderViewProps) {
+    const [challengeTarget, setChallengeTarget] = useState<string | null>(null)
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
     // Empty State
     if (players.length === 0) {
@@ -88,7 +92,7 @@ export default function LadderView({
                             </div>
 
                             {/* Avatar & Info (Clickable) */}
-                            <Link href={`/profile/${player.id}`} className="flex-grow min-w-0 flex items-center gap-3 group cursor-pointer">
+                            <Link href={`/player/${player.id}`} className="flex-grow min-w-0 flex items-center gap-3 group cursor-pointer">
                                 <Avatar className={cn("h-10 w-10 border-2 transition-transform group-hover:scale-105",
                                     isMe ? "border-primary" : "border-background"
                                 )}>
@@ -121,7 +125,10 @@ export default function LadderView({
                                             <Button
                                                 size="sm"
                                                 className="font-bold h-8 px-3 shadow-lg shadow-primary/10"
-                                                onClick={() => handleChallenge(selectedSport.id, player.id)}
+                                                onClick={() => {
+                                                    setChallengeTarget(player.id)
+                                                    setIsConfirmOpen(true)
+                                                }}
                                                 disabled={submittingChallenge !== null}
                                             >
                                                 <Swords className="h-4 w-4 md:mr-1.5" />
@@ -144,6 +151,16 @@ export default function LadderView({
                     </motion.div>
                 )
             })}
+            <ConfirmDialog
+                open={isConfirmOpen}
+                onOpenChange={setIsConfirmOpen}
+                title="Send Challenge"
+                description="Are you sure you want to challenge this player? They will be notified immediately."
+                confirmLabel="Send Challenge"
+                onConfirm={() => {
+                    if (challengeTarget) handleChallenge(challengeTarget)
+                }}
+            />
         </motion.div >
     )
 }

@@ -37,7 +37,7 @@ export default async function PublicPlayerProfile({ params }: { params: Promise<
 
     // Now fetch all profiles for this user
     const [{ data: profiles }, { data: sports }, { data: contacts }] = await Promise.all([
-        supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url').eq('user_id', userId).order('rating', { ascending: false }),
+        supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url, created_at').eq('user_id', userId).order('rating', { ascending: false }),
         supabase.from('sports').select('id, name'),
         supabase.from('player_profiles').select('id, contact_number').eq('user_id', userId)
     ])

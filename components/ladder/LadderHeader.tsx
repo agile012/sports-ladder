@@ -18,6 +18,7 @@ interface LadderHeaderProps {
     sortBy: 'ladder' | 'rating'
     setSortBy: (v: 'ladder' | 'rating') => void
     onBack?: () => void
+    children?: React.ReactNode
 }
 
 export default function LadderHeader({
@@ -25,7 +26,8 @@ export default function LadderHeader({
     user,
     sortBy,
     setSortBy,
-    onBack
+    onBack,
+    children
 }: LadderHeaderProps) {
 
     if (!selectedSport) return null
@@ -47,7 +49,8 @@ export default function LadderHeader({
                     </p>
                 </div>
 
-                <div className="ml-auto flex gap-2">
+                <div className="ml-auto flex gap-2 items-center">
+                    {children}
                     <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" asChild>
                         <Link href={`/analytics/${selectedSport.id}`}>
                             <TrendingUp className="h-4 w-4" />

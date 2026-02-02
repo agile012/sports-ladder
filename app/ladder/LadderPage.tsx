@@ -234,10 +234,55 @@ export default function LadderPage() {
       const pRaw = await getPlayersForSport(selectedSport.id)
       const p = calculateRanks(pRaw)
       setPlayers(p)
+
+      // Update chargables
+      const recentMatches = await getMatchesSince(myProfile.id, Math.max(selectedSport.scoring_config?.rematch_cooldown_days ?? 7, 60))
+      const mappedMatches = recentMatches.map(m => ({
+        player1_id: m.player1_id || null,
+        player2_id: m.player2_id || null,
+        status: m.status,
+        created_at: m.created_at,
+        updated_at: m.updated_at
+      }))
+      const recentOpponentIds = getCooldownOpponents(mappedMatches, myProfile.id, selectedSport.scoring_config?.rematch_cooldown_days ?? 7)
+      const validOpponents = getChallengablePlayers(p, myProfile, selectedSport.scoring_config, recentOpponentIds)
+      setChallengables(new Set(validOpponents.map(x => x.id)))
+
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Unable to create challenge')
     } finally {
       setSubmittingChallenge(null)
+    }
+  }
+
+  async function joinLadder() {
+    if (!selectedSport || !user) return
+    setLoading(true)
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      )
+      const { error } = await supabase.from('player_profiles').insert({
+        user_id: user.id,
+        sport_id: selectedSport.id,
+        rating: 1200, // Default rating
+        matches_played: 0
+      })
+
+      if (error) throw error
+
+      toast.success(`You have joined the ${selectedSport.name} ladder!`)
+
+      // Reload players
+      const pRaw = await getPlayersForSport(selectedSport.id)
+      const p = calculateRanks(pRaw)
+      setPlayers(p)
+
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to join ladder')
+    } finally {
+      setLoading(false)
     }
   }
   if (loading) return <div className="p-8 text-center">Loading...</div>
@@ -266,7 +311,13 @@ export default function LadderPage() {
         user={user}
         sortBy={sortBy}
         setSortBy={setSortBy}
-      />
+      >
+        {user && selectedSport && !players.find(p => p.user_id === user.id) && (
+          <Button onClick={joinLadder} disabled={loading}>
+            Join Ladder
+          </Button>
+        )}
+      </LadderHeader>
 
       <div className="md:grid md:grid-cols-4 md:gap-8">
         {/* Desktop Sidebar for Sports (Hidden on Mobile) */}
