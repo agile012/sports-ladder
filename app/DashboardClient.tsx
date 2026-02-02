@@ -18,6 +18,8 @@ import { rejoinLadder } from '@/lib/actions/ladderActions'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 
+import { useAppBadge } from '@/lib/hooks/useAppBadge'
+
 export default function DashboardClient() {
     const { user, loading: userLoading } = useUser()
 
@@ -38,6 +40,9 @@ export default function DashboardClient() {
 
     const router = useRouter()
     const { createChallenge, getUserProfileForSport } = useLadders()
+
+    // Sync App Badge
+    useAppBadge(pendingChallenges.length)
 
     // Fetch Data
     useEffect(() => {

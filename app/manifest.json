@@ -18,5 +18,40 @@
     "background_color": "#ffffff",
     "start_url": "/",
     "display": "standalone",
-    "orientation": "portrait"
+    "orientation": "portrait",
+    "shortcuts": [
+        {
+            "name": "My Profile",
+            "short_name": "Profile",
+            "url": "/profile",
+            "icons": [
+                {
+                    "src": "/web-app-manifest-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Ladder",
+            "short_name": "Ladder",
+            "url": "/ladder",
+            "icons": [
+                {
+                    "src": "/web-app-manifest-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        },
+        {
+            "name": "Rules",
+            "short_name": "Rules",
+            "url": "/rules",
+            "icons": [
+                {
+                    "src": "/web-app-manifest-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
 }
