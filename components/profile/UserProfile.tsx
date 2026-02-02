@@ -137,8 +137,24 @@ export default function UserProfile({
 
               {/* Contact Pill */}
               <div className="flex items-center gap-2 bg-background/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-sm text-sm font-medium text-muted-foreground hover:bg-background/60 transition-colors group cursor-pointer">
-                <Phone className="h-3.5 w-3.5" />
-                <span>{displayContact}</span>
+                {myPlayers[0]?.contact_number && isPublic ? (
+                  <a
+                    href={`https://wa.me/${myPlayers[0].contact_number.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 hover:text-emerald-500 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{displayContact}</span>
+                  </a>
+                ) : (
+                  <>
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{displayContact}</span>
+                  </>
+                )}
+
                 {!isPublic && (
                   <Dialog open={editingContact} onOpenChange={setEditingContact}>
                     <DialogTrigger asChild>

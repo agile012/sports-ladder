@@ -59,7 +59,7 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                     {/* Background decoration */}
                                     <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none group-hover:bg-primary/10 transition-colors" />
 
-                                    <div className="p-5 flex flex-col gap-4">
+                                    <div className="p-4 flex flex-col gap-2">
                                         {/* Header: Date + Status */}
                                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1.5 font-medium bg-secondary/50 px-2 py-0.5 rounded-md">
@@ -78,7 +78,7 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                         {/* Players VS */}
                                         <div className="flex items-center justify-between gap-2">
                                             {/* Player 1 */}
-                                            <div className="flex-1 flex flex-col items-center text-center gap-2 min-w-0">
+                                            <div className="flex-1 flex flex-col items-center text-center gap-1 min-w-0">
                                                 <div className="relative">
                                                     <Avatar className={cn(
                                                         "w-12 h-12 border-2 shadow-sm transition-transform group-hover:scale-105",
@@ -120,7 +120,7 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                             </div>
 
                                             {/* Player 2 */}
-                                            <div className="flex-1 flex flex-col items-center text-center gap-2 min-w-0">
+                                            <div className="flex-1 flex flex-col items-center text-center gap-1 min-w-0">
                                                 <div className="relative">
                                                     <Avatar className={cn(
                                                         "w-12 h-12 border-2 shadow-sm transition-transform group-hover:scale-105",

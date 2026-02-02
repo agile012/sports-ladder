@@ -1,6 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
-import { sendChallengeEmail, handleMatchAction, handleMatchResult, handleMatchVerification } from "@/lib/inngest/functions";
+import { sendChallengeEmail, handleMatchAction, handleMatchResult, handleMatchVerification, staleChallengeReminder, schedulingNudge, forfeitWarning, ladderInactivityWarning } from "@/lib/inngest";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -9,5 +9,9 @@ export const { GET, POST, PUT } = serve({
     handleMatchAction,
     handleMatchResult,
     handleMatchVerification,
+    staleChallengeReminder,
+    schedulingNudge,
+    forfeitWarning,
+    ladderInactivityWarning,
   ],
 });

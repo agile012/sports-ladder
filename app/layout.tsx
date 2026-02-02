@@ -7,6 +7,7 @@ import Background from '@/components/Background'
 import MobileNav from '@/components/MobileNav'
 
 import { Toaster } from "@/components/ui/sonner"
+import PWAPrompt from '@/components/pwa/PWAPrompt'
 import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = {
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
             <MobileNav />
             <Toaster position="top-center" />
+            <PWAPrompt />
           </div>
         </ThemeProvider>
       </body>

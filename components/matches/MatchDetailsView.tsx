@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight } from 'lucide-react'
+import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight, Share2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn, formatMatchDate } from '@/lib/utils'
 import {
@@ -169,6 +169,25 @@ export default function MatchDetailsView({
         } catch (e: any) {
             toast.error(e.message)
             setIsSubmitting(false)
+        }
+    }
+
+    const handleShare = async () => {
+        const shareData = {
+            title: 'Match Result - IIMA Sports Ladder',
+            text: `${player1.full_name} vs ${player2.full_name} match result!`,
+            url: window.location.href
+        }
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(window.location.href);
+                toast.success('Link copied to clipboard!');
+            }
+        } catch (err) {
+            console.error('Error sharing:', err);
         }
     }
 
@@ -409,6 +428,15 @@ export default function MatchDetailsView({
                     </Button>
 
                     <div className="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleShare}
+                            className="w-8 h-8 rounded-full bg-background/20 hover:bg-background/40 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Share Result"
+                        >
+                            <Share2 className="w-4 h-4" />
+                        </Button>
                         {allowedToSubmit && match.status === 'PENDING' && (
                             <Button size="sm" onClick={() => setIsReportOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
                                 Report Result
