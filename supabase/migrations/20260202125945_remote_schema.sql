@@ -253,7 +253,7 @@ BEGIN
     SET CONSTRAINTS "player_profiles_sport_rank_key" DEFERRED;
 
     -- Loop through all sports
-    FOR s IN SELECT id, scoring_config FROM public.sports LOOP
+    FOR s IN SELECT id, scoring_config FROM public.sports WHERE is_paused = false LOOP
         -- Extract config
         penalty_days := (s.scoring_config->>'penalty_days')::INT;
         removal_days := (s.scoring_config->>'removal_days')::INT;

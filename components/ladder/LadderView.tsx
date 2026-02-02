@@ -134,11 +134,16 @@ export default function LadderView({
                                         )}
                                     </>
                                 )}
+                                {selectedSport.is_paused && (
+                                    <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10 backdrop-blur-[1px]">
+                                        <Badge variant="destructive" className="font-bold shadow-lg">PAUSED</Badge>
+                                    </div>
+                                )}
                             </div>
                         </Card>
                     </motion.div>
                 )
             })}
-        </motion.div>
+        </motion.div >
     )
 }

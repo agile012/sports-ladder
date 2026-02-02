@@ -39,7 +39,7 @@ export default function LadderPage() {
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         )
-        const { data } = await supabase.from('sports').select('id, name, scoring_config').order('name')
+        const { data } = await supabase.from('sports').select('id, name, scoring_config, is_paused').order('name')
         if (data) {
           setSports(data as Sport[])
 
@@ -209,6 +209,11 @@ export default function LadderPage() {
   async function handleChallenge(opponentProfileId: string) {
     if (!selectedSport || !user) {
       router.push('/login')
+      return
+    }
+
+    if (selectedSport.is_paused) {
+      toast.error('This ladder is currently paused. Challenges are disabled.')
       return
     }
 
