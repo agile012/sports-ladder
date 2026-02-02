@@ -112,8 +112,6 @@ export async function updateMatchResult(matchId: string, winnerId: string | null
 export async function toggleAdmin(profileId: string, isAdmin: boolean) {
     const { supabase, adminSportIds } = await getAdminUser()
 
-
-
     const { error } = await supabase
         .from('player_profiles')
         .update({ is_admin: isAdmin })
@@ -204,4 +202,76 @@ export async function recalculateMatchResult(matchId: string) {
     revalidatePath('/match-history')
     revalidatePath('/admin/matches')
     revalidatePath(`/matches/${matchId}`)
+}
+
+export async function adminUpdateUserProfile(userId: string, data: { cohort_id?: string | null, contact_number?: string }) {
+    const { supabase } = await getAdminUser()
+
+    const updates: any = {}
+    if (data.cohort_id !== undefined) updates.cohort_id = data.cohort_id
+    if (data.contact_number !== undefined) updates.contact_number = data.contact_number
+
+    const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/admin/users')
+}
+
+export async function bulkDeactivatePlayers(targets: { sportId: string, profileId: string }[]) {
+    const { supabase, adminSportIds } = await getAdminUser()
+
+    // Validate all targets before conducting any operations
+    for (const t of targets) {
+        if (!adminSportIds.has(t.sportId)) {
+            throw new Error(`Forbidden: You do not have admin rights for sport ${t.sportId}`)
+        }
+    }
+
+    const errors = []
+    for (const t of targets) {
+        try {
+            // Fetch user_id for the profile
+            const { data: profile } = await supabase
+                .from('player_profiles')
+                .select('user_id')
+                .eq('id', t.profileId)
+                .single()
+
+            if (profile) {
+                await supabase.rpc('leave_ladder', {
+                    p_sport_id: t.sportId,
+                    p_user_id: profile.user_id
+                })
+            }
+        } catch (e: any) {
+            console.error(`Failed to deactivate profile ${t.profileId}:`, e)
+            errors.push(e.message)
+        }
+    }
+
+    if (errors.length > 0) {
+        throw new Error(`Some deactivations failed: ${errors.join(', ')}`)
+    }
+
+    revalidatePath('/ladder')
+    revalidatePath('/admin/users')
+    return { success: true }
+}
+
+export async function bulkAssignCohort(userIds: string[], cohortId: string | null) {
+    const { supabase } = await getAdminUser()
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ cohort_id: cohortId })
+        .in('id', userIds)
+
+    if (error) throw new Error(error.message)
+
+    revalidatePath('/admin/users')
+    return { success: true }
 }
