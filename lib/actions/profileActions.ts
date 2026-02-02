@@ -10,9 +10,9 @@ export async function updateContactInfo(contactNumber: string) {
     if (!user) throw new Error('Unauthorized')
 
     const { error } = await supabase
-        .from('player_profiles')
+        .from('profiles')
         .update({ contact_number: contactNumber })
-        .eq('user_id', user.id)
+        .eq('id', user.id)
 
     if (error) {
         throw new Error(error.message)
@@ -23,5 +23,24 @@ export async function updateContactInfo(contactNumber: string) {
     revalidatePath('/ladder')
     revalidatePath('/profile')
 
+    return { success: true }
+}
+
+export async function updateCohort(cohortId: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) throw new Error('Unauthorized')
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ cohort_id: cohortId })
+        .eq('id', user.id)
+
+    if (error) {
+        throw new Error(error.message)
+    }
+
+    revalidatePath('/profile')
     return { success: true }
 }

@@ -1,4 +1,9 @@
 
+export type Cohort = {
+  id: string
+  name: string
+}
+
 export type ScoringConfig = {
   type: 'simple' | 'sets'
   total_sets?: number
@@ -44,7 +49,8 @@ export type PlayerProfile = {
   deactivated?: boolean
   deactivated_at?: string
   last_active_rank?: number | null
-  contact_number?: string
+  contact_number?: string // Deprecated
+  cohort_id?: string
 }
 
 export type PlayerBasic = {

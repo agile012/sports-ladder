@@ -2,17 +2,18 @@
 
 import PlayerProfile from './PlayerProfile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { PlayerProfileExtended } from '@/lib/types'
+import { Cohort, PlayerProfileExtended } from '@/lib/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
-import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor, Bell, BellOff } from 'lucide-react'
+import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor, Bell, BellOff, Users } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useState } from 'react'
-import { updateContactInfo } from '@/lib/actions/profileActions'
+import { updateContactInfo, updateCohort } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
@@ -22,6 +23,8 @@ export interface UserInfo {
   id: string
   email?: string
   avatar_url?: string
+  contact_number?: string
+  cohort_id?: string
 }
 
 
@@ -29,12 +32,14 @@ export default function UserProfile({
   userInfo,
   myPlayers,
   isAdmin,
-  isPublic = false
+  isPublic = false,
+  cohorts = []
 }: {
   userInfo: UserInfo;
   myPlayers: PlayerProfileExtended[],
   isAdmin?: boolean,
-  isPublic?: boolean
+  isPublic?: boolean,
+  cohorts?: Cohort[]
 }) {
   const fullName = myPlayers[0]?.full_name || userInfo.email?.split('@')[0] || 'Unknown User'
   const displayEmail = userInfo.email
@@ -54,11 +59,19 @@ export default function UserProfile({
   }
 
   const router = useRouter()
+
+  // Contact State
   const [editingContact, setEditingContact] = useState(false)
-  const [contactNumber, setContactNumber] = useState(myPlayers[0]?.contact_number || '')
+  const [contactNumber, setContactNumber] = useState(userInfo.contact_number || '')
   const [savingContact, setSavingContact] = useState(false)
 
-  const displayContact = (myPlayers[0]?.contact_number) || 'Add Phone Number'
+  // Cohort State
+  const [editingCohort, setEditingCohort] = useState(false)
+  const currentCohort = cohorts.find(c => c.id === userInfo.cohort_id)
+  const [selectedCohortId, setSelectedCohortId] = useState(userInfo.cohort_id || '')
+  const [savingCohort, setSavingCohort] = useState(false)
+
+  const displayContact = userInfo.contact_number || 'No Phone Number'
 
   async function handleUpdateContact() {
     setSavingContact(true)
@@ -71,6 +84,21 @@ export default function UserProfile({
       toast.error('Failed to update: ' + e.message)
     } finally {
       setSavingContact(false)
+    }
+  }
+
+  async function handleUpdateCohort() {
+    if (!selectedCohortId) return
+    setSavingCohort(true)
+    try {
+      await updateCohort(selectedCohortId)
+      toast.success('Cohort updated')
+      setEditingCohort(false)
+      router.refresh()
+    } catch (e: any) {
+      toast.error('Failed to update: ' + e.message)
+    } finally {
+      setSavingCohort(false)
     }
   }
 
@@ -135,11 +163,49 @@ export default function UserProfile({
                 </div>
               )}
 
+              {/* Cohort Pill */}
+              <div className="flex items-center gap-2 bg-background/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-sm text-sm font-medium text-muted-foreground hover:bg-background/60 transition-colors group cursor-pointer">
+                <Users className="h-3.5 w-3.5" />
+                <span>{currentCohort?.name || 'No Cohort'}</span>
+
+                {!isPublic && cohorts.length > 0 && (
+                  <Dialog open={editingCohort} onOpenChange={setEditingCohort}>
+                    <DialogTrigger asChild>
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Update Cohort</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4">
+                        <Select value={selectedCohortId} onValueChange={setSelectedCohortId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Cohort" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cohorts.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleUpdateCohort} disabled={savingCohort}>
+                          {savingCohort && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+
               {/* Contact Pill */}
               <div className="flex items-center gap-2 bg-background/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 shadow-sm text-sm font-medium text-muted-foreground hover:bg-background/60 transition-colors group cursor-pointer">
-                {myPlayers[0]?.contact_number && isPublic ? (
+                {userInfo.contact_number && isPublic ? (
                   <a
-                    href={`https://wa.me/${myPlayers[0].contact_number.replace(/[^0-9]/g, '')}`}
+                    href={`https://wa.me/${userInfo.contact_number.replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 hover:text-emerald-500 transition-colors"
