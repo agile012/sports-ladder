@@ -37,43 +37,43 @@ export const sendChallengeEmail = inngest.createFunction(
             return { challengerProfile, opponent };
         });
 
-        if (!opponent?.user_email) return
-
-        await step.run("send-email", async () => {
-            const acceptUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=accept&token=${match.action_token}`;
+        if (opponent.user_id) {
             const pushAcceptUrl = `${PUBLIC_SITE_URL}/matches/${match.id}?action=accept&token=${match.action_token}`;
-            const sportName = match.sport?.name || match.sport_id;
-            const msg = {
-                to: opponent.user_email,
-                from: FROM_EMAIL, // Update this to your verified sender
-                subject: `You were challenged in ${sportName}`,
-                html: `
-          <p><strong>${challengerProfile?.full_name || match.player1_id}</strong> has challenged you in the ladder.</p>
-          <p>${match.message ?? ""}</p>
-          <p>You were challenged in ${sportName}.</p>
-          <p>
-            <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept Challenge</a>
-          </p>
-        `,
-            };
-
-            if (emailEnabled) {
-                await transporter.sendMail(msg);
-                console.log(`Challenge email sent to ${msg.to}`);
-            } else {
-                console.log(`Skipping challenge email: Config disabled`);
-            }
-
-            // Send Push
-            if (opponent.user_id) {
+            await step.run("send-push-notification", async () => {
                 await sendPushToUser(opponent.user_id, {
                     title: `New Challenge!`,
-                    body: `${challengerProfile?.full_name || 'Someone'} challenged you in ${sportName}.`,
+                    body: `${challengerProfile?.full_name || 'Someone'} challenged you in ${match.sport?.name || match.sport_id}.`,
                     url: pushAcceptUrl
                 })
-            }
+            });
+        }
 
-            return { sent: true, to: msg.to };
-        });
+        if (opponent.user_email) {
+            await step.run("send-email-notification", async () => {
+                const acceptUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=accept&token=${match.action_token}`;
+                const sportName = match.sport?.name || match.sport_id;
+                const msg = {
+                    to: opponent.user_email,
+                    from: FROM_EMAIL,
+                    subject: `You were challenged in ${sportName}`,
+                    html: `
+              <p><strong>${challengerProfile?.full_name || match.player1_id}</strong> has challenged you in the ladder.</p>
+              <p>${match.message ?? ""}</p>
+              <p>You were challenged in ${sportName}.</p>
+              <p>
+                <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept Challenge</a>
+              </p>
+            `,
+                };
+
+                if (emailEnabled) {
+                    await transporter.sendMail(msg);
+                    console.log(`Challenge email sent to ${msg.to}`);
+                } else {
+                    console.log(`Skipping challenge email: Config disabled`);
+                }
+                return { sent: true, to: msg.to };
+            });
+        }
     }
 );

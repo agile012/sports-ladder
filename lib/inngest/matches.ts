@@ -33,78 +33,71 @@ export const handleMatchAction = inngest.createFunction(
             return { challenger, opponent };
         });
 
-        // Only send emails for accepted challenges (reject action is no longer supported)
-        if (challenger?.user_email && isAccepted) {
-            const subject = `Your challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted! Enter the result.`;
-            const matchPageUrl = `${PUBLIC_SITE_URL}/matches/${match.id}`;
+        if (!isAccepted) return; // Only process accepted for now
 
-            // Email to challenger
-            const challengerHtml = `
-        <p>Your challenge for match ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted!</p>
-        <p>It's time to play your match. Once completed, please enter the result.</p>
-        <p>Who won the match?</p>
-        <p>
-          <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
-          <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
-        </p>
-        <p>
-          Or view the match details:
-          <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
-        </p>
-      `;
+        const matchPageUrl = `${PUBLIC_SITE_URL}/matches/${match.id}`;
+        const subject = `Your challenge for ${match.sport?.name}: ${challenger?.full_name} vs ${opponent?.full_name} was accepted! Enter the result.`;
 
-            const challengerMsg = {
-                to: challenger.user_email,
-                from: FROM_EMAIL,
-                subject,
-                html: challengerHtml,
-            };
-            await step.run("send-challenger-email", async () => {
-                if (emailEnabled) await transporter.sendMail(challengerMsg);
-                if (challenger.user_id) {
-                    console.log("Sending Push Notification to ", challenger.user_id)
-                    await sendPushToUser(challenger.user_id, {
-                        title: "Challenge Accepted!",
-                        body: `${opponent?.full_name} accepted your challenge in ${match.sport?.name}.`,
-                        url: matchPageUrl
-                    })
-                }
+        // Challenger Notifications
+        if (challenger?.user_id) {
+            await step.run("push-challenger", async () => {
+                await sendPushToUser(challenger.user_id, {
+                    title: "Challenge Accepted!",
+                    body: `${opponent?.full_name} accepted your challenge in ${match.sport?.name}.`,
+                    url: matchPageUrl
+                })
             });
+        }
 
-            // Email to opponent (if available)
-            if (opponent?.user_email) {
+        if (challenger?.user_email) {
+            await step.run("email-challenger", async () => {
+                const challengerHtml = `
+                    <p>Your challenge for match ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name} was accepted!</p>
+                    <p>It's time to play your match. Once completed, please enter the result.</p>
+                    <p>Who won the match?</p>
+                    <p>
+                      <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
+                      <a href="${matchPageUrl}?action=report&winner=${opponent?.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                    </p>
+                    <p>
+                      Or view the match details:
+                      <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
+                    </p>
+                  `;
+                const challengerMsg = { to: challenger.user_email, from: FROM_EMAIL, subject, html: challengerHtml };
+                if (emailEnabled) await transporter.sendMail(challengerMsg);
+            });
+        }
+
+        // Opponent Notifications
+        if (opponent?.user_id) {
+            await step.run("push-opponent", async () => {
+                await sendPushToUser(opponent.user_id, {
+                    title: "Challenge Accepted!",
+                    body: `You accepted the challenge from ${challenger?.full_name}.`,
+                    url: matchPageUrl
+                })
+            });
+        }
+
+        if (opponent?.user_email) {
+            await step.run("email-opponent", async () => {
                 const opponentHtml = `
-          <p>You have accepted the challenge for ${match.sport?.name}: ${challenger.full_name} vs ${opponent?.full_name}!</p>
-          <p>It's time to play your match. Once completed, please enter the result.</p>
-          <p>Who won the match?</p>
-          <p>
-            <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
-            <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
-          </p>
-          <p>
-            Or view the match details:
-            <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
-          </p>
-        `;
-
-                const opponentMsg = {
-                    to: opponent.user_email,
-                    from: FROM_EMAIL,
-                    subject,
-                    html: opponentHtml,
-                };
-                await step.run("send-opponent-email", async () => {
-                    if (emailEnabled) await transporter.sendMail(opponentMsg);
-                    if (opponent.user_id) {
-                        console.log("Sending Push Notification to ", opponent.user_id)
-                        await sendPushToUser(opponent.user_id, {
-                            title: "Challenge Accepted!",
-                            body: `You accepted the challenge from ${challenger.full_name}.`,
-                            url: matchPageUrl
-                        })
-                    }
-                });
-            }
+                  <p>You have accepted the challenge for ${match.sport?.name}: ${challenger?.full_name} vs ${opponent?.full_name}!</p>
+                  <p>It's time to play your match. Once completed, please enter the result.</p>
+                  <p>Who won the match?</p>
+                  <p>
+                    <a href="${matchPageUrl}?action=report&winner=${challenger?.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger?.full_name} won</a>
+                    <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                  </p>
+                  <p>
+                    Or view the match details:
+                    <a href="${matchPageUrl}" style="background-color: #777; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a>
+                  </p>
+                `;
+                const opponentMsg = { to: opponent.user_email, from: FROM_EMAIL, subject, html: opponentHtml };
+                if (emailEnabled) await transporter.sendMail(opponentMsg);
+            });
         }
     }
 );
@@ -159,17 +152,25 @@ export const handleMatchResult = inngest.createFunction(
             return data;
         });
 
+        const verifyUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/verify?token=${match.action_token}`;
+        const pushVerifyUrl = `${PUBLIC_SITE_URL}/matches/${match.id}?action=verify&token=${match.action_token}`;
+        const confirmUrl = `${verifyUrl}&verify=yes`;
+        const disputeUrl = `${verifyUrl}&verify=no`;
+        const matchIdentifier = `${match.sport?.name}: ${reporter?.full_name} vs ${verifier?.full_name}`;
+        const resultText = match.winner_id === verifierId ? "You won" : `${winner?.full_name} won`;
+
+        if (verifier?.user_id) {
+            await step.run("push-verifier", async () => {
+                await sendPushToUser(verifier.user_id, {
+                    title: "Verify Match Result",
+                    body: `${reporter?.full_name} reported: ${resultText}. Please verify.`,
+                    url: pushVerifyUrl
+                })
+            });
+        }
+
         if (verifier?.user_email) {
-            await step.run("send-verify-email", async () => {
-                const verifyUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/verify?token=${match.action_token}`;
-                const pushVerifyUrl = `${PUBLIC_SITE_URL}/matches/${match.id}?action=verify&token=${match.action_token}`;
-                const confirmUrl = `${verifyUrl}&verify=yes`;
-                const disputeUrl = `${verifyUrl}&verify=no`;
-
-                const matchIdentifier = `${match.sport?.name}: ${reporter?.full_name} vs ${verifier?.full_name}`;
-
-                const resultText = match.winner_id === verifierId ? "You won" : `${winner?.full_name} won`;
-
+            await step.run("email-verifier", async () => {
                 let scoresHtml = '';
                 if (match.scores && Array.isArray(match.scores) && match.scores.length > 0) {
                     const scoresText = match.scores.map((s: any) => `${s.p1}-${s.p2}`).join(', ');
@@ -180,27 +181,17 @@ export const handleMatchResult = inngest.createFunction(
                     to: verifier.user_email,
                     from: FROM_EMAIL,
                     subject: `Verify result for ${matchIdentifier}`,
-
                     html: `
-            <p>The result was entered by the opponent.</p>
-            <p>Result: <strong>${resultText}</strong></p>
-            ${scoresHtml}
-            <p>
- <a href="${confirmUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Confirm Result</a>
- <a href="${disputeUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">Dispute Result</a>
- </p>
-          `,
+                        <p>The result was entered by the opponent.</p>
+                        <p>Result: <strong>${resultText}</strong></p>
+                        ${scoresHtml}
+                        <p>
+                         <a href="${confirmUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Confirm Result</a>
+                         <a href="${disputeUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">Dispute Result</a>
+                         </p>
+                      `,
                 };
                 if (emailEnabled) await transporter.sendMail(msg)
-
-                if (verifier.user_id) {
-                    console.log("Sending Push Notification to ", verifier.user_id)
-                    await sendPushToUser(verifier.user_id, {
-                        title: "Verify Match Result",
-                        body: `${reporter?.full_name} reported: ${resultText}. Please verify.`,
-                        url: pushVerifyUrl
-                    })
-                }
             });
         }
     }
@@ -240,12 +231,28 @@ export const handleMatchVerification = inngest.createFunction(
         const player2 = matchWithPlayers.player2 as { user_id: string, user_email: string, full_name: string } | null;
         const emails = [player1?.user_email, player2?.user_email].filter(Boolean);
 
-        if (emails.length > 0) {
-            await step.run("send-completion-email", async () => {
-                const matchIdentifier = `${player1?.full_name} vs ${player2?.full_name}`;
+        const matchIdentifier = `${player1?.full_name} vs ${player2?.full_name}`;
+        const profileLink = `${PUBLIC_SITE_URL}/profile`; // Changed to specific match link
 
+        if (player1?.user_id) {
+            await step.run("push-player1-completion", async () => {
+                const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
+                const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
+                await sendPushToUser(player1.user_id, { title: pushTitle, body: pushBody, url: profileLink });
+            });
+        }
+
+        if (player2?.user_id) {
+            await step.run("push-player2-completion", async () => {
+                const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
+                const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
+                await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
+            });
+        }
+
+        if (emails.length > 0) {
+            await step.run("email-participants", async () => {
                 const subject = isConfirmed ? `Match [${matchIdentifier}] Completed` : `Match [${matchIdentifier}] Disputed`;
-                const profileLink = `${PUBLIC_SITE_URL}/profile`; // Changed to specific match link
                 let html = isConfirmed
                     ? `<p>The match result has been confirmed and the ladder updated.</p>`
                     : `<p>The match result has been disputed. Please re-enter the result on the website.</p>
@@ -254,22 +261,14 @@ export const handleMatchVerification = inngest.createFunction(
                 html += `<p>View the match details and updated ratings/rankings on the website:</p>
  <p><a href="${profileLink}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">View Match</a></p>
  `;
-
                 const msg = { to: emails, from: FROM_EMAIL, subject, html };
                 if (emailEnabled) await transporter.sendMail(msg)
-
-                const pushTitle = isConfirmed ? "Match Completed" : "Match Disputed";
-                const pushBody = isConfirmed ? `Result confirmed for ${matchIdentifier}.` : `Result disputed for ${matchIdentifier}.`;
-
-                console.log("Sending Push Notification to ", player1.user_id, player2.user_id)
-                if (player1?.user_id) await sendPushToUser(player1.user_id, { title: pushTitle, body: pushBody, url: profileLink });
-                if (player2?.user_id) await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
             });
         }
 
         // Notify displaced players (Rank Drops)
         if (isConfirmed) {
-            await step.run("notify-displaced-players", async () => {
+            const displaced = await step.run("fetch-displaced-players", async () => {
                 // Fetch recent ladder history entries for this sport where rank dropped
                 // We assume the DB trigger ran immediately after the update above.
                 // We look for entries created in the last 1 minute.
@@ -284,26 +283,37 @@ export const handleMatchVerification = inngest.createFunction(
                     .eq("sport_id", matchWithPlayers.sport_id)
                     .gt("created_at", oneMinuteAgo)
 
-                if (!recentChanges?.length) return;
+                if (!recentChanges?.length) return [];
 
-                const displaced = recentChanges.filter((h: any) => h.new_rank > h.old_rank);
+                return recentChanges.filter((h: any) => h.new_rank > h.old_rank);
+            });
 
+            if (displaced.length > 0) {
                 const participantUserIds = [player1?.user_id, player2?.user_id];
 
-                for (const entry of displaced) {
-                    const p = Array.isArray(entry.player) ? entry.player[0] : entry.player as any;
-                    if (!p?.user_id) continue;
+                // We need to iterate carefully. Inngest steps should ideally be flat or parallelized properly.
+                // Ideally we'd use step.sendEvent for individual notifications if there are many, 
+                // but for now a loop yielding steps might be too much if not careful.
+                // Given the scale, doing it in one step or a loop of promises inside one step is acceptable for now.
+                // Let's do distinct steps per user to be "best practice" granular if list is small, or one batch step.
+                // Simplest robust way: One step to send all pushes (Promise.all)
 
-                    // Skip participants (they already know result, preventing double notify)
-                    if (participantUserIds.includes(p.user_id)) continue;
+                await step.run("push-displaced-players", async () => {
+                    await Promise.all(displaced.map(async (entry: any) => {
+                        const p = Array.isArray(entry.player) ? entry.player[0] : entry.player as any;
+                        if (!p?.user_id) return;
 
-                    await sendPushToUser(p.user_id, {
-                        title: "Ladder Rank Dropped",
-                        body: `Your rank in ${matchWithPlayers.sport?.name} dropped from #${entry.old_rank} to #${entry.new_rank}.`,
-                        url: `${PUBLIC_SITE_URL}/ladder?sport=${matchWithPlayers.sport_id}`
-                    });
-                }
-            });
+                        // Skip participants
+                        if (participantUserIds.includes(p.user_id)) return;
+
+                        await sendPushToUser(p.user_id, {
+                            title: "Ladder Rank Dropped",
+                            body: `Your rank in ${matchWithPlayers.sport?.name} dropped from #${entry.old_rank} to #${entry.new_rank}.`,
+                            url: `${PUBLIC_SITE_URL}/ladder?sport=${matchWithPlayers.sport_id}`
+                        });
+                    }));
+                });
+            }
         }
     }
 );
