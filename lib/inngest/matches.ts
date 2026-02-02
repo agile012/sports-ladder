@@ -266,5 +266,44 @@ export const handleMatchVerification = inngest.createFunction(
                 if (player2?.user_id) await sendPushToUser(player2.user_id, { title: pushTitle, body: pushBody, url: profileLink });
             });
         }
+
+        // Notify displaced players (Rank Drops)
+        if (isConfirmed) {
+            await step.run("notify-displaced-players", async () => {
+                // Fetch recent ladder history entries for this sport where rank dropped
+                // We assume the DB trigger ran immediately after the update above.
+                // We look for entries created in the last 1 minute.
+                const oneMinuteAgo = new Date(Date.now() - 60000).toISOString();
+
+                const { data: recentChanges } = await supabase
+                    .from("ladder_history")
+                    .select(`
+                        old_rank, new_rank, 
+                        player:player_profile_id(user_id)
+                    `)
+                    .eq("sport_id", matchWithPlayers.sport_id)
+                    .gt("created_at", oneMinuteAgo)
+
+                if (!recentChanges?.length) return;
+
+                const displaced = recentChanges.filter((h: any) => h.new_rank > h.old_rank);
+
+                const participantUserIds = [player1?.user_id, player2?.user_id];
+
+                for (const entry of displaced) {
+                    const p = Array.isArray(entry.player) ? entry.player[0] : entry.player as any;
+                    if (!p?.user_id) continue;
+
+                    // Skip participants (they already know result, preventing double notify)
+                    if (participantUserIds.includes(p.user_id)) continue;
+
+                    await sendPushToUser(p.user_id, {
+                        title: "Ladder Rank Dropped",
+                        body: `Your rank in ${matchWithPlayers.sport?.name} dropped from #${entry.old_rank} to #${entry.new_rank}.`,
+                        url: `${PUBLIC_SITE_URL}/ladder?sport=${matchWithPlayers.sport_id}`
+                    });
+                }
+            });
+        }
     }
 );
