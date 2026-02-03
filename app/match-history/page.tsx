@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
+import { getCachedSports, getCachedAllPlayers, getCachedMatchHistory } from '@/lib/cached-data'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import MatchFilters from '@/components/matches/MatchFilters'
 import {
@@ -37,43 +37,56 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     getCachedAllPlayers()
   ])
 
-  // Build query
-  let query = supabase
-    .from('matches')
-    .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(id, name)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
+  const isDefaultView = sportId === 'all' && status === 'all' && playerId === 'all' && page === 1
 
-  if (sportId !== 'all') {
-    query = query.eq('sport_id', sportId)
-  }
-  if (status !== 'all') {
-    switch (status) {
-      case 'WITHDRAWN':
-        query = query.eq('status', 'CANCELLED')
-        break
-      case 'FORFEIT':
-        query = query.eq('status', 'PROCESSED').eq('scores->>reason', 'forfeit')
-        break
-      case 'DONE':
-        query = query.eq('status', 'PROCESSED').or('scores.is.null,scores->>reason.neq.forfeit')
-        break
-      case 'PLAYED':
-        query = query.eq('status', 'PROCESSING')
-        break
-      case 'CHALLENGED':
-        query = query.in('status', ['CHALLENGED', 'PENDING'])
-        break
-      default:
-        // Fallback for direct DB statuses if ever passed manually
-        query = query.eq('status', status)
+  let data: any[] | null = []
+  let count: number | null = 0
+
+  if (isDefaultView) {
+    const cached = await getCachedMatchHistory()
+    data = cached.data
+    count = cached.count
+  } else {
+    // Build query
+    let query = supabase
+      .from('matches')
+      .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(id, name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
+
+    if (sportId !== 'all') {
+      query = query.eq('sport_id', sportId)
     }
-  }
-  if (playerId !== 'all') {
-    query = query.or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
-  }
+    if (status !== 'all') {
+      switch (status) {
+        case 'WITHDRAWN':
+          query = query.eq('status', 'CANCELLED')
+          break
+        case 'FORFEIT':
+          query = query.eq('status', 'PROCESSED').eq('scores->>reason', 'forfeit')
+          break
+        case 'DONE':
+          query = query.eq('status', 'PROCESSED').or('scores.is.null,scores->>reason.neq.forfeit')
+          break
+        case 'PLAYED':
+          query = query.eq('status', 'PROCESSING')
+          break
+        case 'CHALLENGED':
+          query = query.in('status', ['CHALLENGED', 'PENDING'])
+          break
+        default:
+          // Fallback for direct DB statuses if ever passed manually
+          query = query.eq('status', status)
+      }
+    }
+    if (playerId !== 'all') {
+      query = query.or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+    }
 
-  const { data, count } = await query
+    const result = await query
+    data = result.data
+    count = result.count
+  }
 
   const allMatches = ((data || []) as any[]).map((m) => ({
     ...m,

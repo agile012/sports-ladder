@@ -9,9 +9,21 @@ import { Trophy, Sparkles, Activity, Target, ArrowRight, Zap, TrendingUp, Histor
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import PendingChallenges from '@/components/profile/PendingChallenges'
-import RecentMatchesList from '@/components/matches/RecentMatchesList'
+// import PendingChallenges from '@/components/profile/PendingChallenges'
+// import RecentMatchesList from '@/components/matches/RecentMatchesList'
+import dynamic from 'next/dynamic';
 import { PlayerProfile, RankedPlayerProfile, PendingChallengeItem, Sport, MatchWithPlayers, PlayerProfileExtended } from '@/lib/types'
+
+const PendingChallenges = dynamic(() => import('@/components/profile/PendingChallenges'), {
+    loading: () => <div className="h-40 w-full bg-muted/20 animate-pulse rounded-xl" />,
+    ssr: false // Optional: if we want to defer it entirely to client
+})
+
+const RecentMatchesList = dynamic(() => import('@/components/matches/RecentMatchesList'), {
+    loading: () => <div className="space-y-4">
+        {[1, 2, 3].map(i => <div key={i} className="h-32 w-full bg-muted/20 animate-pulse rounded-xl" />)}
+    </div>
+})
 import { motion } from 'framer-motion'
 import { toast } from "sonner"
 import { rejoinLadder } from '@/lib/actions/ladderActions'
@@ -19,33 +31,74 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 
 import { useAppBadge } from '@/lib/hooks/useAppBadge'
+import type { DashboardData } from '@/lib/actions/dashboard'
+import type { User } from '@supabase/supabase-js'
 
-export default function DashboardClient() {
-    const { user, loading: userLoading } = useUser()
+interface DashboardClientProps {
+    initialData?: DashboardData
+    initialUser?: User | null
+}
+
+export default function DashboardClient({ initialData, initialUser }: DashboardClientProps) {
+    const { user, loading: userLoading } = useUser(initialUser || null)
 
     // State
-    const [loadingData, setLoadingData] = useState(true)
+    const [loadingData, setLoadingData] = useState(!initialData)
     const [sportId, setSportId] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
-    const [activeSports, setActiveSports] = useState<Sport[]>([])
-    const [inactiveSports, setInactiveSports] = useState<Sport[]>([])
-    const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>({})
-    const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>({})
-    const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>([])
-    const [userProfileIds, setUserProfileIds] = useState<string[]>([])
-    const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>([])
-    const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>([])
-    const [myProfiles, setMyProfiles] = useState<PlayerProfileExtended[]>([])
-    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected' | null>(null)
+
+    // Initialize state from initialData if available
+    const [activeSports, setActiveSports] = useState<Sport[]>(() => {
+        if (!initialData) return []
+        const activeS: Sport[] = []
+        initialData.sports.forEach(s => {
+            const profile = initialData.myProfiles.find(p => p.sport_id === s.id)
+            if (!(profile && profile.deactivated)) activeS.push(s)
+        })
+        return activeS
+    })
+
+    const [inactiveSports, setInactiveSports] = useState<Sport[]>(() => {
+        if (!initialData) return []
+        const inactiveS: Sport[] = []
+        initialData.sports.forEach(s => {
+            const profile = initialData.myProfiles.find(p => p.sport_id === s.id)
+            if (profile && profile.deactivated) inactiveS.push(s)
+        })
+        return inactiveS
+    })
+
+    const [topLists, setTopLists] = useState<Record<string, PlayerProfile[]>>(initialData?.topLists || {})
+    const [challengeLists, setChallengeLists] = useState<Record<string, RankedPlayerProfile[]>>(initialData?.challengeLists || {})
+    const [pendingChallenges, setPendingChallenges] = useState<PendingChallengeItem[]>(initialData?.pendingChallenges || [])
+    const [userProfileIds, setUserProfileIds] = useState<string[]>(initialData?.userProfileIds || [])
+    const [unjoinedSports, setUnjoinedSports] = useState<Sport[]>(initialData?.unjoinedSports || [])
+    const [recentMatches, setRecentMatches] = useState<MatchWithPlayers[]>(initialData?.recentMatches || [])
+    const [myProfiles, setMyProfiles] = useState<PlayerProfileExtended[]>(initialData?.myProfiles || [])
+    const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected' | null>(initialData?.verificationStatus || null)
 
     const router = useRouter()
     const { createChallenge, getUserProfileForSport } = useLadders()
 
+    // Initialize sportId if we have data
+    useEffect(() => {
+        if (initialData && !sportId) {
+            const activeS: Sport[] = []
+            initialData.sports.forEach(s => {
+                const profile = initialData.myProfiles.find(p => p.sport_id === s.id)
+                if (!(profile && profile.deactivated)) activeS.push(s)
+            })
+            if (activeS.length > 0) setSportId(activeS[0].id)
+        }
+    }, [initialData]) // On mount/update if initialData is provided
+
     // Sync App Badge
     useAppBadge(pendingChallenges.length)
 
-    // Fetch Data
+    // Fetch Data (Client-side fallback or revalidation)
     useEffect(() => {
+        if (initialData) return; // Skip if we have initial data
+
         let cancelled = false
         const fetchData = async () => {
             if (userLoading) return
@@ -85,9 +138,9 @@ export default function DashboardClient() {
         }
         fetchData()
         return () => { cancelled = true }
-    }, [user, userLoading])
+    }, [user, userLoading, initialData])
 
-    const loading = userLoading || loadingData
+    const loading = (userLoading && !initialUser) || loadingData
 
     // Actions
     async function join() {
@@ -162,11 +215,11 @@ export default function DashboardClient() {
                             Join the IIMA Sports Ladder. Challenge opponents, track your Elo, and claim your victory.
                         </p>
                         <div className="flex gap-4 justify-center md:justify-start pt-2">
-                            <Button size="lg" className="rounded-full font-bold shadow-xl shadow-primary/20" onClick={() => router.push('/login')}>
-                                Get Started
+                            <Button asChild size="lg" className="rounded-full font-bold shadow-xl shadow-primary/20">
+                                <Link href="/login">Get Started</Link>
                             </Button>
-                            <Button size="lg" variant="outline" className="rounded-full bg-transparent" onClick={() => router.push('/ladder')}>
-                                View Ladders
+                            <Button asChild size="lg" variant="outline" className="rounded-full bg-transparent">
+                                <Link href="/ladder">View Ladders</Link>
                             </Button>
                         </div>
                     </div>
@@ -260,11 +313,15 @@ export default function DashboardClient() {
                         >
                             {/* Actions (Moved Top for Desktop) */}
                             <div className="hidden md:grid grid-cols-2 gap-4">
-                                <Button className="w-full font-bold shadow-lg shadow-primary/10" onClick={() => router.push('/ladder')}>
-                                    <Swords className="mr-2 h-4 w-4" /> Challenge Someone
+                                <Button asChild className="w-full font-bold shadow-lg shadow-primary/10">
+                                    <Link href="/ladder">
+                                        <Swords className="mr-2 h-4 w-4" /> Challenge Someone
+                                    </Link>
                                 </Button>
-                                <Button variant="outline" className="w-full bg-card/50" onClick={() => router.push('/match-history')}>
-                                    <History className="mr-2 h-4 w-4" /> View History
+                                <Button variant="outline" asChild className="w-full bg-card/50">
+                                    <Link href="/match-history">
+                                        <History className="mr-2 h-4 w-4" /> View History
+                                    </Link>
                                 </Button>
                             </div>
 
@@ -351,11 +408,15 @@ export default function DashboardClient() {
 
                             {/* Mobile Actions (Bottom) */}
                             <div className="grid grid-cols-2 gap-3 pt-2 md:hidden">
-                                <Button className="w-full font-bold shadow-lg shadow-primary/20" onClick={() => router.push('/ladder')}>
-                                    <Swords className="mr-2 h-4 w-4" /> Challenge
+                                <Button asChild className="w-full font-bold shadow-lg shadow-primary/20">
+                                    <Link href="/ladder">
+                                        <Swords className="mr-2 h-4 w-4" /> Challenge
+                                    </Link>
                                 </Button>
-                                <Button variant="outline" className="w-full" onClick={() => router.push('/match-history')}>
-                                    <History className="mr-2 h-4 w-4" /> History
+                                <Button variant="outline" asChild className="w-full">
+                                    <Link href="/match-history">
+                                        <History className="mr-2 h-4 w-4" /> History
+                                    </Link>
                                 </Button>
                             </div>
                         </motion.div>

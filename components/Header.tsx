@@ -7,40 +7,28 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useTheme } from "next-themes"
 import { Button } from './ui/button'
 import { Moon, Sun, Monitor, Menu, X, Trophy } from "lucide-react"
-import { User } from '@supabase/supabase-js'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { AnalyticsNav } from './AnalyticsNav'
 import { LaddersNav } from './LaddersNav'
+import { useSports } from '@/context/SportsContext'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Header() {
   const router = useRouter()
   const pathname = usePathname()
-  const [user, setUser] = useState<User | null>(null)
-  const [sports, setSports] = useState<{ id: string, name: string }[]>([])
+  const { user } = useAuth()
+  const { sports } = useSports()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
+  // Scroll handler only
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null))
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    // Fetch sports
-    supabase.from('sports').select('id, name').order('name').then(({ data }) => {
-      if (data) setSports(data)
-    })
-
     const handleScroll = () => {
       setScrolled(window.scrollY > 20)
     }
     window.addEventListener('scroll', handleScroll)
-
-    return () => {
-      subscription.unsubscribe()
-      window.removeEventListener('scroll', handleScroll)
-    }
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   async function signOut() {

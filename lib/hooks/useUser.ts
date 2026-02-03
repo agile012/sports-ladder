@@ -1,24 +1,9 @@
-'use client'
-import { useEffect, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import { User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/client'
 
-export default function useUser() {
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
+export default function useUser(initialUser: User | null = null) {
+  // We ignore initialUser here because AuthProvider handles it globally now.
+  // We keep the signature to avoid breaking existing usages.
+  const { user, loading } = useAuth()
   return { user, loading }
 }

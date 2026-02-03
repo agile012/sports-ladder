@@ -18,39 +18,20 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useTheme } from "next-themes"
 import { toast } from 'sonner'
-import { getCachedSports } from '@/lib/cached-data'
+import { useSports } from '@/context/SportsContext'
+import { useAuth } from '@/context/AuthContext'
 
 export default function MobileNav() {
     const pathname = usePathname()
     const router = useRouter()
     const { theme, setTheme } = useTheme()
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-    const [sports, setSports] = useState<{ id: string, name: string }[]>([])
+    const { sports } = useSports()
+    const { user } = useAuth()
 
     // Dropdown States
     const [menuOpen, setMenuOpen] = useState<string | null>(null)
 
-    useEffect(() => {
-        const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-        const getUser = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user?.user_metadata?.avatar_url) {
-                setAvatarUrl(user.user_metadata.avatar_url)
-            }
-        }
-        getUser()
-
-        // Fetch sports for shortcuts
-        const fetchSports = async () => {
-            const { data } = await supabase.from('sports').select('id, name').order('name');
-            if (data) setSports(data)
-        }
-        fetchSports()
-
-    }, [])
+    // No effects needed for data fetching anymore!
 
     const handleSignOut = async () => {
         const supabase = createBrowserClient(
@@ -114,9 +95,9 @@ export default function MobileNav() {
                                             "p-1.5 rounded-full transition-all",
                                             isActive && "bg-primary/10 ring-1 ring-primary/20"
                                         )}>
-                                            {isProfile && avatarUrl ? (
+                                            {isProfile && user?.user_metadata?.avatar_url ? (
                                                 <Avatar className="h-6 w-6">
-                                                    <AvatarImage src={avatarUrl} alt="Profile" />
+                                                    <AvatarImage src={user.user_metadata.avatar_url} alt="Profile" />
                                                     <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
                                                 </Avatar>
                                             ) : (

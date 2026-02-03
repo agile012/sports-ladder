@@ -2,6 +2,7 @@ import './globals.css'
 import Header from '../components/Header'
 import { ThemeProvider } from "@/components/theme-provider"
 import PageTransition from '@/components/PageTransition'
+import { Instrument_Sans, Inter } from "next/font/google"
 
 import Background from '@/components/Background'
 import MobileNav from '@/components/MobileNav'
@@ -9,6 +10,18 @@ import MobileNav from '@/components/MobileNav'
 import { Toaster } from "@/components/ui/sonner"
 import PWAPrompt from '@/components/pwa/PWAPrompt'
 import type { Metadata, Viewport } from "next"
+
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-instrument-sans",
+  display: "swap",
+})
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "IIMA Sports Ladder",
@@ -32,28 +45,41 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+import { AuthProvider } from '@/context/AuthContext'
+import { SportsProvider } from '@/context/SportsContext'
+import { getCachedSports } from '@/lib/cached-data'
+import { createClient } from '@/lib/supabase/server'
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const sports = await getCachedSports()
+
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body className={`${instrumentSans.variable} ${inter.variable}`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <Background />
-          <div className="min-h-screen font-sans antialiased relative flex flex-col">
-            <Header />
-            <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
-              <PageTransition>
-                {children}
-              </PageTransition>
-            </main>
-            <MobileNav />
-            <Toaster position="top-center" />
-            <PWAPrompt />
-          </div>
+          <AuthProvider initialUser={user}>
+            <SportsProvider initialSports={sports}>
+              <Background />
+              <div className="min-h-screen font-sans antialiased relative flex flex-col">
+                <Header />
+                <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
+                  <PageTransition>
+                    {children}
+                  </PageTransition>
+                </main>
+                <MobileNav />
+                <Toaster position="top-center" />
+                <PWAPrompt />
+              </div>
+            </SportsProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

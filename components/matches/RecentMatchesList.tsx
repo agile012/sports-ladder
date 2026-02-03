@@ -50,8 +50,6 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                     return (
                         <motion.div
                             key={m.id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 + (i * 0.05) }}
                         >
                             <Link href={`/matches/${m.id}`} className="block group">

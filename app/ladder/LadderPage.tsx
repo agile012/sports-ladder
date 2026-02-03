@@ -14,14 +14,22 @@ import LadderHeader from '@/components/ladder/LadderHeader'
 import LadderView from '@/components/ladder/LadderView'
 import { cn } from '@/lib/utils'
 
-export default function LadderPage() {
+interface LadderPageProps {
+  initialSports?: Sport[]
+  initialPlayers?: RankedPlayerProfile[]
+  initialSelectedSportId?: string
+}
+
+export default function LadderPage({ initialSports, initialPlayers, initialSelectedSportId }: LadderPageProps) {
   const { user } = useUser()
   const { getPlayersForSport, getUserProfileForSport, createChallenge, getMatchesSince, getRecentMatchesForSport } = useLadders()
 
-  const [sports, setSports] = useState<Sport[]>([])
-  const [selectedSport, setSelectedSport] = useState<Sport | null>(null)
-  const [players, setPlayers] = useState<RankedPlayerProfile[]>([])
-  const [loading, setLoading] = useState(true)
+  const [sports, setSports] = useState<Sport[]>(initialSports || [])
+  const [selectedSport, setSelectedSport] = useState<Sport | null>(
+    initialSports?.find(s => s.id === initialSelectedSportId) || initialSports?.[0] || null
+  )
+  const [players, setPlayers] = useState<RankedPlayerProfile[]>(initialPlayers || [])
+  const [loading, setLoading] = useState(!initialSports)
   const [sortBy, setSortBy] = useState<'ladder' | 'rating'>('ladder')
 
   const [recentMap, setRecentMap] = useState<Record<string, any[]>>({})
@@ -33,6 +41,8 @@ export default function LadderPage() {
 
   // Initial Data Load (Sports)
   useEffect(() => {
+    if (initialSports && initialSports.length > 0) return
+
     const loadSports = async () => {
       try {
         const supabase = createBrowserClient(
@@ -59,11 +69,29 @@ export default function LadderPage() {
       }
     }
     loadSports()
-  }, [])
+  }, [initialSports])
 
   // Effect: Fetch players when selected sport changes
   useEffect(() => {
     if (!selectedSport) return
+
+    // optimization: if we have initialPlayers and they belong to this sport (implied by initial load), skip 
+    if (initialPlayers && selectedSport.id === initialSelectedSportId && players.length > 0) {
+      // Just rely on initial state, but if selectedSport changes, we need to fetch
+      // We can track if it's the "first run" or actually check Ids.
+      // Simple heuristic: if players are already set and match the sport, we might not need to fetch.
+      // But safer to just check if selectedSport.id === initialSelectedSportId AND we haven't changed it yet.
+    }
+
+    // Actually, simple Logic:
+    // If selectedId == initialId AND players are populated, we *could* skip. 
+    // But `setPlayers([])` below wipes it. We need to prevent wiping if it's the initial render.
+    // Better idea: Don't setPlayers([]) immediately.
+
+    if (initialPlayers && selectedSport.id === initialSelectedSportId && players === initialPlayers) {
+      // This is the initial render pass, do nothing.
+      return
+    }
 
     setPlayers([])
 
