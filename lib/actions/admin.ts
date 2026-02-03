@@ -66,7 +66,16 @@ export async function addSport(name: string, scoring_config: any = { type: 'simp
 export async function updateSport(sportId: string, data: { name?: string, scoring_config?: any, is_paused?: boolean }) {
     const { supabase } = await verifySportAdmin(sportId) // Verify admin rights for this sport
 
-    const { error } = await supabase.from('sports').update(data).eq('id', sportId)
+    const updates: any = { ...data }
+
+    // If we are unpausing (is_paused changing to false), record the resumption time
+    // But ONLY if is_paused is strictly changing to false (not when just updating other fields)
+    // Actually, updateSport receives a partial object. if data.is_paused === false, we unpause.
+    if (data.is_paused === false) {
+        updates.last_resumed_at = new Date().toISOString()
+    }
+
+    const { error } = await supabase.from('sports').update(updates).eq('id', sportId)
     if (error) throw new Error(error.message)
 
     revalidatePath('/')

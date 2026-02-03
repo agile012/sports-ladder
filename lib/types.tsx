@@ -31,6 +31,7 @@ export type Sport = {
   name: string
   scoring_config?: ScoringConfig
   is_paused?: boolean
+  last_resumed_at?: string
 }
 
 export type PlayerProfile = {
