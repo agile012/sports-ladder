@@ -16,7 +16,7 @@ export const getCachedSports = unstable_cache(
         return data as Sport[]
     },
     ['sports-list'],
-    { revalidate: 3600 } // 1 hour
+    { revalidate: 60 } // Reduced from 1 hour to 60s for better responsiveness
 )
 
 export const getCachedAllPlayers = unstable_cache(

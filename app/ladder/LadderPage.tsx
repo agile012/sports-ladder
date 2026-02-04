@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState, useMemo, createRef } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,6 +38,30 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
 
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
+
+  // Sync selection with URL
+  useEffect(() => {
+    const sportParam = searchParams.get('sport')
+    if (sportParam && sports.length > 0) {
+      if (selectedSport?.id !== sportParam) {
+        const found = sports.find(s => s.id === sportParam)
+        if (found) setSelectedSport(found)
+      }
+    } else if (!sportParam && sports.length > 0 && !selectedSport) {
+      // Default to first if valid
+      setSelectedSport(sports[0])
+    }
+  }, [searchParams, sports, selectedSport])
+
+  const handleSportSelect = (sport: Sport) => {
+    // Optimistic update
+    setSelectedSport(sport)
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('sport', sport.id)
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   // Initial Data Load (Sports)
   useEffect(() => {
@@ -326,7 +350,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
             size="sm"
             variant={selectedSport?.id === s.id ? 'default' : 'outline'}
             className="rounded-full whitespace-nowrap shadow-sm"
-            onClick={() => setSelectedSport(s)}
+            onClick={() => handleSportSelect(s)}
           >
             {s.name}
           </Button>
@@ -358,7 +382,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
                   key={s.id}
                   variant={selectedSport?.id === s.id ? 'secondary' : 'ghost'}
                   className={cn("w-full justify-start", selectedSport?.id === s.id && "bg-primary/10 text-primary font-bold")}
-                  onClick={() => setSelectedSport(s)}
+                  onClick={() => handleSportSelect(s)}
                 >
                   {s.name}
                 </Button>
