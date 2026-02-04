@@ -36,19 +36,18 @@ export default async function PublicPlayerProfile({ params }: { params: Promise<
     }
 
     // Now fetch all profiles for this user
-    const [{ data: profiles }, { data: sports }, { data: contacts }] = await Promise.all([
-        supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url, created_at').eq('user_id', userId).order('rating', { ascending: false }),
+    const [{ data: profiles }, { data: sports }, { data: cohorts }] = await Promise.all([
+        supabase.from('player_profiles_view').select('id, sport_id, rating, matches_played, full_name, avatar_url, created_at, contact_number, cohort_id').eq('user_id', userId).order('rating', { ascending: false }),
         supabase.from('sports').select('id, name'),
-        supabase.from('player_profiles').select('id, contact_number').eq('user_id', userId)
+        supabase.from('cohorts').select('id, name')
     ])
 
     const sportMap = ((sports as Sport[]) || []).reduce((acc, s) => ({ ...acc, [s.id]: s.name }), {} as Record<string, string>)
-    const contactMap = ((contacts as any[]) || []).reduce((acc, c) => ({ ...acc, [c.id]: c.contact_number }), {} as Record<string, string>)
 
     const profileRows = ((profiles as PlayerProfile[]) || []).map((p) => ({
         ...p,
         sport_name: sportMap[p.sport_id] ?? p.sport_id,
-        contact_number: contactMap[p.id]
+        // contact_number is on the view row now
     }))
 
     const myPlayers = await Promise.all(
@@ -70,12 +69,14 @@ export default async function PublicPlayerProfile({ params }: { params: Promise<
     const userInfo: UserInfo = {
         id: userId, // Shows the underlying User ID
         email: initialProfile?.user_email || 'Hidden Email', // Or masked?
-        avatar_url: initialProfile?.avatar_url || primary?.avatar_url
+        avatar_url: initialProfile?.avatar_url || primary?.avatar_url,
+        contact_number: primary?.contact_number,
+        cohort_id: primary?.cohort_id
     }
 
     return (
         <div className="container py-8">
-            <UserProfile userInfo={userInfo} myPlayers={myPlayers} isAdmin={false} isPublic={true} />
+            <UserProfile userInfo={userInfo} myPlayers={myPlayers} isAdmin={false} isPublic={true} cohorts={cohorts || []} />
         </div>
     )
 }

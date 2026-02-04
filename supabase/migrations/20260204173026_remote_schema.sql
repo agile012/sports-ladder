@@ -1,216 +1,98 @@
-create extension if not exists "pg_cron" with schema "pg_catalog";
 
-create type "public"."match_status" as enum ('PENDING', 'CONFIRMED', 'PROCESSED', 'CHALLENGED', 'PROCESSING', 'CANCELLED', 'DISPUTED');
 
-create type "public"."verification_status" as enum ('pending', 'verified', 'rejected');
 
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
 
-  create table "public"."ladder_rank_history" (
-    "id" uuid not null default gen_random_uuid(),
-    "sport_id" uuid not null,
-    "player_profile_id" uuid not null,
-    "match_id" uuid,
-    "old_rank" integer,
-    "new_rank" integer,
-    "reason" text,
-    "created_at" timestamp with time zone default now()
-      );
 
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
 
 
-  create table "public"."matches" (
-    "id" uuid not null default gen_random_uuid(),
-    "sport_id" uuid,
-    "player1_id" uuid,
-    "player2_id" uuid,
-    "winner_id" uuid,
-    "created_at" timestamp without time zone default now(),
-    "status" public.match_status default 'PENDING'::public.match_status,
-    "action_token" uuid default gen_random_uuid(),
-    "message" text,
-    "updated_at" timestamp with time zone default now(),
-    "reported_by" uuid,
-    "scores" jsonb
-      );
 
 
 
-  create table "public"."player_profiles" (
-    "id" uuid not null default gen_random_uuid(),
-    "user_id" uuid,
-    "sport_id" uuid,
-    "rating" integer default 1000,
-    "matches_played" integer default 0,
-    "created_at" timestamp without time zone default now(),
-    "deactivated" boolean not null default false,
-    "is_admin" boolean not null default false,
-    "ladder_rank" integer,
-    "deactivated_at" timestamp with time zone,
-    "last_active_rank" integer,
-    "contact_number" text,
-    "last_penalty_at" timestamp with time zone
-      );
 
+CREATE EXTENSION IF NOT EXISTS "pg_net" WITH SCHEMA "extensions";
 
 
-  create table "public"."profiles" (
-    "id" uuid not null,
-    "email" text not null,
-    "status" public.verification_status not null default 'pending'::public.verification_status,
-    "created_at" timestamp with time zone default now(),
-    "updated_at" timestamp with time zone default now()
-      );
 
 
 
-  create table "public"."push_subscriptions" (
-    "id" uuid not null default gen_random_uuid(),
-    "user_id" uuid not null,
-    "subscription" jsonb not null,
-    "created_at" timestamp with time zone not null default now()
-      );
 
+COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
-  create table "public"."ratings_history" (
-    "id" uuid not null default gen_random_uuid(),
-    "player_profile_id" uuid not null,
-    "match_id" uuid,
-    "old_rating" integer,
-    "new_rating" integer,
-    "delta" integer,
-    "reason" text,
-    "created_at" timestamp with time zone default now()
-      );
 
+CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
 
 
-  create table "public"."sports" (
-    "id" uuid not null default gen_random_uuid(),
-    "name" text not null,
-    "scoring_config" jsonb default '{"type": "simple"}'::jsonb,
-    "is_paused" boolean default false
-      );
 
 
-CREATE INDEX idx_matches_action_token ON public.matches USING btree (action_token);
 
-CREATE INDEX idx_matches_reported_by ON public.matches USING btree (reported_by);
 
-CREATE UNIQUE INDEX idx_matches_unique_active_pair ON public.matches USING btree (LEAST((player1_id)::text, (player2_id)::text), GREATEST((player1_id)::text, (player2_id)::text)) WHERE (status = ANY (ARRAY['CHALLENGED'::public.match_status, 'PENDING'::public.match_status, 'PROCESSING'::public.match_status]));
+CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
 
-CREATE INDEX idx_matches_winner_id ON public.matches USING btree (winner_id);
 
-CREATE INDEX idx_player_profiles_deactivated ON public.player_profiles USING btree (deactivated);
 
-CREATE INDEX idx_ratings_history_player_created ON public.ratings_history USING btree (player_profile_id, created_at DESC);
 
-CREATE UNIQUE INDEX ladder_rank_history_pkey ON public.ladder_rank_history USING btree (id);
 
-CREATE UNIQUE INDEX matches_pkey ON public.matches USING btree (id);
 
-CREATE UNIQUE INDEX player_profiles_pkey ON public.player_profiles USING btree (id);
+CREATE EXTENSION IF NOT EXISTS "pgcrypto" WITH SCHEMA "extensions";
 
-CREATE UNIQUE INDEX player_profiles_sport_rank_key ON public.player_profiles USING btree (sport_id, ladder_rank);
 
-CREATE UNIQUE INDEX player_profiles_user_id_sport_id_key ON public.player_profiles USING btree (user_id, sport_id);
 
-CREATE UNIQUE INDEX profiles_pkey ON public.profiles USING btree (id);
 
-CREATE UNIQUE INDEX push_subscriptions_pkey ON public.push_subscriptions USING btree (id);
 
-CREATE UNIQUE INDEX push_subscriptions_user_id_subscription_key ON public.push_subscriptions USING btree (user_id, subscription);
 
-CREATE UNIQUE INDEX ratings_history_pkey ON public.ratings_history USING btree (id);
+CREATE EXTENSION IF NOT EXISTS "supabase_vault" WITH SCHEMA "vault";
 
-CREATE UNIQUE INDEX sports_name_key ON public.sports USING btree (name);
 
-CREATE UNIQUE INDEX sports_pkey ON public.sports USING btree (id);
 
-alter table "public"."ladder_rank_history" add constraint "ladder_rank_history_pkey" PRIMARY KEY using index "ladder_rank_history_pkey";
 
-alter table "public"."matches" add constraint "matches_pkey" PRIMARY KEY using index "matches_pkey";
 
-alter table "public"."player_profiles" add constraint "player_profiles_pkey" PRIMARY KEY using index "player_profiles_pkey";
 
-alter table "public"."profiles" add constraint "profiles_pkey" PRIMARY KEY using index "profiles_pkey";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";
 
-alter table "public"."push_subscriptions" add constraint "push_subscriptions_pkey" PRIMARY KEY using index "push_subscriptions_pkey";
 
-alter table "public"."ratings_history" add constraint "ratings_history_pkey" PRIMARY KEY using index "ratings_history_pkey";
 
-alter table "public"."sports" add constraint "sports_pkey" PRIMARY KEY using index "sports_pkey";
 
-alter table "public"."ladder_rank_history" add constraint "ladder_rank_history_match_id_fkey" FOREIGN KEY (match_id) REFERENCES public.matches(id) not valid;
 
-alter table "public"."ladder_rank_history" validate constraint "ladder_rank_history_match_id_fkey";
 
-alter table "public"."ladder_rank_history" add constraint "ladder_rank_history_player_profile_id_fkey" FOREIGN KEY (player_profile_id) REFERENCES public.player_profiles(id) not valid;
+CREATE TYPE "public"."match_status" AS ENUM (
+    'PENDING',
+    'CONFIRMED',
+    'PROCESSED',
+    'CHALLENGED',
+    'PROCESSING',
+    'CANCELLED',
+    'DISPUTED'
+);
 
-alter table "public"."ladder_rank_history" validate constraint "ladder_rank_history_player_profile_id_fkey";
 
-alter table "public"."ladder_rank_history" add constraint "ladder_rank_history_sport_id_fkey" FOREIGN KEY (sport_id) REFERENCES public.sports(id) not valid;
+ALTER TYPE "public"."match_status" OWNER TO "postgres";
 
-alter table "public"."ladder_rank_history" validate constraint "ladder_rank_history_sport_id_fkey";
 
-alter table "public"."matches" add constraint "matches_player1_id_fkey" FOREIGN KEY (player1_id) REFERENCES public.player_profiles(id) not valid;
+CREATE TYPE "public"."verification_status" AS ENUM (
+    'pending',
+    'verified',
+    'rejected'
+);
 
-alter table "public"."matches" validate constraint "matches_player1_id_fkey";
 
-alter table "public"."matches" add constraint "matches_player2_id_fkey" FOREIGN KEY (player2_id) REFERENCES public.player_profiles(id) not valid;
+ALTER TYPE "public"."verification_status" OWNER TO "postgres";
 
-alter table "public"."matches" validate constraint "matches_player2_id_fkey";
 
-alter table "public"."matches" add constraint "matches_reported_by_fkey" FOREIGN KEY (reported_by) REFERENCES public.player_profiles(id) not valid;
-
-alter table "public"."matches" validate constraint "matches_reported_by_fkey";
-
-alter table "public"."matches" add constraint "matches_sport_id_fkey" FOREIGN KEY (sport_id) REFERENCES public.sports(id) not valid;
-
-alter table "public"."matches" validate constraint "matches_sport_id_fkey";
-
-alter table "public"."matches" add constraint "matches_winner_id_fkey" FOREIGN KEY (winner_id) REFERENCES public.player_profiles(id) not valid;
-
-alter table "public"."matches" validate constraint "matches_winner_id_fkey";
-
-alter table "public"."player_profiles" add constraint "player_profiles_sport_id_fkey" FOREIGN KEY (sport_id) REFERENCES public.sports(id) not valid;
-
-alter table "public"."player_profiles" validate constraint "player_profiles_sport_id_fkey";
-
-alter table "public"."player_profiles" add constraint "player_profiles_sport_rank_key" UNIQUE using index "player_profiles_sport_rank_key" DEFERRABLE;
-
-alter table "public"."player_profiles" add constraint "player_profiles_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) not valid;
-
-alter table "public"."player_profiles" validate constraint "player_profiles_user_id_fkey";
-
-alter table "public"."player_profiles" add constraint "player_profiles_user_id_sport_id_key" UNIQUE using index "player_profiles_user_id_sport_id_key";
-
-alter table "public"."profiles" add constraint "profiles_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
-
-alter table "public"."profiles" validate constraint "profiles_id_fkey";
-
-alter table "public"."push_subscriptions" add constraint "push_subscriptions_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
-
-alter table "public"."push_subscriptions" validate constraint "push_subscriptions_user_id_fkey";
-
-alter table "public"."push_subscriptions" add constraint "push_subscriptions_user_id_subscription_key" UNIQUE using index "push_subscriptions_user_id_subscription_key";
-
-alter table "public"."ratings_history" add constraint "ratings_history_match_id_fkey" FOREIGN KEY (match_id) REFERENCES public.matches(id) not valid;
-
-alter table "public"."ratings_history" validate constraint "ratings_history_match_id_fkey";
-
-alter table "public"."ratings_history" add constraint "ratings_history_player_profile_id_fkey" FOREIGN KEY (player_profile_id) REFERENCES public.player_profiles(id) not valid;
-
-alter table "public"."ratings_history" validate constraint "ratings_history_player_profile_id_fkey";
-
-alter table "public"."sports" add constraint "sports_name_key" UNIQUE using index "sports_name_key";
-
-set check_function_bodies = off;
-
-CREATE OR REPLACE FUNCTION public.assign_initial_ladder_rank()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
+CREATE OR REPLACE FUNCTION "public"."assign_initial_ladder_rank"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
 DECLARE
   max_rank integer;
 BEGIN
@@ -226,14 +108,15 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.check_ladder_inactivity()
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."assign_initial_ladder_rank"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."check_ladder_inactivity"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
     s RECORD;
     p RECORD;
@@ -253,7 +136,7 @@ BEGIN
     SET CONSTRAINTS "player_profiles_sport_rank_key" DEFERRED;
 
     -- Loop through all sports
-    FOR s IN SELECT id, scoring_config FROM public.sports WHERE is_paused = false LOOP
+    FOR s IN SELECT id, scoring_config, last_resumed_at FROM public.sports WHERE is_paused = false LOOP
         -- Extract config
         penalty_days := (s.scoring_config->>'penalty_days')::INT;
         removal_days := (s.scoring_config->>'removal_days')::INT;
@@ -264,12 +147,21 @@ BEGIN
         IF removal_days IS NULL THEN removal_days := 42; END IF;
         IF penalty_rank_drop IS NULL THEN penalty_rank_drop := 5; END IF;
 
+        -- [NEW] Check Resumption Grace Period
+        IF s.last_resumed_at IS NOT NULL THEN
+             -- If the ladder was resumed recently, give a grace period of 'penalty_days'
+             -- This prevents instant mass-penalties upon resumption.
+             IF EXTRACT(DAY FROM (NOW() - s.last_resumed_at)) < penalty_days THEN
+                 CONTINUE; -- Skip this sport
+             END IF;
+        END IF;
+
         -- Get Max Rank for bounds checking
         SELECT MAX(ladder_rank) INTO max_rank FROM public.player_profiles WHERE sport_id = s.id AND deactivated = false;
         IF max_rank IS NULL THEN max_rank := 0; END IF;
 
         -- Loop through active players in this sport with a rank
-        -- MODIFICATION: EXCLUDE RANK 1
+        
         FOR p IN 
             SELECT * FROM public.player_profiles 
             WHERE sport_id = s.id 
@@ -293,16 +185,6 @@ BEGIN
             days_inactive := EXTRACT(DAY FROM (NOW() - last_match_date));
 
             -- 1. Check Removal (Deactivation)
-            -- Note: Rank 1 is NOT exempt from removal if they literally never play for 42+ days? 
-            -- User request was "no play penalty... skip the first player... as he cannot challenge".
-            -- This usually refers to the "penalty drop". Removal is usually for people who left the league.
-            -- If Rank 1 is inactive for removal_days (e.g. 6 weeks), they probably should still be removed to free the spot.
-            -- BUT the loop filters "ladder_rank > 1", so Rank 1 is currently skipped for BOTH.
-            -- If Rank 1 is squatting, they will never be removed.
-            -- However, "cannot challenge anyone" applies to *starting* matches. 
-            -- If Rank 1 refuses challenges, they might be penalized by other mechanisms (forfeits).
-            -- For now, the user instruction "skip the first player" is broad. I will skip both for safety based on "no obligation... to play".
-            
             IF days_inactive >= removal_days THEN
                 -- Deactivate player
                 -- Need to shift everyone below UP
@@ -391,27 +273,30 @@ BEGIN
         END LOOP;
     END LOOP;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.check_sport_paused()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
+
+ALTER FUNCTION "public"."check_ladder_inactivity"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."check_sport_paused"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
 BEGIN
     IF EXISTS (SELECT 1 FROM public.sports WHERE id = NEW.sport_id AND is_paused = TRUE) THEN
         RAISE EXCEPTION 'This ladder is currently paused. No new matches can be played.';
     END IF;
     RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.get_sport_analytics(p_sport_id uuid)
- RETURNS json
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."check_sport_paused"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") RETURNS json
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
     v_total_matches INTEGER;
     v_total_players INTEGER;
@@ -736,15 +621,16 @@ BEGIN
         'rivalries', v_rivalries
     );
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user_verification()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
+
+ALTER FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."handle_new_user_verification"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public'
+    AS $$
 BEGIN
     INSERT INTO public.profiles (id, email, status)
     VALUES (
@@ -757,14 +643,15 @@ BEGIN
     );
     RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.leave_ladder(p_sport_id uuid, p_user_id uuid)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."handle_new_user_verification"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
     v_profile_id UUID;
     v_current_rank INTEGER;
@@ -817,14 +704,15 @@ BEGIN
     VALUES (p_sport_id, v_profile_id, NULL, v_current_rank, NULL, 'Left Ladder');
 
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.log_initial_join_history()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."log_initial_join_history"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 BEGIN
     -- Log initial rank if assigned
     IF NEW.ladder_rank IS NOT NULL THEN
@@ -868,14 +756,15 @@ BEGIN
 
     RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.match_replace_action_token_on_status_change()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."log_initial_join_history"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."match_replace_action_token_on_status_change"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 BEGIN
   -- Only run when status actually changed (trigger WHEN also guards, but keep defensive check)
   IF (TG_OP = 'UPDATE') AND (OLD.status IS DISTINCT FROM NEW.status) THEN
@@ -887,35 +776,15 @@ BEGIN
 
   RETURN NEW;
 END;
-$function$
-;
-
-create or replace view "public"."player_profiles_view" as  SELECT pp.id,
-    pp.user_id,
-    pp.sport_id,
-    pp.rating,
-    pp.matches_played,
-    pp.ladder_rank,
-    pp.is_admin,
-    pp.created_at,
-    pp.deactivated,
-    pp.deactivated_at,
-    pp.last_active_rank,
-    pp.contact_number,
-    au.email AS user_email,
-    au.raw_user_meta_data AS user_metadata,
-    COALESCE((au.raw_user_meta_data ->> 'full_name'::text), (au.raw_user_meta_data ->> 'name'::text), (au.email)::text) AS full_name,
-    (au.raw_user_meta_data ->> 'avatar_url'::text) AS avatar_url
-   FROM (public.player_profiles pp
-     JOIN auth.users au ON ((pp.user_id = au.id)))
-  WHERE (pp.deactivated = false);
+$$;
 
 
-CREATE OR REPLACE FUNCTION public.process_auto_verify_matches()
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+ALTER FUNCTION "public"."match_replace_action_token_on_status_change"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."process_auto_verify_matches"() RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   m RECORD;
   cfg jsonb;
@@ -978,14 +847,15 @@ BEGIN
     'processed_matches', processed_matches
   );
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.process_expired_challenges()
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."process_auto_verify_matches"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."process_expired_challenges"() RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   m RECORD;
   cfg jsonb;
@@ -994,7 +864,6 @@ DECLARE
   processed_count integer := 0;
   processed_matches jsonb := '[]'::jsonb;
   new_scores jsonb;
-  elo_result jsonb;
 BEGIN
   FOR m IN
     SELECT *
@@ -1036,33 +905,16 @@ BEGIN
         new_scores := m.scores || jsonb_build_object('reason', 'forfeit');
       END IF;
 
-      -- Step 1: Set winner and move to CONFIRMED status (for consistency)
+      -- Step 1: Set winner and move to CONFIRMED status
+      -- IMPORTANT: This UPDATE fires the 'matches_after_status_trigger' and 'matches_ladder_update_trigger'
+      -- which will handle ELO processing and Ladder updates automatically.
+      -- We do NOT call them manually here to avoid duplication.
       UPDATE public.matches
       SET winner_id = player1_id,
           scores = new_scores,
           status = 'CONFIRMED'::match_status,
           updated_at = now()
       WHERE id = m.id;
-
-      -- Step 2: Process ladder rank changes (leapfrog logic)
-      -- This updates the ladder_rank for winner/loser and inserts history
-      PERFORM process_ladder_match(m.id);
-
-      -- Step 3: Process ELO changes and mark as PROCESSED
-      -- This function will:
-      -- - Update player ratings
-      -- - Insert ratings_history
-      -- - Set status to PROCESSED
-      BEGIN
-        SELECT process_match_elo(m.id) INTO elo_result;
-      EXCEPTION WHEN OTHERS THEN
-        -- Log error but continue - ladder update is more critical
-        RAISE NOTICE 'ELO processing failed for match %: %', m.id, SQLERRM;
-        -- Still mark as processed to avoid infinite retries
-        UPDATE public.matches
-        SET status = 'PROCESSED'::match_status, updated_at = now()
-        WHERE id = m.id;
-      END;
 
       processed_matches := processed_matches || jsonb_build_object(
         'match_id', m.id,
@@ -1071,7 +923,7 @@ BEGIN
         'sport_id', m.sport_id,
         'cutoff', cutoff,
         'status_was', m.status,
-        'elo_result', COALESCE(elo_result, '{"error": "failed"}'::jsonb)
+        'processing', 'triggered_async'
       );
 
       processed_count := processed_count + 1;
@@ -1083,14 +935,15 @@ BEGIN
     'processed_matches', processed_matches
   );
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.process_ladder_match(match_uuid uuid)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."process_expired_challenges"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   m RECORD;
   winner_id uuid;
@@ -1101,6 +954,11 @@ DECLARE
   loser_name text;
   sport_uuid uuid;
 BEGIN
+  -- Idempotency Check: Don't process if history already exists for this match
+  IF EXISTS (SELECT 1 FROM public.ladder_rank_history WHERE match_id = match_uuid) THEN
+    RETURN;
+  END IF;
+
   -- Fetch Match Data
   SELECT * INTO m FROM public.matches WHERE id = match_uuid;
   
@@ -1186,14 +1044,15 @@ BEGIN
   END IF;
 
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.process_match_elo(match_uuid uuid)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."process_match_elo"("match_uuid" "uuid") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   m RECORD;
   p1 RECORD;
@@ -1290,14 +1149,15 @@ BEGIN
     'player2', jsonb_build_object('id', p2.id, 'old', old2, 'new', new2)
   );
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.reactivate_profile_on_match()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."process_match_elo"("match_uuid" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reactivate_profile_on_match"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 BEGIN
   -- Reactivate player1 and player2 if they exist
   IF NEW.player1_id IS NOT NULL THEN
@@ -1310,13 +1170,15 @@ BEGIN
 
   RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.recalc_ladder_history()
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+
+ALTER FUNCTION "public"."reactivate_profile_on_match"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."recalc_ladder_history"() RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
 DECLARE
     m RECORD;
     v_winner_id uuid;
@@ -1327,11 +1189,16 @@ DECLARE
     v_winner_name text;
     v_loser_name text;
 BEGIN
-    -- 1. Clear History
-    TRUNCATE TABLE ladder_rank_history;
+    -- 1. Clear History (BUT PRESERVE MANUAL ENTRIES)
+    -- Changed from TRUNCATE to DELETE with WHERE clause
+    DELETE FROM ladder_rank_history 
+    WHERE reason NOT LIKE '%(Manual)%';
 
     -- 2. Reset Ranks (Based on join date)
     -- Reset active players to join order. Deactivated ones stay null/deactivated.
+    -- Prevent unique constraint violation by clearing ranks first
+    UPDATE player_profiles SET ladder_rank = NULL;
+
     WITH ranked_players AS (
         SELECT id, ROW_NUMBER() OVER (PARTITION BY sport_id ORDER BY created_at ASC) as initial_rank
         FROM player_profiles
@@ -1435,13 +1302,105 @@ BEGIN
         END IF;
     END LOOP;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.recompute_all_elos_and_history(in_starting_rating integer DEFAULT 1000, in_k_factor numeric DEFAULT 32)
- RETURNS void
- LANGUAGE plpgsql
-AS $function$
+
+ALTER FUNCTION "public"."recalc_ladder_history"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."recalculate_match_result"("match_uuid" "uuid") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
+DECLARE
+  m RECORD;
+  newer_match_exists BOOLEAN;
+  p1_id UUID;
+  p2_id UUID;
+BEGIN
+  -- 1. Fetch match info
+  SELECT * INTO m FROM public.matches WHERE id = match_uuid;
+  
+  IF m IS NULL THEN
+    RAISE EXCEPTION 'Match not found';
+  END IF;
+
+  p1_id := m.player1_id;
+  p2_id := m.player2_id;
+
+  -- 2. Check if this is the last match for these players
+  -- We look for any match involving p1 or p2 that is PROCESSED/CONFIRMED and is strictly newer than this match
+  -- Note: We use updated_at for ordering if available, similar to other logic, but usually created_at works.
+  -- Let's stick to created_at for strict chronological order as per typical ladder logic.
+  
+  SELECT EXISTS (
+    SELECT 1 FROM public.matches 
+    WHERE (player1_id = p1_id OR player2_id = p1_id OR player1_id = p2_id OR player2_id = p2_id)
+      AND status IN ('PROCESSED', 'CONFIRMED')
+      AND id != match_uuid
+      AND created_at > m.created_at
+  ) INTO newer_match_exists;
+
+  IF newer_match_exists THEN
+    RAISE EXCEPTION 'Cannot recalculate: Newer matches exist for these players. You must revert those first or update manually.';
+  END IF;
+
+  -- 3. Revert Ladder Ranks
+  -- Update all players involved in the history of this match back to their old ranks
+  UPDATE public.player_profiles pp
+  SET ladder_rank = lrh.old_rank
+  FROM public.ladder_rank_history lrh
+  WHERE pp.id = lrh.player_profile_id 
+    AND lrh.match_id = match_uuid;
+
+  -- Delete the history entries
+  DELETE FROM public.ladder_rank_history WHERE match_id = match_uuid;
+
+  -- 4. Revert Ratings (ELO)
+  -- Update rating back to old_rating
+  UPDATE public.player_profiles pp
+  SET rating = rh.old_rating
+  FROM public.ratings_history rh
+  WHERE pp.id = rh.player_profile_id
+    AND rh.match_id = match_uuid;
+    
+  -- Decrement matches_played if we are reverting an ELO update
+  -- We assume if there is a ratings_history entry, matches_played was incremented.
+  -- We carefully only do this for the players in the match, avoiding double counts if multiple history rows exist (which shouldn't happen for one match/player pair ideally)
+  UPDATE public.player_profiles pp
+  SET matches_played = matches_played - 1
+  WHERE id IN (
+    SELECT distinct player_profile_id FROM public.ratings_history WHERE match_id = match_uuid
+  );
+
+  -- Delete the history entries
+  DELETE FROM public.ratings_history WHERE match_id = match_uuid;
+
+  -- 5. Re-Apply Ladder Logic (Leapfrog)
+  -- This will use the CURRENT winner_id and scores from the matches table
+  -- Be sure the status allows processing. If it was PROCESSED, process_ladder_match expects 'CONFIRMED'? 
+  -- Actually process_ladder_match doesn't check status, but it sets status to PROCESSED at the end.
+  -- So we should ensure it's in a state that makes sense.
+  -- The calling code (Admin UI) usually sets it to CONFIRMED before calling this if it changed the winner.
+  -- But if we are just calling this RPC, we might want to force it.
+  
+  -- Run Ladder Logic
+  PERFORM public.process_ladder_match(match_uuid);
+
+  -- 6. Re-Apply ELO Logic
+  -- process_match_elo calculates based on current ratings. 
+  -- Since we reverted ratings above, "current" ratings are now the "pre-match" ratings (correct).
+  PERFORM public.process_match_elo(match_uuid);
+
+END;
+$$;
+
+
+ALTER FUNCTION "public"."recalculate_match_result"("match_uuid" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."recompute_all_elos_and_history"("in_starting_rating" integer DEFAULT 1000, "in_k_factor" numeric DEFAULT 32) RETURNS "void"
+    LANGUAGE "plpgsql"
+    AS $$
 DECLARE
   ratings_map     jsonb := '{}'::jsonb; -- player_id -> rating
   played_map      jsonb := '{}'::jsonb; -- player_id -> matches_played (integer)
@@ -1478,6 +1437,18 @@ BEGIN
 
   -- Truncate ratings_history to rewrite it
   TRUNCATE TABLE public.ratings_history RESTART IDENTITY;
+
+  -- NEW: Insert Initial Rating History
+  INSERT INTO public.ratings_history (player_profile_id, match_id, old_rating, new_rating, delta, reason, created_at)
+  SELECT
+    id,
+    NULL,
+    NULL,
+    in_starting_rating,
+    0,
+    'Initial Rating',
+    created_at
+  FROM public.player_profiles;
 
   -- Iterate matches chronologically
   FOR m_rec IN
@@ -1585,14 +1556,15 @@ BEGIN
 
   RETURN;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.rejoin_ladder(p_sport_id uuid, p_user_id uuid)
- RETURNS integer
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."recompute_all_elos_and_history"("in_starting_rating" integer, "in_k_factor" numeric) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."rejoin_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
     v_profile_id UUID;
     v_last_rank INTEGER;
@@ -1658,28 +1630,30 @@ BEGIN
 
     RETURN v_target_rank;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.trigger_process_ladder()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."rejoin_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."trigger_process_ladder"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 BEGIN
   IF (OLD.status IS DISTINCT FROM NEW.status) AND NEW.status = 'CONFIRMED' THEN
     PERFORM public.process_ladder_match(NEW.id);
   END IF;
   RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.trigger_process_match_elo()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."trigger_process_ladder"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."trigger_process_match_elo"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   res jsonb;
 BEGIN
@@ -1699,392 +1673,852 @@ BEGIN
 
   RETURN NEW;
 END;
-$function$
-;
+$$;
 
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
+
+ALTER FUNCTION "public"."trigger_process_match_elo"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."update_updated_at_column"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 begin
   new.updated_at = now();
   return new;
 end;
-$function$
-;
+$$;
 
-grant delete on table "public"."ladder_rank_history" to "anon";
 
-grant insert on table "public"."ladder_rank_history" to "anon";
+ALTER FUNCTION "public"."update_updated_at_column"() OWNER TO "postgres";
 
-grant references on table "public"."ladder_rank_history" to "anon";
+SET default_tablespace = '';
 
-grant select on table "public"."ladder_rank_history" to "anon";
+SET default_table_access_method = "heap";
 
-grant trigger on table "public"."ladder_rank_history" to "anon";
 
-grant truncate on table "public"."ladder_rank_history" to "anon";
+CREATE TABLE IF NOT EXISTS "public"."cohorts" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
 
-grant update on table "public"."ladder_rank_history" to "anon";
 
-grant delete on table "public"."ladder_rank_history" to "authenticated";
+ALTER TABLE "public"."cohorts" OWNER TO "postgres";
 
-grant insert on table "public"."ladder_rank_history" to "authenticated";
 
-grant references on table "public"."ladder_rank_history" to "authenticated";
+CREATE TABLE IF NOT EXISTS "public"."ladder_rank_history" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "sport_id" "uuid" NOT NULL,
+    "player_profile_id" "uuid" NOT NULL,
+    "match_id" "uuid",
+    "old_rank" integer,
+    "new_rank" integer,
+    "reason" "text",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
 
-grant select on table "public"."ladder_rank_history" to "authenticated";
 
-grant trigger on table "public"."ladder_rank_history" to "authenticated";
+ALTER TABLE "public"."ladder_rank_history" OWNER TO "postgres";
 
-grant truncate on table "public"."ladder_rank_history" to "authenticated";
 
-grant update on table "public"."ladder_rank_history" to "authenticated";
+CREATE TABLE IF NOT EXISTS "public"."matches" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "sport_id" "uuid",
+    "player1_id" "uuid",
+    "player2_id" "uuid",
+    "winner_id" "uuid",
+    "created_at" timestamp without time zone DEFAULT "now"(),
+    "status" "public"."match_status" DEFAULT 'PENDING'::"public"."match_status",
+    "action_token" "uuid" DEFAULT "gen_random_uuid"(),
+    "message" "text",
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "reported_by" "uuid",
+    "scores" "jsonb"
+);
 
-grant delete on table "public"."ladder_rank_history" to "service_role";
 
-grant insert on table "public"."ladder_rank_history" to "service_role";
+ALTER TABLE "public"."matches" OWNER TO "postgres";
 
-grant references on table "public"."ladder_rank_history" to "service_role";
 
-grant select on table "public"."ladder_rank_history" to "service_role";
+COMMENT ON COLUMN "public"."matches"."scores" IS 'Actual match scores in JSON format';
 
-grant trigger on table "public"."ladder_rank_history" to "service_role";
 
-grant truncate on table "public"."ladder_rank_history" to "service_role";
 
-grant update on table "public"."ladder_rank_history" to "service_role";
+CREATE TABLE IF NOT EXISTS "public"."player_profiles" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid",
+    "sport_id" "uuid",
+    "rating" integer DEFAULT 1000,
+    "matches_played" integer DEFAULT 0,
+    "created_at" timestamp without time zone DEFAULT "now"(),
+    "deactivated" boolean DEFAULT false NOT NULL,
+    "is_admin" boolean DEFAULT false NOT NULL,
+    "ladder_rank" integer,
+    "deactivated_at" timestamp with time zone,
+    "last_active_rank" integer,
+    "last_penalty_at" timestamp with time zone
+);
 
-grant delete on table "public"."matches" to "anon";
 
-grant insert on table "public"."matches" to "anon";
+ALTER TABLE "public"."player_profiles" OWNER TO "postgres";
 
-grant references on table "public"."matches" to "anon";
 
-grant select on table "public"."matches" to "anon";
+CREATE TABLE IF NOT EXISTS "public"."profiles" (
+    "id" "uuid" NOT NULL,
+    "email" "text" NOT NULL,
+    "status" "public"."verification_status" DEFAULT 'pending'::"public"."verification_status" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"(),
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "cohort_id" "uuid",
+    "contact_number" "text"
+);
 
-grant trigger on table "public"."matches" to "anon";
 
-grant truncate on table "public"."matches" to "anon";
+ALTER TABLE "public"."profiles" OWNER TO "postgres";
 
-grant update on table "public"."matches" to "anon";
 
-grant delete on table "public"."matches" to "authenticated";
+CREATE OR REPLACE VIEW "public"."player_profiles_view" AS
+ SELECT "pp"."id",
+    "pp"."user_id",
+    "pp"."sport_id",
+    "pp"."rating",
+    "pp"."matches_played",
+    "pp"."ladder_rank",
+    "pp"."is_admin",
+    "pp"."created_at",
+    "pp"."deactivated",
+    "pp"."deactivated_at",
+    "pp"."last_active_rank",
+    "au"."email" AS "user_email",
+    "au"."raw_user_meta_data" AS "user_metadata",
+    COALESCE(("au"."raw_user_meta_data" ->> 'full_name'::"text"), ("au"."raw_user_meta_data" ->> 'name'::"text"), ("au"."email")::"text") AS "full_name",
+    ("au"."raw_user_meta_data" ->> 'avatar_url'::"text") AS "avatar_url",
+    "p"."contact_number",
+    "p"."cohort_id"
+   FROM (("public"."player_profiles" "pp"
+     JOIN "auth"."users" "au" ON (("pp"."user_id" = "au"."id")))
+     LEFT JOIN "public"."profiles" "p" ON (("pp"."user_id" = "p"."id")))
+  WHERE ("pp"."deactivated" = false);
 
-grant insert on table "public"."matches" to "authenticated";
 
-grant references on table "public"."matches" to "authenticated";
+ALTER VIEW "public"."player_profiles_view" OWNER TO "postgres";
 
-grant select on table "public"."matches" to "authenticated";
 
-grant trigger on table "public"."matches" to "authenticated";
+CREATE TABLE IF NOT EXISTS "public"."push_subscriptions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "subscription" "jsonb" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
 
-grant truncate on table "public"."matches" to "authenticated";
 
-grant update on table "public"."matches" to "authenticated";
+ALTER TABLE "public"."push_subscriptions" OWNER TO "postgres";
 
-grant delete on table "public"."matches" to "service_role";
 
-grant insert on table "public"."matches" to "service_role";
+CREATE TABLE IF NOT EXISTS "public"."ratings_history" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "player_profile_id" "uuid" NOT NULL,
+    "match_id" "uuid",
+    "old_rating" integer,
+    "new_rating" integer,
+    "delta" integer,
+    "reason" "text",
+    "created_at" timestamp with time zone DEFAULT "now"()
+);
 
-grant references on table "public"."matches" to "service_role";
 
-grant select on table "public"."matches" to "service_role";
+ALTER TABLE "public"."ratings_history" OWNER TO "postgres";
 
-grant trigger on table "public"."matches" to "service_role";
 
-grant truncate on table "public"."matches" to "service_role";
+CREATE TABLE IF NOT EXISTS "public"."sports" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "name" "text" NOT NULL,
+    "scoring_config" "jsonb" DEFAULT '{"type": "simple"}'::"jsonb",
+    "is_paused" boolean DEFAULT false,
+    "last_resumed_at" timestamp with time zone
+);
 
-grant update on table "public"."matches" to "service_role";
 
-grant delete on table "public"."player_profiles" to "anon";
+ALTER TABLE "public"."sports" OWNER TO "postgres";
 
-grant insert on table "public"."player_profiles" to "anon";
 
-grant references on table "public"."player_profiles" to "anon";
+COMMENT ON COLUMN "public"."sports"."scoring_config" IS 'Configuration for scoring rules (e.g. sets, points, win_by)';
 
-grant select on table "public"."player_profiles" to "anon";
 
-grant trigger on table "public"."player_profiles" to "anon";
 
-grant truncate on table "public"."player_profiles" to "anon";
+ALTER TABLE ONLY "public"."cohorts"
+    ADD CONSTRAINT "cohorts_name_key" UNIQUE ("name");
 
-grant update on table "public"."player_profiles" to "anon";
 
-grant delete on table "public"."player_profiles" to "authenticated";
 
-grant insert on table "public"."player_profiles" to "authenticated";
+ALTER TABLE ONLY "public"."cohorts"
+    ADD CONSTRAINT "cohorts_pkey" PRIMARY KEY ("id");
 
-grant references on table "public"."player_profiles" to "authenticated";
 
-grant select on table "public"."player_profiles" to "authenticated";
 
-grant trigger on table "public"."player_profiles" to "authenticated";
+ALTER TABLE ONLY "public"."ladder_rank_history"
+    ADD CONSTRAINT "ladder_rank_history_pkey" PRIMARY KEY ("id");
 
-grant truncate on table "public"."player_profiles" to "authenticated";
 
-grant update on table "public"."player_profiles" to "authenticated";
 
-grant delete on table "public"."player_profiles" to "service_role";
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_pkey" PRIMARY KEY ("id");
 
-grant insert on table "public"."player_profiles" to "service_role";
 
-grant references on table "public"."player_profiles" to "service_role";
 
-grant select on table "public"."player_profiles" to "service_role";
+ALTER TABLE ONLY "public"."player_profiles"
+    ADD CONSTRAINT "player_profiles_pkey" PRIMARY KEY ("id");
 
-grant trigger on table "public"."player_profiles" to "service_role";
 
-grant truncate on table "public"."player_profiles" to "service_role";
 
-grant update on table "public"."player_profiles" to "service_role";
+ALTER TABLE ONLY "public"."player_profiles"
+    ADD CONSTRAINT "player_profiles_sport_rank_key" UNIQUE ("sport_id", "ladder_rank") DEFERRABLE;
 
-grant delete on table "public"."profiles" to "anon";
 
-grant insert on table "public"."profiles" to "anon";
 
-grant references on table "public"."profiles" to "anon";
+ALTER TABLE ONLY "public"."player_profiles"
+    ADD CONSTRAINT "player_profiles_user_id_sport_id_key" UNIQUE ("user_id", "sport_id");
 
-grant select on table "public"."profiles" to "anon";
 
-grant trigger on table "public"."profiles" to "anon";
 
-grant truncate on table "public"."profiles" to "anon";
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
 
-grant update on table "public"."profiles" to "anon";
 
-grant delete on table "public"."profiles" to "authenticated";
 
-grant insert on table "public"."profiles" to "authenticated";
+ALTER TABLE ONLY "public"."push_subscriptions"
+    ADD CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id");
 
-grant references on table "public"."profiles" to "authenticated";
 
-grant select on table "public"."profiles" to "authenticated";
 
-grant trigger on table "public"."profiles" to "authenticated";
+ALTER TABLE ONLY "public"."push_subscriptions"
+    ADD CONSTRAINT "push_subscriptions_user_id_subscription_key" UNIQUE ("user_id", "subscription");
 
-grant truncate on table "public"."profiles" to "authenticated";
 
-grant update on table "public"."profiles" to "authenticated";
 
-grant delete on table "public"."profiles" to "service_role";
+ALTER TABLE ONLY "public"."ratings_history"
+    ADD CONSTRAINT "ratings_history_pkey" PRIMARY KEY ("id");
 
-grant insert on table "public"."profiles" to "service_role";
 
-grant references on table "public"."profiles" to "service_role";
 
-grant select on table "public"."profiles" to "service_role";
+ALTER TABLE ONLY "public"."sports"
+    ADD CONSTRAINT "sports_name_key" UNIQUE ("name");
 
-grant trigger on table "public"."profiles" to "service_role";
 
-grant truncate on table "public"."profiles" to "service_role";
 
-grant update on table "public"."profiles" to "service_role";
+ALTER TABLE ONLY "public"."sports"
+    ADD CONSTRAINT "sports_pkey" PRIMARY KEY ("id");
 
-grant delete on table "public"."push_subscriptions" to "anon";
 
-grant insert on table "public"."push_subscriptions" to "anon";
 
-grant references on table "public"."push_subscriptions" to "anon";
+CREATE INDEX "idx_matches_action_token" ON "public"."matches" USING "btree" ("action_token");
 
-grant select on table "public"."push_subscriptions" to "anon";
 
-grant trigger on table "public"."push_subscriptions" to "anon";
 
-grant truncate on table "public"."push_subscriptions" to "anon";
+CREATE INDEX "idx_matches_reported_by" ON "public"."matches" USING "btree" ("reported_by");
 
-grant update on table "public"."push_subscriptions" to "anon";
 
-grant delete on table "public"."push_subscriptions" to "authenticated";
 
-grant insert on table "public"."push_subscriptions" to "authenticated";
+CREATE UNIQUE INDEX "idx_matches_unique_active_pair" ON "public"."matches" USING "btree" (LEAST(("player1_id")::"text", ("player2_id")::"text"), GREATEST(("player1_id")::"text", ("player2_id")::"text")) WHERE ("status" = ANY (ARRAY['CHALLENGED'::"public"."match_status", 'PENDING'::"public"."match_status", 'PROCESSING'::"public"."match_status"]));
 
-grant references on table "public"."push_subscriptions" to "authenticated";
 
-grant select on table "public"."push_subscriptions" to "authenticated";
 
-grant trigger on table "public"."push_subscriptions" to "authenticated";
+CREATE INDEX "idx_matches_winner_id" ON "public"."matches" USING "btree" ("winner_id");
 
-grant truncate on table "public"."push_subscriptions" to "authenticated";
 
-grant update on table "public"."push_subscriptions" to "authenticated";
 
-grant delete on table "public"."push_subscriptions" to "service_role";
+CREATE INDEX "idx_player_profiles_deactivated" ON "public"."player_profiles" USING "btree" ("deactivated");
 
-grant insert on table "public"."push_subscriptions" to "service_role";
 
-grant references on table "public"."push_subscriptions" to "service_role";
 
-grant select on table "public"."push_subscriptions" to "service_role";
+CREATE INDEX "idx_ratings_history_player_created" ON "public"."ratings_history" USING "btree" ("player_profile_id", "created_at" DESC);
 
-grant trigger on table "public"."push_subscriptions" to "service_role";
 
-grant truncate on table "public"."push_subscriptions" to "service_role";
 
-grant update on table "public"."push_subscriptions" to "service_role";
+CREATE OR REPLACE TRIGGER "matches_after_status_trigger" AFTER UPDATE OF "status" ON "public"."matches" FOR EACH ROW WHEN (("old"."status" IS DISTINCT FROM "new"."status")) EXECUTE FUNCTION "public"."trigger_process_match_elo"();
 
-grant delete on table "public"."ratings_history" to "anon";
 
-grant insert on table "public"."ratings_history" to "anon";
 
-grant references on table "public"."ratings_history" to "anon";
+CREATE OR REPLACE TRIGGER "matches_ladder_update_trigger" AFTER UPDATE OF "status" ON "public"."matches" FOR EACH ROW EXECUTE FUNCTION "public"."trigger_process_ladder"();
 
-grant select on table "public"."ratings_history" to "anon";
 
-grant trigger on table "public"."ratings_history" to "anon";
 
-grant truncate on table "public"."ratings_history" to "anon";
+CREATE OR REPLACE TRIGGER "reactivate_profile_on_match_trigger" AFTER INSERT ON "public"."matches" FOR EACH ROW EXECUTE FUNCTION "public"."reactivate_profile_on_match"();
 
-grant update on table "public"."ratings_history" to "anon";
 
-grant delete on table "public"."ratings_history" to "authenticated";
 
-grant insert on table "public"."ratings_history" to "authenticated";
+CREATE OR REPLACE TRIGGER "trg_assign_ladder_rank" BEFORE INSERT ON "public"."player_profiles" FOR EACH ROW EXECUTE FUNCTION "public"."assign_initial_ladder_rank"();
 
-grant references on table "public"."ratings_history" to "authenticated";
 
-grant select on table "public"."ratings_history" to "authenticated";
 
-grant trigger on table "public"."ratings_history" to "authenticated";
+CREATE OR REPLACE TRIGGER "trg_log_initial_history" AFTER INSERT ON "public"."player_profiles" FOR EACH ROW EXECUTE FUNCTION "public"."log_initial_join_history"();
 
-grant truncate on table "public"."ratings_history" to "authenticated";
 
-grant update on table "public"."ratings_history" to "authenticated";
 
-grant delete on table "public"."ratings_history" to "service_role";
+CREATE OR REPLACE TRIGGER "trg_match_replace_action_token" AFTER UPDATE OF "status" ON "public"."matches" FOR EACH ROW WHEN (("old"."status" IS DISTINCT FROM "new"."status")) EXECUTE FUNCTION "public"."match_replace_action_token_on_status_change"();
 
-grant insert on table "public"."ratings_history" to "service_role";
 
-grant references on table "public"."ratings_history" to "service_role";
 
-grant select on table "public"."ratings_history" to "service_role";
+CREATE OR REPLACE TRIGGER "trg_set_updated_at" BEFORE UPDATE ON "public"."matches" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
-grant trigger on table "public"."ratings_history" to "service_role";
 
-grant truncate on table "public"."ratings_history" to "service_role";
 
-grant update on table "public"."ratings_history" to "service_role";
+CREATE OR REPLACE TRIGGER "trigger_check_paused_before_match" BEFORE INSERT ON "public"."matches" FOR EACH ROW EXECUTE FUNCTION "public"."check_sport_paused"();
 
-grant delete on table "public"."sports" to "anon";
 
-grant insert on table "public"."sports" to "anon";
 
-grant references on table "public"."sports" to "anon";
+ALTER TABLE ONLY "public"."ladder_rank_history"
+    ADD CONSTRAINT "ladder_rank_history_match_id_fkey" FOREIGN KEY ("match_id") REFERENCES "public"."matches"("id");
 
-grant select on table "public"."sports" to "anon";
 
-grant trigger on table "public"."sports" to "anon";
 
-grant truncate on table "public"."sports" to "anon";
+ALTER TABLE ONLY "public"."ladder_rank_history"
+    ADD CONSTRAINT "ladder_rank_history_player_profile_id_fkey" FOREIGN KEY ("player_profile_id") REFERENCES "public"."player_profiles"("id");
 
-grant update on table "public"."sports" to "anon";
 
-grant delete on table "public"."sports" to "authenticated";
 
-grant insert on table "public"."sports" to "authenticated";
+ALTER TABLE ONLY "public"."ladder_rank_history"
+    ADD CONSTRAINT "ladder_rank_history_sport_id_fkey" FOREIGN KEY ("sport_id") REFERENCES "public"."sports"("id");
 
-grant references on table "public"."sports" to "authenticated";
 
-grant select on table "public"."sports" to "authenticated";
 
-grant trigger on table "public"."sports" to "authenticated";
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_player1_id_fkey" FOREIGN KEY ("player1_id") REFERENCES "public"."player_profiles"("id");
 
-grant truncate on table "public"."sports" to "authenticated";
 
-grant update on table "public"."sports" to "authenticated";
 
-grant delete on table "public"."sports" to "service_role";
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_player2_id_fkey" FOREIGN KEY ("player2_id") REFERENCES "public"."player_profiles"("id");
 
-grant insert on table "public"."sports" to "service_role";
 
-grant references on table "public"."sports" to "service_role";
 
-grant select on table "public"."sports" to "service_role";
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_reported_by_fkey" FOREIGN KEY ("reported_by") REFERENCES "public"."player_profiles"("id");
 
-grant trigger on table "public"."sports" to "service_role";
 
-grant truncate on table "public"."sports" to "service_role";
 
-grant update on table "public"."sports" to "service_role";
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_sport_id_fkey" FOREIGN KEY ("sport_id") REFERENCES "public"."sports"("id");
 
 
-  create policy "Players can create matches"
-  on "public"."matches"
-  as permissive
-  for insert
-  to public
-with check (true);
 
+ALTER TABLE ONLY "public"."matches"
+    ADD CONSTRAINT "matches_winner_id_fkey" FOREIGN KEY ("winner_id") REFERENCES "public"."player_profiles"("id");
 
 
-  create policy "Players can read matches"
-  on "public"."matches"
-  as permissive
-  for select
-  to public
-using (true);
 
+ALTER TABLE ONLY "public"."player_profiles"
+    ADD CONSTRAINT "player_profiles_sport_id_fkey" FOREIGN KEY ("sport_id") REFERENCES "public"."sports"("id");
 
 
-  create policy "Players can update their match"
-  on "public"."matches"
-  as permissive
-  for update
-  to public
-using ((auth.uid() IN ( SELECT player_profiles.user_id
-   FROM public.player_profiles
-  WHERE (player_profiles.id = matches.player1_id)
+
+ALTER TABLE ONLY "public"."player_profiles"
+    ADD CONSTRAINT "player_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_cohort_id_fkey" FOREIGN KEY ("cohort_id") REFERENCES "public"."cohorts"("id");
+
+
+
+ALTER TABLE ONLY "public"."profiles"
+    ADD CONSTRAINT "profiles_id_fkey" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."push_subscriptions"
+    ADD CONSTRAINT "push_subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."ratings_history"
+    ADD CONSTRAINT "ratings_history_match_id_fkey" FOREIGN KEY ("match_id") REFERENCES "public"."matches"("id");
+
+
+
+ALTER TABLE ONLY "public"."ratings_history"
+    ADD CONSTRAINT "ratings_history_player_profile_id_fkey" FOREIGN KEY ("player_profile_id") REFERENCES "public"."player_profiles"("id");
+
+
+
+CREATE POLICY "Anyone can read profiles" ON "public"."player_profiles" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Players can create matches" ON "public"."matches" FOR INSERT WITH CHECK (true);
+
+
+
+CREATE POLICY "Players can read matches" ON "public"."matches" FOR SELECT USING (true);
+
+
+
+CREATE POLICY "Players can update their match" ON "public"."matches" FOR UPDATE USING (("auth"."uid"() IN ( SELECT "player_profiles"."user_id"
+   FROM "public"."player_profiles"
+  WHERE ("player_profiles"."id" = "matches"."player1_id")
 UNION
- SELECT player_profiles.user_id
-   FROM public.player_profiles
-  WHERE (player_profiles.id = matches.player2_id))));
+ SELECT "player_profiles"."user_id"
+   FROM "public"."player_profiles"
+  WHERE ("player_profiles"."id" = "matches"."player2_id"))));
 
 
 
-  create policy "Anyone can read profiles"
-  on "public"."player_profiles"
-  as permissive
-  for select
-  to public
-using (true);
+CREATE POLICY "Public read" ON "public"."player_profiles" FOR SELECT USING (true);
 
 
 
-  create policy "Public read"
-  on "public"."player_profiles"
-  as permissive
-  for select
-  to public
-using (true);
+CREATE POLICY "Verified users can create player profiles" ON "public"."player_profiles" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM "public"."profiles"
+  WHERE (("profiles"."id" = "player_profiles"."user_id") AND ("profiles"."status" = 'verified'::"public"."verification_status")))));
 
 
 
-  create policy "Verified users can create player profiles"
-  on "public"."player_profiles"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles
-  WHERE ((profiles.id = player_profiles.user_id) AND (profiles.status = 'verified'::public.verification_status)))));
 
 
-CREATE TRIGGER matches_after_status_trigger AFTER UPDATE OF status ON public.matches FOR EACH ROW WHEN ((old.status IS DISTINCT FROM new.status)) EXECUTE FUNCTION public.trigger_process_match_elo();
+ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
 
-CREATE TRIGGER matches_ladder_update_trigger AFTER UPDATE OF status ON public.matches FOR EACH ROW EXECUTE FUNCTION public.trigger_process_ladder();
 
-CREATE TRIGGER reactivate_profile_on_match_trigger AFTER INSERT ON public.matches FOR EACH ROW EXECUTE FUNCTION public.reactivate_profile_on_match();
 
-CREATE TRIGGER trg_match_replace_action_token AFTER UPDATE OF status ON public.matches FOR EACH ROW WHEN ((old.status IS DISTINCT FROM new.status)) EXECUTE FUNCTION public.match_replace_action_token_on_status_change();
 
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.matches FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE TRIGGER trigger_check_paused_before_match BEFORE INSERT ON public.matches FOR EACH ROW EXECUTE FUNCTION public.check_sport_paused();
 
-CREATE TRIGGER trg_assign_ladder_rank BEFORE INSERT ON public.player_profiles FOR EACH ROW EXECUTE FUNCTION public.assign_initial_ladder_rank();
 
-CREATE TRIGGER trg_log_initial_history AFTER INSERT ON public.player_profiles FOR EACH ROW EXECUTE FUNCTION public.log_initial_join_history();
+
+GRANT USAGE ON SCHEMA "public" TO "postgres";
+GRANT USAGE ON SCHEMA "public" TO "anon";
+GRANT USAGE ON SCHEMA "public" TO "authenticated";
+GRANT USAGE ON SCHEMA "public" TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON FUNCTION "public"."assign_initial_ladder_rank"() TO "anon";
+GRANT ALL ON FUNCTION "public"."assign_initial_ladder_rank"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."assign_initial_ladder_rank"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."check_ladder_inactivity"() TO "anon";
+GRANT ALL ON FUNCTION "public"."check_ladder_inactivity"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_ladder_inactivity"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."check_sport_paused"() TO "anon";
+GRANT ALL ON FUNCTION "public"."check_sport_paused"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."check_sport_paused"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "anon";
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."handle_new_user_verification"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."leave_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."log_initial_join_history"() TO "anon";
+GRANT ALL ON FUNCTION "public"."log_initial_join_history"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."log_initial_join_history"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "anon";
+GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."match_replace_action_token_on_status_change"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "anon";
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_auto_verify_matches"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "anon";
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_expired_challenges"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_ladder_match"("match_uuid" "uuid") TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."process_match_elo"("match_uuid" "uuid") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."process_match_elo"("match_uuid" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."process_match_elo"("match_uuid" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."process_match_elo"("match_uuid" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."reactivate_profile_on_match"() TO "anon";
+GRANT ALL ON FUNCTION "public"."reactivate_profile_on_match"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reactivate_profile_on_match"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."recalc_ladder_history"() TO "anon";
+GRANT ALL ON FUNCTION "public"."recalc_ladder_history"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."recalc_ladder_history"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."recalculate_match_result"("match_uuid" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."recalculate_match_result"("match_uuid" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."recalculate_match_result"("match_uuid" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."recompute_all_elos_and_history"("in_starting_rating" integer, "in_k_factor" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."recompute_all_elos_and_history"("in_starting_rating" integer, "in_k_factor" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."recompute_all_elos_and_history"("in_starting_rating" integer, "in_k_factor" numeric) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."rejoin_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."rejoin_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."rejoin_ladder"("p_sport_id" "uuid", "p_user_id" "uuid") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trigger_process_ladder"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trigger_process_ladder"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trigger_process_ladder"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."trigger_process_match_elo"() TO "anon";
+GRANT ALL ON FUNCTION "public"."trigger_process_match_elo"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."trigger_process_match_elo"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "anon";
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GRANT ALL ON TABLE "public"."cohorts" TO "anon";
+GRANT ALL ON TABLE "public"."cohorts" TO "authenticated";
+GRANT ALL ON TABLE "public"."cohorts" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."ladder_rank_history" TO "anon";
+GRANT ALL ON TABLE "public"."ladder_rank_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."ladder_rank_history" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."matches" TO "anon";
+GRANT ALL ON TABLE "public"."matches" TO "authenticated";
+GRANT ALL ON TABLE "public"."matches" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."player_profiles" TO "anon";
+GRANT ALL ON TABLE "public"."player_profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."player_profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."profiles" TO "anon";
+GRANT ALL ON TABLE "public"."profiles" TO "authenticated";
+GRANT ALL ON TABLE "public"."profiles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."player_profiles_view" TO "anon";
+GRANT ALL ON TABLE "public"."player_profiles_view" TO "authenticated";
+GRANT ALL ON TABLE "public"."player_profiles_view" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."push_subscriptions" TO "anon";
+GRANT ALL ON TABLE "public"."push_subscriptions" TO "authenticated";
+GRANT ALL ON TABLE "public"."push_subscriptions" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."ratings_history" TO "anon";
+GRANT ALL ON TABLE "public"."ratings_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."ratings_history" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."sports" TO "anon";
+GRANT ALL ON TABLE "public"."sports" TO "authenticated";
+GRANT ALL ON TABLE "public"."sports" TO "service_role";
+
+
+
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
+
+
+
+
+
+
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
+ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 CREATE TRIGGER on_auth_user_created_profile AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_verification();
 
