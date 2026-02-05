@@ -19,7 +19,16 @@ export async function getProfilePageData(userId: string) {
     ])
 
     const profiles = (userProfilesRes.data as PlayerProfile[]) || []
-    if (profiles.length === 0) return { profiles: [], isAdmin: false }
+    if (profiles.length === 0) {
+        // Even if no profiles, check if superuser to return isAdmin: true
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('superuser')
+            .eq('id', userId)
+            .single()
+
+        return { profiles: [], isAdmin: !!profile?.superuser }
+    }
 
     const profileIds = profiles.map(p => p.id)
     const idsFilter = profileIds.join(',')
@@ -193,7 +202,16 @@ export async function getProfilePageData(userId: string) {
     // Sort by sport name
     myPlayers.sort((a, b) => (a.sport_name || '').localeCompare(b.sport_name || ''))
 
-    const isAdmin = profiles.some(p => p.is_admin)
+    // Check superuser status if not already admin via profiles
+    let isAdmin = profiles.some(p => p.is_admin)
+    if (!isAdmin) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('superuser')
+            .eq('id', userId)
+            .single()
+        if (profile?.superuser) isAdmin = true
+    }
 
     return { profiles: myPlayers, isAdmin }
 }
