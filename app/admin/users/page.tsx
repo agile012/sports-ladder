@@ -22,13 +22,24 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return <div>Unauthorized</div>
 
-    const { data: adminProfiles } = await supabase
-        .from('player_profiles')
-        .select('sport_id')
-        .eq('user_id', user.id)
-        .eq('is_admin', true)
+    // Check Superuser
+    const { data: profile } = await supabase.from('profiles').select('superuser').eq('id', user.id).single()
+    const isSuperuser = !!profile?.superuser
 
-    const adminSportIds = adminProfiles?.map(p => p.sport_id) || []
+    let adminSportIds: string[] = []
+
+    if (isSuperuser) {
+        const { data: allSports } = await supabase.from('sports').select('id')
+        adminSportIds = allSports?.map(s => s.id) || []
+    } else {
+        const { data: adminProfiles } = await supabase
+            .from('player_profiles')
+            .select('sport_id')
+            .eq('user_id', user.id)
+            .eq('is_admin', true)
+
+        adminSportIds = adminProfiles?.map(p => p.sport_id) || []
+    }
 
     // Fetch all sports for the filter
     const { data: sports } = await supabase
@@ -50,9 +61,18 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         .order('full_name')
         .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
 
-    // Filter by Sport if selected
+    // Filter by methods
     if (sportId !== 'all') {
-        dbQuery = dbQuery.eq('sport_id', sportId)
+        // Ensure they are admin of the requested sport (or superuser)
+        if (adminSportIds.includes(sportId as string)) {
+            dbQuery = dbQuery.eq('sport_id', sportId)
+        } else {
+            // Not allowed, show nothing (or empty)
+            dbQuery = dbQuery.in('sport_id', [])
+        }
+    } else {
+        // Show all they are allowed to see
+        dbQuery = dbQuery.in('sport_id', adminSportIds)
     }
 
     // Filter by Cohort if selected

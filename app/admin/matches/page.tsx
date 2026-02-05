@@ -34,13 +34,24 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return <div>Unauthorized</div>
 
-    const { data: adminProfiles } = await supabase
-        .from('player_profiles')
-        .select('sport_id')
-        .eq('user_id', user.id)
-        .eq('is_admin', true)
+    // Check Superuser
+    const { data: profile } = await supabase.from('profiles').select('superuser').eq('id', user.id).single()
+    const isSuperuser = !!profile?.superuser
 
-    const adminSportIds = adminProfiles?.map(p => p.sport_id) || []
+    let adminSportIds: string[] = []
+
+    if (isSuperuser) {
+        const { data: allSports } = await supabase.from('sports').select('id')
+        adminSportIds = allSports?.map(s => s.id) || []
+    } else {
+        const { data: adminProfiles } = await supabase
+            .from('player_profiles')
+            .select('sport_id')
+            .eq('user_id', user.id)
+            .eq('is_admin', true)
+
+        adminSportIds = adminProfiles?.map(p => p.sport_id) || []
+    }
 
     // Fetch data (only sports they are admin of)
     const { data: sportsData } = await supabase
