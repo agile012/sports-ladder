@@ -5,7 +5,7 @@ import { createClient as createDirectClient } from '@supabase/supabase-js'
 import { Sport, PlayerProfile, Match, MatchWithPlayers, PendingChallengeItem, RankedPlayerProfile, PlayerProfileExtended } from '@/lib/types'
 import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { getCachedSports, getCachedAllPlayers } from '@/lib/cached-data'
-import { unstable_cache } from 'next/cache'
+
 
 export type DashboardData = {
     sports: Sport[]
@@ -28,22 +28,18 @@ type PublicDashboardData = {
     playerMap: Map<string, PlayerProfile> // Not serializable for cache, but we'll rebuild it or return list
 }
 
-// Helper to fetch global matches (cached)
-const getCachedGlobalMatches = unstable_cache(
-    async () => {
-        const supabase = createDirectClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-        const { data, error } = await supabase
-            .from('matches')
-            .select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, scores, sports(id, name)')
-            .order('created_at', { ascending: false })
-            .limit(50)
+// Helper to fetch global matches (uncached for freshness)
+const getCachedGlobalMatches = async () => {
+    const supabase = createDirectClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    const { data, error } = await supabase
+        .from('matches')
+        .select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, scores, sports(id, name)')
+        .order('created_at', { ascending: false })
+        .limit(50)
 
-        if (error) throw error
-        return data || []
-    },
-    ['global-recent-matches'],
-    { revalidate: 60, tags: ['matches'] }
-)
+    if (error) throw error
+    return data || []
+}
 
 async function getPublicDashboardData() {
     // Parallel fetch cached data

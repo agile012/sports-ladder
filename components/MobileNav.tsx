@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { Home, Trophy, User, TrendingUp, History, LogOut, Sun, Moon, Laptop, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useLongPress } from '@/hooks/useLongPress'
 import {
@@ -34,10 +34,6 @@ export default function MobileNav() {
     // No effects needed for data fetching anymore!
 
     const handleSignOut = async () => {
-        const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
         await supabase.auth.signOut()
         toast.success('Signed out')
         router.push('/login')

@@ -11,6 +11,21 @@ async function getAdminUser() {
 
     if (!user) throw new Error('Unauthorized')
 
+    // 1. Check Superuser Status
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('superuser')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.superuser) {
+        // Superuser has access to ALL sports
+        const { data: allSports } = await supabase.from('sports').select('id')
+        const adminSportIds = new Set((allSports || []).map(s => s.id))
+        return { supabase, user, adminSportIds }
+    }
+
+    // 2. Normal Admin Check
     const { data: profiles } = await supabase
         .from('player_profiles')
         .select('sport_id')

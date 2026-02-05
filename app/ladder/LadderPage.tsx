@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
 import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase/client'
 import LadderHeader from '@/components/ladder/LadderHeader'
 import LadderView from '@/components/ladder/LadderView'
 import { cn } from '@/lib/utils'
@@ -63,16 +63,19 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
+  // Sync sports from server prop if it updates
+  useEffect(() => {
+    if (initialSports && initialSports.length > 0) {
+      setSports(initialSports)
+    }
+  }, [initialSports])
+
   // Initial Data Load (Sports)
   useEffect(() => {
     if (initialSports && initialSports.length > 0) return
 
     const loadSports = async () => {
       try {
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
         const { data } = await supabase.from('sports').select('id, name, scoring_config, is_paused').order('name')
         if (data) {
           setSports(data as Sport[])
@@ -311,10 +314,6 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
     if (!selectedSport || !user) return
     setLoading(true)
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      )
       const { error } = await supabase.from('player_profiles').insert({
         user_id: user.id,
         sport_id: selectedSport.id,

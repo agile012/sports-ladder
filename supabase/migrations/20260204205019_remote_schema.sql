@@ -319,16 +319,12 @@ BEGIN
     WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED');
 
     SELECT COUNT(*) INTO v_total_players FROM player_profiles
-    WHERE sport_id = p_sport_id AND deactivated = FALSE;
+    WHERE sport_id = p_sport_id;
 
-    SELECT COUNT(DISTINCT pp.id) INTO v_active_players
-    FROM player_profiles pp
-    JOIN matches m ON (pp.id = m.player1_id OR pp.id = m.player2_id)
-    WHERE pp.sport_id = p_sport_id 
-      AND pp.deactivated = FALSE
-      AND m.sport_id = p_sport_id 
-      AND m.status IN ('PROCESSED', 'CONFIRMED')
-      AND m.created_at >= NOW() - INTERVAL '30 days';
+    SELECT COUNT(*) INTO v_active_players
+    FROM player_profiles
+    WHERE sport_id = p_sport_id 
+      AND deactivated = FALSE;
 
     SELECT COUNT(*) INTO v_challenger_wins FROM matches 
     WHERE sport_id = p_sport_id AND status IN ('PROCESSED', 'CONFIRMED') AND winner_id = player1_id;
@@ -1191,18 +1187,19 @@ DECLARE
 BEGIN
     -- 1. Clear History (BUT PRESERVE MANUAL ENTRIES)
     -- Changed from TRUNCATE to DELETE with WHERE clause
-    DELETE FROM ladder_rank_history 
+    DELETE FROM ladder_rank_history
     WHERE reason NOT LIKE '%(Manual)%';
 
     -- 2. Reset Ranks (Based on join date)
     -- Reset active players to join order. Deactivated ones stay null/deactivated.
     -- Prevent unique constraint violation by clearing ranks first
-    UPDATE player_profiles SET ladder_rank = NULL;
+    -- ADDED WHERE clause to satisfy safe updates
+    UPDATE player_profiles SET ladder_rank = NULL WHERE true;
 
     WITH ranked_players AS (
         SELECT id, ROW_NUMBER() OVER (PARTITION BY sport_id ORDER BY created_at ASC) as initial_rank
         FROM player_profiles
-        WHERE deactivated = FALSE 
+        WHERE deactivated = FALSE
     )
     UPDATE player_profiles pp
     SET ladder_rank = rp.initial_rank,
@@ -1211,14 +1208,14 @@ BEGIN
     WHERE pp.id = rp.id;
 
     -- 3. Replay Matches
-    FOR m IN 
-        SELECT * FROM matches 
-        WHERE status IN ('PROCESSED', 'CONFIRMED') 
+    FOR m IN
+        SELECT * FROM matches
+        WHERE status IN ('PROCESSED', 'CONFIRMED')
         ORDER BY created_at ASC
     LOOP
         v_winner_id := m.winner_id;
         v_sport_id := m.sport_id;
-        
+
         -- Skip if no winner
         IF v_winner_id IS NULL THEN CONTINUE; END IF;
 
@@ -1229,24 +1226,24 @@ BEGIN
         END IF;
 
         -- Get current ranks
-        SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name 
-        FROM player_profiles_view 
+        SELECT ladder_rank, full_name INTO v_winner_rank, v_winner_name
+        FROM player_profiles_view
         WHERE id = v_winner_id;
 
-        SELECT ladder_rank, full_name INTO v_loser_rank, v_loser_name 
-        FROM player_profiles_view 
+        SELECT ladder_rank, full_name INTO v_loser_rank, v_loser_name
+        FROM player_profiles_view
         WHERE id = v_loser_id;
-        
+
         -- Fallback names
         IF v_winner_name IS NULL THEN v_winner_name := 'Opponent'; END IF;
         IF v_loser_name IS NULL THEN v_loser_name := 'Opponent'; END IF;
 
         -- Logic Mirroring process_ladder_match
-        
+
         IF v_winner_rank IS NOT NULL AND v_loser_rank IS NOT NULL THEN
             IF v_winner_rank > v_loser_rank THEN
                 -- LEAPFROG
-                
+
                 -- Update Ranks and Capture Changes
                 WITH affected AS (
                     SELECT id,
@@ -1272,11 +1269,11 @@ BEGIN
                 )
                 -- Insert History for ALL affected players
                 INSERT INTO ladder_rank_history (player_profile_id, sport_id, match_id, old_rank, new_rank, reason, created_at)
-                SELECT 
+                SELECT
                     u.id,
-                    u.sport_id, 
-                    m.id, 
-                    u.old_rank, 
+                    u.sport_id,
+                    m.id,
+                    u.old_rank,
                     u.new_rank,
                     CASE
                         WHEN u.id = v_winner_id THEN 'Victory (Leapfrog) vs ' || v_loser_name

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase/client'
 
 type AuthContextType = {
     user: User | null
@@ -22,11 +22,6 @@ export function AuthProvider({
     const [loading, setLoading] = useState(!initialUser)
 
     useEffect(() => {
-        const supabase = createBrowserClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-        )
-
         // Listen for changes
         const {
             data: { subscription },

@@ -16,7 +16,7 @@ import { useState } from 'react'
 import { updateContactInfo, updateCohort } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase/client'
 import { useTheme } from "next-themes"
 
 export interface UserInfo {
@@ -103,10 +103,6 @@ export default function UserProfile({
   }
 
   const handleSignOut = async () => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
     await supabase.auth.signOut()
     toast.success('Signed out successfully')
     router.refresh()

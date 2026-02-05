@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { createBrowserClient } from '@supabase/ssr'
+import { supabase } from '@/lib/supabase/client'
 import { Sport, ScoringConfig } from '@/lib/types'
 import {
     BookOpen,
@@ -28,10 +28,6 @@ export default function RulesPage() {
 
     useEffect(() => {
         const fetchSports = async () => {
-            const supabase = createBrowserClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-            )
             const { data } = await supabase.from('sports').select('*').order('name')
             if (data) setSports(data as Sport[])
         }
