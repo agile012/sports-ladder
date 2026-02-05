@@ -5,7 +5,7 @@ import XLSX from 'xlsx';
 import dotenv from 'dotenv';
 
 // Load .env.local first (Next.js convention), then fall back to .env
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env.production' });
 dotenv.config();
 
 // Initialize Supabase Admin Client
@@ -24,10 +24,12 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     }
 });
 
-const EXCEL_FILE = 'scripts/data/IIMA Squash Ladder.xlsx';
+const SPORT = 'Badminton';
 
-async function backfillSquash() {
-    console.log('Starting Unified Squash Backfill (v2)...');
+const EXCEL_FILE = `scripts/data/IIMA ${SPORT} Ladder.xlsx`;
+
+async function backfill() {
+    console.log(`Starting Unified ${SPORT} Backfill...`);
 
     if (!fs.existsSync(EXCEL_FILE)) {
         console.error(`File not found: ${EXCEL_FILE}`);
@@ -52,8 +54,8 @@ async function backfillSquash() {
         return sport.id;
     }
 
-    sportsMap.set('Open', await ensureSport('W Squash Open'));
-    sportsMap.set('Women', await ensureSport('W Squash Women'));
+    sportsMap.set('Open', await ensureSport(`${SPORT} Open`));
+    sportsMap.set('Women', await ensureSport(`${SPORT} Women`));
 
     const sportIds = Array.from(sportsMap.values());
     console.log('Sports IDs:', Object.fromEntries(sportsMap));
@@ -300,9 +302,6 @@ async function backfillSquash() {
         }
     }
 
-    // --- Apply Custom Ranking Logic (V3) ---
-    // User Request: "for ranking women, filter out the women and then rank by index for the women bracket."
-
     // 1. Women: Rank 1..N based on order in Excel (which is preserved in array)
     // Filter actively ranked only? "Rank by index".
     // If they are deactivated, they shouldn't have a rank?
@@ -492,9 +491,9 @@ async function backfillSquash() {
     }
 
     // ------------------------------------------------------------------
-    // 7. V3 Cleanup: Delete non-manual ladder history & generated ratings history
+    // 7. Cleanup: Delete non-manual ladder history & generated ratings history
     // ------------------------------------------------------------------
-    console.log('\n--- Finalizing Cleanup (V3) ---');
+    console.log('\n--- Finalizing Cleanup ---');
 
     // 1. Delete Ladder History where reason NOT LIKE '%(Manual)%'
     // We want to keep 'Weekly Snapshot (Manual)'.
@@ -561,7 +560,7 @@ async function backfillSquash() {
 
     // Note: We skipped Match Replay (process_ladder_match) so Profile Ranks should be exactly as inserted (Index-based).
 
-    console.log('\n✅ Unified Backfill Complete (v3).');
+    console.log('\n✅ Unified Backfill Complete.');
 }
 
-backfillSquash().catch(console.error);
+backfill().catch(console.error);
