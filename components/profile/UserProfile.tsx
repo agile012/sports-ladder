@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { updateContactInfo, updateCohort } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -70,6 +70,17 @@ export default function UserProfile({
   const currentCohort = cohorts.find(c => c.id === userInfo.cohort_id)
   const [selectedCohortId, setSelectedCohortId] = useState(userInfo.cohort_id || '')
   const [savingCohort, setSavingCohort] = useState(false)
+
+  // Superuser State
+  const [isSuperuser, setIsSuperuser] = useState(false)
+  useEffect(() => {
+    async function checkSuperuser() {
+      if (!userInfo.id) return
+      const { data } = await supabase.from('profiles').select('superuser').eq('id', userInfo.id).single()
+      if (data?.superuser) setIsSuperuser(true)
+    }
+    checkSuperuser()
+  }, [userInfo.id])
 
   const displayContact = userInfo.contact_number || 'No Phone Number'
 
@@ -255,7 +266,7 @@ export default function UserProfile({
 
       {/* Admin Actions & Sign Out */}
       <div className="flex flex-col items-center gap-4 -mt-8 mb-8 relative z-20">
-        {isAdmin && (
+        {(isAdmin || isSuperuser) && (
           <Button variant="default" asChild className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-xl shadow-indigo-500/20 rounded-full px-6">
             <Link href="/admin">
               <Shield className="mr-2 h-4 w-4" />
