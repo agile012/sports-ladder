@@ -19,6 +19,7 @@ interface LadderViewProps {
     submittingChallenge: string | null
     handleChallenge: (opponentId: string) => void
     selectedSport: Sport
+    recentMap?: Record<string, any[]>
 }
 
 export default function LadderView({
@@ -27,7 +28,8 @@ export default function LadderView({
     challengables,
     submittingChallenge,
     handleChallenge,
-    selectedSport
+    selectedSport,
+    recentMap = {}
 }: LadderViewProps) {
     const [challengeTarget, setChallengeTarget] = useState<string | null>(null)
     const [isConfirmOpen, setIsConfirmOpen] = useState(false)
@@ -68,6 +70,7 @@ export default function LadderView({
                 const isMe = user?.id === player.user_id
                 const isChallengable = challengables.has(player.id)
                 const rank = index + 1
+                const recentMatches = recentMap[player.id] || []
 
                 // Rank Badge Color
                 let rankColor = "bg-muted text-muted-foreground"
@@ -100,17 +103,41 @@ export default function LadderView({
                                     <AvatarFallback className="text-xs font-bold">{player.full_name?.substring(0, 2).toUpperCase()}</AvatarFallback>
                                 </Avatar>
 
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex flex-col gap-0.5">
                                     <div className="flex items-center gap-2">
-                                        <h3 className="font-semibold truncate text-sm md:text-base group-hover:text-primary transition-colors">
-                                            {player.full_name} {isMe && <span className="text-xs text-muted-foreground font-normal">(You)</span>}
-                                        </h3>
+                                        <span className="font-semibold text-foreground/90 group-hover:text-primary transition-colors">
+                                            {player.full_name || 'Unknown Player'} {isMe && <span className="text-xs text-muted-foreground font-normal">(You)</span>}
+                                        </span>
                                         {rank === 1 && <Trophy className="h-3 w-3 text-yellow-500 fill-yellow-500" />}
+                                        {player.cohort_name && (
+                                            <Badge variant="outline" className="text-[10px] h-4 px-1 py-0 font-normal text-muted-foreground/80 border-muted-foreground/30">
+                                                {player.cohort_name}
+                                            </Badge>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                         <span className="font-medium text-foreground">{player.rating} Elo</span>
                                         <span>•</span>
                                         <span>{player.matches_played} Matches</span>
+                                        {recentMatches.length > 0 && (
+                                            <>
+                                                <span>•</span>
+                                                <div className="flex gap-1 items-center">
+                                                    {recentMatches.map((m: any) => (
+                                                        <div
+                                                            key={m.id}
+                                                            className={cn(
+                                                                "w-2 h-2 rounded-full",
+                                                                m.result === 'win' ? "bg-emerald-500" :
+                                                                    m.result === 'loss' ? "bg-red-500" :
+                                                                        "bg-slate-300 dark:bg-slate-600"
+                                                            )}
+                                                            title={m.result ? m.result.toUpperCase() : m.status}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </Link>

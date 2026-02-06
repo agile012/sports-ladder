@@ -52,6 +52,7 @@ export type PlayerProfile = {
   last_active_rank?: number | null
   contact_number?: string // Deprecated
   cohort_id?: string
+  cohort_name?: string | null
 }
 
 export type PlayerBasic = {

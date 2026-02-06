@@ -400,6 +400,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
               submittingChallenge={submittingChallenge}
               handleChallenge={handleChallenge}
               selectedSport={selectedSport}
+              recentMap={recentMap}
             />
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
