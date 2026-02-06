@@ -29,24 +29,28 @@ type PublicDashboardData = {
 }
 
 // Helper to fetch global matches (uncached for freshness)
-const getCachedGlobalMatches = async () => {
+const getMatchesPerSport = async (): Promise<any[]> => {
     const supabase = createDirectClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-    const { data, error } = await supabase
-        .from('matches')
-        .select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, scores, sports(id, name)')
-        .order('created_at', { ascending: false })
-        .limit(50)
 
-    if (error) throw error
-    return data || []
+    // Use RPC to get diverse matches in a single query
+    const { data, error } = await supabase
+        .rpc('get_recent_diverse_matches', { p_limit_per_sport: 5 })
+        .select('id, sport_id, player1_id, player2_id, winner_id, reported_by, status, created_at, scores, sports(id, name)')
+
+    if (error) {
+        console.error("Error fetching diverse matches:", error)
+        return []
+    }
+
+    return (data as any[]) || []
 }
 
 async function getPublicDashboardData() {
-    // Parallel fetch cached data
-    const [sports, allPlayers, globalMatchesRaw] = await Promise.all([
+    // 1. Fetch Sports & Players
+    const [sports, allPlayers, recentMatchesRaw] = await Promise.all([
         getCachedSports(),
         getCachedAllPlayers(),
-        getCachedGlobalMatches()
+        getMatchesPerSport()
     ])
 
     // Map for fast player lookup
@@ -54,7 +58,7 @@ async function getPublicDashboardData() {
     allPlayers.forEach(p => playerMap.set(p.id, p))
 
     // Resolve global matches
-    const recentMatches: MatchWithPlayers[] = globalMatchesRaw.map((m: any) => {
+    const recentMatches: MatchWithPlayers[] = recentMatchesRaw.map((m: any) => {
         const p1 = m.player1_id ? playerMap.get(m.player1_id) : null
         const p2 = m.player2_id ? playerMap.get(m.player2_id) : null
         const reporter = m.reported_by ? playerMap.get(m.reported_by) : null
