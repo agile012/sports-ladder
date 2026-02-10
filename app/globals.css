@@ -131,6 +131,8 @@
   }
 
   body {
+    /* Fallback amber background for PWA initial load */
+    background-color: #f59e0b;
     @apply bg-background text-foreground font-sans antialiased;
     /* Ensure body takes full height to allow scroll container to work properly */
     min-height: 100%;

@@ -72,23 +72,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const sports = await getCachedSports()
 
   return (
-    <html lang="en" suppressHydrationWarning style={{ backgroundColor: '#f59e0b' }}>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Remove inline background after initial load to allow theme system to work
-              window.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                  document.documentElement.style.backgroundColor = '';
-                  document.body.style.backgroundColor = '';
-                }, 100);
-              });
-            `,
-          }}
-        />
-      </head>
-      <body className={`${instrumentSans.variable} ${inter.variable}`} style={{ backgroundColor: '#f59e0b' }}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${instrumentSans.variable} ${inter.variable}`}>
         <NextLoader />
         <ThemeProvider
           attribute="class"
