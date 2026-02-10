@@ -249,7 +249,7 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ spor
                             <p className="text-sm text-muted-foreground">Head-to-head battles that define the ladder</p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5">
                         <RivalryCard data={rivalries} />
                     </div>
                 </section>
