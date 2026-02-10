@@ -333,12 +333,12 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                             {/* Actions (Moved Top for Desktop) */}
                             <div className="hidden md:grid grid-cols-2 gap-4">
                                 <Button asChild className="w-full font-bold shadow-lg shadow-primary/10">
-                                    <Link href="/ladder">
+                                    <Link href={sportId ? `/ladder?sport=${sportId}` : '/ladder'}>
                                         <Swords className="mr-2 h-4 w-4" /> Challenge Someone
                                     </Link>
                                 </Button>
                                 <Button variant="outline" asChild className="w-full bg-card/50">
-                                    <Link href="/match-history">
+                                    <Link href={sportId ? `/match-history?sport=${sportId}` : '/match-history'}>
                                         <History className="mr-2 h-4 w-4" /> View History
                                     </Link>
                                 </Button>
@@ -383,7 +383,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                         <h3 className="font-bold text-xl flex items-center gap-2">
                                             <History className="h-5 w-5 text-primary" /> Recent Matches
                                         </h3>
-                                        <Link href="/match-history" className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline transition-colors">View All</Link>
+                                        <Link href={sportId ? `/match-history?sport=${sportId}` : '/match-history'} className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline transition-colors">View All</Link>
                                     </div>
                                     <RecentMatchesList matches={sportMatches.slice(0, 3)} sport={currentSport} />
                                 </section>
@@ -394,7 +394,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                         <h3 className="font-bold text-xl flex items-center gap-2">
                                             <TrendingUp className="h-5 w-5 text-primary" /> Top Ranked
                                         </h3>
-                                        <Link href="/ladder" className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline transition-colors">Full Ladder</Link>
+                                        <Link href={sportId ? `/ladder?sport=${sportId}` : '/ladder'} className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline transition-colors">Full Ladder</Link>
                                     </div>
                                     <div className="space-y-3">
                                         {sportTopList.slice(0, 3).map((player, i) => (
@@ -428,12 +428,12 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                             {/* Mobile Actions (Bottom) */}
                             <div className="grid grid-cols-2 gap-3 pt-2 md:hidden">
                                 <Button asChild className="w-full font-bold shadow-lg shadow-primary/20">
-                                    <Link href="/ladder">
+                                    <Link href={sportId ? `/ladder?sport=${sportId}` : '/ladder'}>
                                         <Swords className="mr-2 h-4 w-4" /> Challenge
                                     </Link>
                                 </Button>
                                 <Button variant="outline" asChild className="w-full">
-                                    <Link href="/match-history">
+                                    <Link href={sportId ? `/match-history?sport=${sportId}` : '/match-history'}>
                                         <History className="mr-2 h-4 w-4" /> History
                                     </Link>
                                 </Button>

@@ -252,7 +252,9 @@ export default function PendingChallengeCard({
                         )}>
                             {status}
                         </Badge>
-                        <span className="text-[10px] font-medium text-muted-foreground">
+                        <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-2">
+                            {c.sports?.name && <span className="text-foreground/80 font-bold">{c.sports.name}</span>}
+                            <span>•</span>
                             {new Date(c.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                         </span>
                     </div>
