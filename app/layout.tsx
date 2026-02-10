@@ -73,6 +73,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes"/>
+      </head>
       <body className={`${instrumentSans.variable} ${inter.variable}`}>
         <NextLoader />
         <ThemeProvider
