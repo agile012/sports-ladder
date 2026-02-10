@@ -50,6 +50,8 @@ import { SportsProvider } from '@/context/SportsContext'
 import { getCachedSports } from '@/lib/cached-data'
 import { createClient } from '@/lib/supabase/server'
 
+import NextLoader from '@/components/NextLoader'
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -58,6 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${instrumentSans.variable} ${inter.variable}`}>
+        <NextLoader />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

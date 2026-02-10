@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Trophy, User, TrendingUp, History, LogOut, Sun, Moon, Laptop, ChevronRight } from 'lucide-react'
+import { Home, Trophy, User, TrendingUp, History, LogOut, Sun, Moon, Laptop, ChevronRight, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
@@ -157,6 +157,16 @@ export default function MobileNav() {
                             </DropdownMenu>
                         )
                     })}
+
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 cursor-pointer select-none text-muted-foreground hover:text-foreground active:scale-95"
+                    >
+                        <div className="p-1.5 rounded-full transition-all">
+                            <RotateCw className="h-5 w-5" />
+                        </div>
+                        <span className="text-[10px] font-medium tracking-wide">Refresh</span>
+                    </button>
                 </div>
             </div>
         </nav>
