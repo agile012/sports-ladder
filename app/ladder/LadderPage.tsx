@@ -245,9 +245,9 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
         {sports.map(s => (
           <Button
             key={s.id}
-            size="sm"
+            size="default"
             variant={selectedSport?.id === s.id ? 'default' : 'outline'}
-            className="rounded-full whitespace-nowrap shadow-sm"
+            className="rounded-full whitespace-nowrap shadow-sm h-11 px-6"
             onClick={() => handleSportSelect(s)}
           >
             {s.name}
@@ -277,7 +277,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
                 <Button
                   key={s.id}
                   variant={selectedSport?.id === s.id ? 'secondary' : 'ghost'}
-                  className={cn("w-full justify-start", selectedSport?.id === s.id && "bg-primary/10 text-primary font-bold")}
+                  className={cn("w-full justify-start h-11", selectedSport?.id === s.id && "bg-primary/10 text-primary font-bold")}
                   onClick={() => handleSportSelect(s)}
                 >
                   {s.name}
