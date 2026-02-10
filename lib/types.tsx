@@ -112,7 +112,7 @@ export type MatchHistoryItem = {
 export type PendingChallengeItem = {
   id: string
   sport_id: string
-  sports?: { scoring_config?: any }
+  sports?: { name?: string; scoring_config?: any }
   player1: PlayerBasic
   player2: PlayerBasic
   status: string

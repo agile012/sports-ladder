@@ -47,7 +47,7 @@ export async function getProfilePageData(userId: string) {
         // Pending/Active Challenges
         supabase
             .from('matches')
-            .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores, sports(scoring_config)')
+            .select('id, sport_id, player1_id, player2_id, status, message, action_token, winner_id, reported_by, created_at, scores, sports(name, scoring_config)')
             .or(`player1_id.in.(${idsFilter}),player2_id.in.(${idsFilter})`)
             .in('status', ['CHALLENGED', 'PENDING', 'PROCESSING']),
 
