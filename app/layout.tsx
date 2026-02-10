@@ -31,6 +31,20 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: "Sports Ladder",
+    startupImage: [
+      {
+        url: "/web-app-manifest-512x512.png",
+        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        url: "/web-app-manifest-512x512.png",
+        media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
+      },
+      {
+        url: "/web-app-manifest-512x512.png",
+        media: "screen",
+      },
+    ],
   },
   formatDetection: {
     telephone: false,
