@@ -2,6 +2,7 @@
 import React from 'react'
 
 import PlayerProfile from './PlayerProfile'
+import { AvatarCropDialog } from './AvatarCropDialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Cohort, PlayerProfileExtended } from '@/lib/types'
 import Link from 'next/link'
@@ -83,8 +84,10 @@ export default function UserProfile({
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(userInfo.custom_avatar_url || userInfo.avatar_url)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
+  const [showCropDialog, setShowCropDialog] = useState(false)
 
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -94,21 +97,33 @@ export default function UserProfile({
       return
     }
 
-    // Validate file size (2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image must be smaller than 2MB')
+    // Validate file size (5MB for source, will compress after crop)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB')
       return
     }
 
+    // Create object URL and open crop dialog
+    const url = URL.createObjectURL(file)
+    setCropImageSrc(url)
+    setShowCropDialog(true)
+
+    // Reset file input for re-selection
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleCroppedUpload(croppedBlob: Blob) {
     setUploadingAvatar(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const filePath = `${userInfo.id}/avatar.${ext}`
+      const filePath = `${userInfo.id}/avatar.webp`
 
-      // Upload to Supabase Storage
+      // Upload cropped blob to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true })
+        .upload(filePath, croppedBlob, {
+          upsert: true,
+          contentType: 'image/webp',
+        })
 
       if (uploadError) throw uploadError
 
@@ -124,13 +139,25 @@ export default function UserProfile({
       await updateAvatar(urlWithTimestamp)
       setAvatarUrl(urlWithTimestamp)
       toast.success('Profile photo updated!')
+      setShowCropDialog(false)
       router.refresh()
     } catch (err: any) {
       toast.error('Upload failed: ' + err.message)
     } finally {
       setUploadingAvatar(false)
-      // Reset file input
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      // Clean up object URL
+      if (cropImageSrc) {
+        URL.revokeObjectURL(cropImageSrc)
+        setCropImageSrc(null)
+      }
+    }
+  }
+
+  function handleCropClose() {
+    setShowCropDialog(false)
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc)
+      setCropImageSrc(null)
     }
   }
 
@@ -220,7 +247,7 @@ export default function UserProfile({
               type="file"
               accept="image/jpeg,image/png,image/webp,image/gif"
               className="hidden"
-              onChange={handleAvatarUpload}
+              onChange={handleFileSelect}
             />
 
             <div
@@ -476,6 +503,17 @@ export default function UserProfile({
           </div>
         )}
       </div>
+
+      {/* Crop Dialog */}
+      {cropImageSrc && (
+        <AvatarCropDialog
+          open={showCropDialog}
+          onClose={handleCropClose}
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCroppedUpload}
+          uploading={uploadingAvatar}
+        />
+      )}
     </div>
   )
 }
