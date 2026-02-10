@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useState, useEffect } from 'react'
-import { updateContactInfo, updateCohort } from '@/lib/actions/profileActions'
+import { updateContactInfo, updateCohort, updateName } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
@@ -25,6 +25,7 @@ export interface UserInfo {
   avatar_url?: string
   contact_number?: string
   cohort_id?: string
+  name?: string
 }
 
 
@@ -71,6 +72,11 @@ export default function UserProfile({
   const [selectedCohortId, setSelectedCohortId] = useState(userInfo.cohort_id || '')
   const [savingCohort, setSavingCohort] = useState(false)
 
+  // Name State
+  const [editingName, setEditingName] = useState(false)
+  const [name, setName] = useState(userInfo.name || '')
+  const [savingName, setSavingName] = useState(false)
+
   // Superuser State
   const [isSuperuser, setIsSuperuser] = useState(false)
   useEffect(() => {
@@ -110,6 +116,20 @@ export default function UserProfile({
       toast.error('Failed to update: ' + e.message)
     } finally {
       setSavingCohort(false)
+    }
+  }
+
+  async function handleUpdateName() {
+    setSavingName(true)
+    try {
+      await updateName(name)
+      toast.success('Name updated')
+      setEditingName(false)
+      router.refresh()
+    } catch (e: any) {
+      toast.error('Failed to update: ' + e.message)
+    } finally {
+      setSavingName(false)
     }
   }
 
@@ -157,8 +177,40 @@ export default function UserProfile({
             transition={{ delay: 0.1 }}
             className="mt-6 space-y-2"
           >
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-              {fullName}
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70 flex items-center justify-center gap-2 group">
+              <div className="flex items-center gap-2">
+                {fullName}
+                {!isPublic && (
+                  <Dialog open={editingName} onOpenChange={setEditingName}>
+                    <DialogTrigger asChild>
+                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full hover:bg-white/10 text-white/50 hover:text-white">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Update Display Name</DialogTitle>
+                      </DialogHeader>
+                      <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                          <Label>Display Name</Label>
+                          <Input
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Enter your name"
+                          />
+                          <p className="text-xs text-muted-foreground">This will override your Google profile name.</p>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleUpdateName} disabled={savingName}>
+                          {savingName && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </h1>
 
             <div className="flex flex-wrap items-center justify-center gap-2 mt-4">

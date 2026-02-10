@@ -44,3 +44,26 @@ export async function updateCohort(cohortId: string) {
     revalidatePath('/profile')
     return { success: true }
 }
+
+export async function updateName(name: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) throw new Error('Unauthorized')
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', user.id)
+
+    if (error) {
+        throw new Error(error.message)
+    }
+
+    revalidatePath('/')
+    revalidatePath('/dashboard')
+    revalidatePath('/ladder')
+    revalidatePath('/profile')
+
+    return { success: true }
+}
