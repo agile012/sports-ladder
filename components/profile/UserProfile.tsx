@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { useState, useEffect } from 'react'
 import { updateContactInfo, updateCohort, updateName } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 import { supabase } from '@/lib/supabase/client'
 import { useTheme } from "next-themes"
 

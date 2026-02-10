@@ -12,7 +12,7 @@ import RankHistory from './RankHistory'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { leaveLadder } from '@/lib/actions/ladderActions'
 import { toast } from "sonner"
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 import { useState } from 'react'
 import useUser from '@/lib/hooks/useUser'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'

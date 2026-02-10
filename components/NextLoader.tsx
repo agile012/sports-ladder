@@ -14,7 +14,7 @@ export default function NextLoader() {
             easing="ease"
             speed={200}
             shadow="0 0 10px #f59e0b,0 0 5px #f59e0b"
-            zIndex={1600}
+            zIndex={99999}
             showAtBottom={false}
         />
     );

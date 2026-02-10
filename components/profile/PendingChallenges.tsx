@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import PendingChallengeCard from './PendingChallengeCard'
 import { motion, AnimatePresence } from 'framer-motion'
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 
 export default function PendingChallenges({
   challenges,

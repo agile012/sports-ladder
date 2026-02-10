@@ -51,3 +51,16 @@ export const getCachedMatchHistory = async () => {
     if (error) throw error
     return { data, count }
 }
+
+export const getCachedRecentMatches = async (sportId: string, limit: number = 150) => {
+    const supabase = createDirectClient()
+    const { data, error } = await supabase
+        .from('matches')
+        .select('id, sport_id, player1_id, player2_id, winner_id, status, created_at, scores, sports(id, name)')
+        .eq('sport_id', sportId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+
+    if (error) throw error
+    return data
+}

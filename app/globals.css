@@ -124,15 +124,17 @@
     @apply border-border outline-ring/50;
   }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-    /* Background handled by PremiumBackground component */
-    /* Add subtle noise or texture if desired (optional) */
-  }
-
-  /* Smooth scrolling */
   html {
     scroll-behavior: smooth;
+    height: 100%;
+    overscroll-behavior-y: auto;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Ensure body takes full height to allow scroll container to work properly */
+    min-height: 100%;
+    overscroll-behavior-y: auto;
   }
 }
 

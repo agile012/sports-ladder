@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app'
 import { Home, Trophy, User, TrendingUp, History, LogOut, Sun, Moon, Laptop, ChevronRight, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
@@ -159,7 +160,7 @@ export default function MobileNav() {
                     })}
 
                     <button
-                        onClick={() => window.location.reload()}
+                        onClick={() => router.refresh()}
                         className="flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-300 cursor-pointer select-none text-muted-foreground hover:text-foreground active:scale-95"
                     >
                         <div className="p-1.5 rounded-full transition-all">

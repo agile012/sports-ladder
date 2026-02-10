@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState, useMemo, createRef } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useSearchParams, usePathname } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
@@ -18,11 +19,12 @@ interface LadderPageProps {
   initialSports?: Sport[]
   initialPlayers?: RankedPlayerProfile[]
   initialSelectedSportId?: string
+  initialRecentMap?: Record<string, any[]>
 }
 
-export default function LadderPage({ initialSports, initialPlayers, initialSelectedSportId }: LadderPageProps) {
+export default function LadderPage({ initialSports, initialPlayers, initialSelectedSportId, initialRecentMap }: LadderPageProps) {
   const { user } = useUser()
-  const { getPlayersForSport, getUserProfileForSport, createChallenge, getMatchesSince, getRecentMatchesForSport } = useLadders()
+  const { getUserProfileForSport, createChallenge, getMatchesSince, getPlayersForSport } = useLadders()
 
   const [sports, setSports] = useState<Sport[]>(initialSports || [])
   const [selectedSport, setSelectedSport] = useState<Sport | null>(
@@ -32,7 +34,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
   const [loading, setLoading] = useState(!initialSports)
   const [sortBy, setSortBy] = useState<'ladder' | 'rating'>('ladder')
 
-  const [recentMap, setRecentMap] = useState<Record<string, any[]>>({})
+  const [recentMap, setRecentMap] = useState<Record<string, any[]>>(initialRecentMap || {})
   const [challengables, setChallengables] = useState<Set<string>>(new Set())
   const [submittingChallenge, setSubmittingChallenge] = useState<string | null>(null)
 
@@ -40,37 +42,35 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
   const searchParams = useSearchParams()
   const pathname = usePathname()
 
-  // Sync selection with URL
+  // Sync props when they change (server navigation)
   useEffect(() => {
-    const sportParam = searchParams.get('sport')
-    if (sportParam && sports.length > 0) {
-      if (selectedSport?.id !== sportParam) {
-        const found = sports.find(s => s.id === sportParam)
-        if (found) setSelectedSport(found)
-      }
-    } else if (!sportParam && sports.length > 0 && !selectedSport) {
-      // Default to first if valid
-      setSelectedSport(sports[0])
+    if (initialSports) setSports(initialSports)
+  }, [initialSports])
+
+  useEffect(() => {
+    if (initialSelectedSportId && initialSports) {
+      const found = initialSports.find(s => s.id === initialSelectedSportId)
+      if (found) setSelectedSport(found)
     }
-  }, [searchParams, sports, selectedSport])
+  }, [initialSelectedSportId, initialSports])
+
+  useEffect(() => {
+    if (initialPlayers) setPlayers(initialPlayers)
+  }, [initialPlayers])
+
+  useEffect(() => {
+    if (initialRecentMap) setRecentMap(initialRecentMap)
+  }, [initialRecentMap])
+
 
   const handleSportSelect = (sport: Sport) => {
-    // Optimistic update
-    setSelectedSport(sport)
-    // Update URL
+    // Navigate only. Let server prop update drive state to prevent data mismatch.
     const params = new URLSearchParams(searchParams.toString())
     params.set('sport', sport.id)
     router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
-  // Sync sports from server prop if it updates
-  useEffect(() => {
-    if (initialSports && initialSports.length > 0) {
-      setSports(initialSports)
-    }
-  }, [initialSports])
-
-  // Initial Data Load (Sports)
+  // Initial Data Load (Sports) - only if no initial props
   useEffect(() => {
     if (initialSports && initialSports.length > 0) return
 
@@ -96,94 +96,9 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       }
     }
     loadSports()
-  }, [initialSports])
+  }, [initialSports, searchParams])
 
-  // Effect: Fetch players when selected sport changes
-  useEffect(() => {
-    if (!selectedSport) return
-
-    // optimization: if we have initialPlayers and they belong to this sport (implied by initial load), skip 
-    if (initialPlayers && selectedSport.id === initialSelectedSportId && players.length > 0) {
-      // Just rely on initial state, but if selectedSport changes, we need to fetch
-      // We can track if it's the "first run" or actually check Ids.
-      // Simple heuristic: if players are already set and match the sport, we might not need to fetch.
-      // But safer to just check if selectedSport.id === initialSelectedSportId AND we haven't changed it yet.
-    }
-
-    // Actually, simple Logic:
-    // If selectedId == initialId AND players are populated, we *could* skip. 
-    // But `setPlayers([])` below wipes it. We need to prevent wiping if it's the initial render.
-    // Better idea: Don't setPlayers([]) immediately.
-
-    if (initialPlayers && selectedSport.id === initialSelectedSportId && players === initialPlayers) {
-      // This is the initial render pass, do nothing.
-      return
-    }
-
-    setPlayers([])
-
-    let cancelled = false
-    const loadPlayers = async () => {
-      try {
-        const pRaw = await getPlayersForSport(selectedSport.id)
-        if (!cancelled) {
-          const p = calculateRanks(pRaw)
-          setPlayers(p)
-        }
-      } catch (err) {
-        console.error("Failed to load ladder", err)
-        toast.error("Failed to load ladder data")
-      }
-    }
-    loadPlayers()
-
-    return () => { cancelled = true }
-  }, [selectedSport, getPlayersForSport])
-
-  // Effect A: Recent Matches
-  useEffect(() => {
-    if (!selectedSport) return
-    let cancelled = false
-
-    const fetchMatches = async () => {
-      try {
-        const matchesRaw = await getRecentMatchesForSport(selectedSport.id, 150)
-
-        if (!cancelled) {
-          const map: Record<string, any[]> = {}
-          const finalStatuses = ['CONFIRMED', 'PROCESSED']
-
-          matchesRaw.forEach(m => {
-            const p1 = m.player1_id
-            const p2 = m.player2_id
-
-            if (p1) {
-              if (!map[p1]) map[p1] = []
-              if (map[p1].length < 3) {
-                const result = finalStatuses.includes(m.status) ? (m.winner_id === p1 ? 'win' : 'loss') : null
-                map[p1].push({ id: m.id, result, status: m.status })
-              }
-            }
-            if (p2) {
-              if (!map[p2]) map[p2] = []
-              if (map[p2].length < 3) {
-                const result = finalStatuses.includes(m.status) ? (m.winner_id === p2 ? 'win' : 'loss') : null
-                map[p2].push({ id: m.id, result, status: m.status })
-              }
-            }
-          })
-          setRecentMap(map)
-        }
-      } catch (e) {
-        console.error(e)
-      }
-    }
-
-    fetchMatches()
-    return () => { cancelled = true }
-  }, [selectedSport, getRecentMatchesForSport])
-
-  // Effect B: Challengable Status
+  // Effect: Challengable Status (Client Side Only)
   useEffect(() => {
     if (!selectedSport || players.length === 0 || !user) {
       setChallengables(new Set())
@@ -205,19 +120,10 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
         }
 
         const cooldownDays = selectedSport.scoring_config?.rematch_cooldown_days ?? 7
-        // Fetch enough history (e.g. 60 days to be safe) or exact cooldownDays? 
-        // getMatchesSince uses exact days. But getCooldownOpponents handles status checks.
-        // Let's fetch strict range + buffer, or just rely on getMatchesSince logic.
-        // Wait, getMatchesSince filters by date already!
-        // But it includes CANCELLED. getCooldownOpponents filters them OUT.
-        // So we pass the matches to getCooldownOpponents.
-        const recentMatches = await getMatchesSince(myProfile.id, Math.max(cooldownDays, 60)) // Fetch wider range
+        const recentMatches = await getMatchesSince(myProfile.id, Math.max(cooldownDays, 60))
 
-        // Fix type mismatch: getMatchesSince returns MatchHistoryItem where player1_id is optional (?) 
-        // actually MatchHistoryItem defined in types has optional ps.
-        // We need to ensure we pass strings or nulls.
         const mappedMatches = recentMatches.map(m => ({
-          player1_id: m.player1_id || null, // Ensure string | null
+          player1_id: m.player1_id || null,
           player2_id: m.player2_id || null,
           status: m.status,
           created_at: m.created_at,
@@ -225,8 +131,8 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
         }))
 
         const recentOpponentIds = getCooldownOpponents(mappedMatches, myProfile.id, cooldownDays)
-
         const validOpponents = getChallengablePlayers(players, myProfile, selectedSport.scoring_config, recentOpponentIds)
+
         if (!cancelled) {
           setChallengables(new Set(validOpponents.map(x => x.id)))
         }
@@ -245,9 +151,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
     return [...players].sort((a, b) => b.rating - a.rating)
   }, [players, sortBy])
 
-  const ranks = useMemo(() => sortedPlayers.map(p => p.rank), [sortedPlayers])
-
-  // Refs need to match sorted list length
+  // Refs needed for scrolling
   const playerRefs = useMemo(() => Array(sortedPlayers.length).fill(0).map(() => createRef<HTMLTableRowElement>()), [sortedPlayers])
 
   // Scroll to profile
@@ -286,22 +190,20 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       await createChallenge(selectedSport.id, myProfile.id, opponentProfileId)
       toast.success('Challenge sent!')
 
-      const pRaw = await getPlayersForSport(selectedSport.id)
-      const p = calculateRanks(pRaw)
-      setPlayers(p)
+      // Refresh to update UI
+      router.refresh()
 
-      // Update chargables
-      const recentMatches = await getMatchesSince(myProfile.id, Math.max(selectedSport.scoring_config?.rematch_cooldown_days ?? 7, 60))
-      const mappedMatches = recentMatches.map(m => ({
-        player1_id: m.player1_id || null,
-        player2_id: m.player2_id || null,
-        status: m.status,
-        created_at: m.created_at,
-        updated_at: m.updated_at
-      }))
-      const recentOpponentIds = getCooldownOpponents(mappedMatches, myProfile.id, selectedSport.scoring_config?.rematch_cooldown_days ?? 7)
-      const validOpponents = getChallengablePlayers(p, myProfile, selectedSport.scoring_config, recentOpponentIds)
-      setChallengables(new Set(validOpponents.map(x => x.id)))
+      // We can also optimistically update challengables if we knew logic here, 
+      // but router.refresh should trigger re-fetch of recent matches on server 
+      // which will propagate down. 
+      // Actually challenging doesn't update 'recent matches' list immediately usually 
+      // until it's accepted/played? 
+      // Wait, pending challenges are NOT recent matches. 
+      // Challengable status depends on PENDING challenges too? 
+      // getChallengablePlayers logic checks if already challenged.
+      // So we need to re-run "Effect Challengable Status"
+      // Re-fetching user profile or matches might be needed. 
+      // router.refresh() re-runs server component -> passes new props -> updates state -> triggers effect.
 
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Unable to create challenge')
@@ -317,18 +219,14 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       const { error } = await supabase.from('player_profiles').insert({
         user_id: user.id,
         sport_id: selectedSport.id,
-        rating: 1200, // Default rating
+        rating: 1200,
         matches_played: 0
       })
 
       if (error) throw error
 
       toast.success(`You have joined the ${selectedSport.name} ladder!`)
-
-      // Reload players
-      const pRaw = await getPlayersForSport(selectedSport.id)
-      const p = calculateRanks(pRaw)
-      setPlayers(p)
+      router.refresh()
 
     } catch (e: any) {
       toast.error(e.message || 'Failed to join ladder')
@@ -336,12 +234,13 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       setLoading(false)
     }
   }
+
   if (loading) return <div className="p-8 text-center">Loading...</div>
 
   return (
     <div className="max-w-4xl mx-auto pb-safe-area-inset-bottom">
 
-      {/* Mobile Sport Selector - Top Position */}
+      {/* Mobile Sport Selector */}
       <div className="md:hidden overflow-x-auto pb-2 -mx-4 px-4 flex gap-2 no-scrollbar mb-4 sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2">
         {sports.map(s => (
           <Button
@@ -356,7 +255,6 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
         ))}
       </div>
 
-      {/* Mobile-first Header */}
       <LadderHeader
         selectedSport={selectedSport}
         user={user}
@@ -371,7 +269,6 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       </LadderHeader>
 
       <div className="md:grid md:grid-cols-4 md:gap-8">
-        {/* Desktop Sidebar for Sports (Hidden on Mobile) */}
         <aside className="hidden md:block md:col-span-1 space-y-4">
           <Card className="sticky top-24 border-none shadow-none bg-transparent">
             <h3 className="font-semibold text-lg px-2 mb-2">Sports</h3>
@@ -390,7 +287,6 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
           </Card>
         </aside>
 
-        {/* Main Content */}
         <section className="md:col-span-3 min-h-[60vh]">
           {selectedSport ? (
             <LadderView

@@ -2,7 +2,8 @@
 
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 import { useEffect, useState } from 'react'
 import { useDebounce } from 'use-debounce'
 import { Button } from '@/components/ui/button'

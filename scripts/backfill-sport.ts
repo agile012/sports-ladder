@@ -24,7 +24,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     }
 });
 
-const SPORT = 'Badminton';
+const SPORT = 'Tennis';
 
 const EXCEL_FILE = `scripts/data/IIMA ${SPORT} Ladder.xlsx`;
 

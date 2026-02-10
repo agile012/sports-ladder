@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app'
 import { useTheme } from "next-themes"
 import { Button } from './ui/button'
 import { Moon, Sun, Monitor, Menu, X, Trophy } from "lucide-react"

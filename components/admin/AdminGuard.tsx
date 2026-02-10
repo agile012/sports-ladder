@@ -2,7 +2,7 @@
 
 import useUser from '@/lib/hooks/useUser'
 import useLadders from '@/lib/hooks/useLadders'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'nextjs-toploader/app';
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
