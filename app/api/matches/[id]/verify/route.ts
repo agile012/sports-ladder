@@ -77,10 +77,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     // Trigger Inngest event for email notification
-    await inngest.send({
-      name: 'match.verify',
-      data: { matchId: match.id, action: 'confirm' },
-    })
+    try {
+      await inngest.send({
+        name: 'match.verify',
+        data: { matchId: match.id, action: 'confirm' },
+      })
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Failed to send event: match.verify, error:`, error)
+    }
 
     return NextResponse.redirect(origin, { status: 303 })
   } else {
@@ -88,10 +92,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { error } = await supabase.from('matches').update({ status: 'PENDING', winner_id: null, reported_by: null }).eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     // Trigger Inngest event for email notification
-    await inngest.send({
-      name: 'match.verify',
-      data: { matchId: match.id, action: 'dispute' },
-    })
+    try {
+      await inngest.send({
+        name: 'match.verify',
+        data: { matchId: match.id, action: 'dispute' },
+      })
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Failed to send event: match.verify, error:`, error)
+    }
     return NextResponse.redirect(origin, { status: 303 })
   }
 }

@@ -71,10 +71,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
     if (!updated) return NextResponse.json({ error: 'No rows updated; match not found or not permitted' }, { status: 500 })
     // Trigger Inngest event for email notification
-    await inngest.send({
-      name: 'match.action',
-      data: { matchId: updated.id, action: 'accept' },
-    })
+    try {
+      await inngest.send({
+        name: 'match.action',
+        data: { matchId: updated.id, action: 'accept' },
+      })
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Failed to send event: match.action, error:`, error)
+    }
     const origin = process.env.PUBLIC_SITE_URL ?? new URL(req.url).origin
     return NextResponse.redirect(origin, { status: 303 })
   }

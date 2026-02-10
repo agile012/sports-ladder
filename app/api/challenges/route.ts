@@ -68,10 +68,14 @@ export async function POST(request: Request) {
   }
 
   // Trigger Inngest event for email notification
-  await inngest.send({
-    name: 'match.new',
-    data: { matchId: data.id },
-  })
+  try {
+    await inngest.send({
+      name: 'match.new',
+      data: { matchId: data.id },
+    })
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Failed to send event: match.new, error:`, error)
+  }
 
   return NextResponse.json(data)
 }

@@ -29,7 +29,7 @@ async function handleResultSubmission(
     if (error || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
-    
+
     // Resolve user's auth ID to a profile ID for this match
     // We check if the user owns either player1 or player2 profile
     const { data: p1 } = await supabase.from('player_profiles').select('user_id').eq('id', match.player1_id).single()
@@ -40,33 +40,33 @@ async function handleResultSubmission(
     if (p2 && p2.user_id === user.id) userProfileId = match.player2_id
 
     if (!userProfileId) {
-       // If user is admin for this sport, they can also report? 
-       // For now, let's stick to participants or allow admin override if we checked admin rights.
-       // Current logic enforces reporter is participant. checking match.playerX_id.includes(reporter)
-       
-       // Let's check admin rights similar to other actions if not participant
-       const { data: adminProfile } = await supabase
-          .from('player_profiles')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('sport_id', match.sport_id)
-          .eq('is_admin', true)
-          .single()
-          
-       if (adminProfile) {
-           // If admin, we can default reporter to the winner or keep explicitly provided reported_by if it's a profile ID
-           // But lines 43-45 strictly enforce reporter MUST be p1 or p2 logic:
-           // "if (![match.player1_id, match.player2_id].includes(reporter))"
-           // So even admin usage implies we must attribute the report to one of the players (usually the winner).
-           // Or we relax the check.
-           
-           // If admin is reporting, let's assume they are reporting ON BEHALF of the winner.
-           userProfileId = winner_profile_id
-       } else {
-           return NextResponse.json({ error: 'Forbidden: You are not a participant' }, { status: 403 })
-       }
+      // If user is admin for this sport, they can also report? 
+      // For now, let's stick to participants or allow admin override if we checked admin rights.
+      // Current logic enforces reporter is participant. checking match.playerX_id.includes(reporter)
+
+      // Let's check admin rights similar to other actions if not participant
+      const { data: adminProfile } = await supabase
+        .from('player_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('sport_id', match.sport_id)
+        .eq('is_admin', true)
+        .single()
+
+      if (adminProfile) {
+        // If admin, we can default reporter to the winner or keep explicitly provided reported_by if it's a profile ID
+        // But lines 43-45 strictly enforce reporter MUST be p1 or p2 logic:
+        // "if (![match.player1_id, match.player2_id].includes(reporter))"
+        // So even admin usage implies we must attribute the report to one of the players (usually the winner).
+        // Or we relax the check.
+
+        // If admin is reporting, let's assume they are reporting ON BEHALF of the winner.
+        userProfileId = winner_profile_id
+      } else {
+        return NextResponse.json({ error: 'Forbidden: You are not a participant' }, { status: 403 })
+      }
     }
-    
+
     // If successfully resolved, use that as reporter
     reported_by = userProfileId
   }
@@ -94,10 +94,14 @@ async function handleResultSubmission(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   // Trigger Inngest event for email notification
-  await inngest.send({
-    name: 'match.result',
-    data: { matchId: match.id },
-  })
+  try {
+    await inngest.send({
+      name: 'match.result',
+      data: { matchId: match.id },
+    })
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Failed to send event: match.result, error:`, error)
+  }
 
   return NextResponse.redirect(origin, { status: 303 })
 }
