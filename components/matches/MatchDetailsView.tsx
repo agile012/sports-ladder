@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'nextjs-toploader/app';
 import { Card, CardContent } from '@/components/ui/card'
@@ -329,10 +328,7 @@ export default function MatchDetailsView({
         const delta = ratingEntry?.delta
 
         return (
-            <motion.div
-                initial={{ opacity: 0, x: isLeft ? -50 : 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            <div
                 className={cn(
                     "relative flex-1 p-6 md:p-8 rounded-3xl border transition-all duration-500 overflow-hidden group",
                     isWinner
@@ -348,10 +344,9 @@ export default function MatchDetailsView({
 
                 {/* Avatar Container */}
                 <div className="relative">
-                    <motion.div
-                        whileHover={{ scale: 1.05 }}
+                    <div
                         className={cn(
-                            "rounded-full p-2 bg-background/50 backdrop-blur shadow-2xl",
+                            "rounded-full p-2 bg-background/50 backdrop-blur shadow-2xl transition-transform hover:scale-105",
                             isWinner ? "ring-4 ring-amber-400/50" : "ring-1 ring-white/10"
                         )}
                     >
@@ -361,17 +356,14 @@ export default function MatchDetailsView({
                                 {player.full_name?.[0] ?? '?'}
                             </AvatarFallback>
                         </Avatar>
-                    </motion.div>
+                    </div>
 
                     {isWinner && (
-                        <motion.div
-                            initial={{ scale: 0, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            transition={{ delay: 0.5, type: 'spring' }}
+                        <div
                             className="absolute -top-4 -right-4 bg-gradient-to-br from-amber-400 to-orange-500 text-white p-2.5 rounded-full shadow-lg rotate-12 ring-2 ring-background"
                         >
                             <Trophy className="w-6 h-6 fill-white/20" />
-                        </motion.div>
+                        </div>
                     )}
                 </div>
 
@@ -409,7 +401,7 @@ export default function MatchDetailsView({
                         </div>
                     )}
                 </div>
-            </motion.div>
+            </div>
         )
     }
 
@@ -463,14 +455,11 @@ export default function MatchDetailsView({
 
                     {/* VS Divider */}
                     <div className="relative z-20 flex flex-col items-center justify-center gap-4 py-4 md:py-0 shrink-0">
-                        <motion.div
-                            initial={{ scale: 0, rotate: -45 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ delay: 0.3, type: 'spring' }}
+                        <div
                             className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-foreground to-foreground/80 flex items-center justify-center shadow-2xl rotate-45 transform ring-4 ring-background/50 backdrop-blur"
                         >
                             <span className="text-2xl md:text-3xl font-black text-background -rotate-45 font-mono">VS</span>
-                        </motion.div>
+                        </div>
                         <div className="text-center space-y-1 bg-background/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
                             <p className="text-[10px] font-bold text-foreground uppercase tracking-[0.2em]">{sportName ?? 'Match'}</p>
                             <p className="text-[10px] text-muted-foreground font-mono">{new Date(match.created_at).toLocaleDateString()}</p>
@@ -486,10 +475,7 @@ export default function MatchDetailsView({
 
                 {/* Result Display: Withdrawn, Forfeit or Scoreboard */}
                 {(match.status === 'CANCELLED' && match.scores?.reason === 'withdrawn') ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.4 }}
+                    <div
                         className="flex justify-center -mt-6 z-30 relative"
                     >
                         <Card className="border-muted bg-muted/40 backdrop-blur shadow-lg">
@@ -502,12 +488,9 @@ export default function MatchDetailsView({
                                 </p>
                             </CardContent>
                         </Card>
-                    </motion.div>
+                    </div>
                 ) : (match.scores?.reason === 'forfeit' || (Array.isArray(match.scores) && match.scores.some((s: any) => s.reason === 'forfeit'))) ? (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.4 }}
+                    <div
                         className="flex justify-center -mt-6 z-30 relative"
                     >
                         <Card className="border-amber-200 bg-amber-50/90 backdrop-blur shadow-lg">
@@ -516,12 +499,9 @@ export default function MatchDetailsView({
                                 <div className="text-lg font-bold text-amber-800 uppercase tracking-wide">Won by Forfeit</div>
                             </CardContent>
                         </Card>
-                    </motion.div>
+                    </div>
                 ) : (match.scores && Array.isArray(match.scores) && match.scores.length > 0) && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.4 }}
+                    <div
                         className="flex justify-center z-30 relative"
                     >
                         <div className="bg-card/30 backdrop-blur-md rounded-3xl border border-white/5 overflow-hidden shadow-2xl relative z-20">
@@ -552,16 +532,13 @@ export default function MatchDetailsView({
                                 ))}
                             </div>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
 
                 {/* Match Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Time & Info */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
+                    <div
                         className="h-full"
                     >
                         <Card className="h-full border-white/10 bg-card/30 backdrop-blur-md shadow-sm overflow-hidden flex flex-col justify-center">
@@ -590,13 +567,10 @@ export default function MatchDetailsView({
                                 </div>
                             </CardContent>
                         </Card>
-                    </motion.div>
+                    </div>
 
                     {/* Rank Impact */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.7 }}
+                    <div
                         className="h-full"
                     >
                         <Card className="h-full border-white/10 bg-card/30 backdrop-blur-md shadow-sm overflow-hidden">
@@ -649,7 +623,7 @@ export default function MatchDetailsView({
                                 )}
                             </CardContent>
                         </Card>
-                    </motion.div>
+                    </div>
                 </div>
             </div>
 
