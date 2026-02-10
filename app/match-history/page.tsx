@@ -88,9 +88,22 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
     count = result.count
   }
 
+  // Fetch historical ranks for these matches
+  const matchIds = (data || []).map((m: any) => m.id)
+  let matchRankHistory: any[] = []
+  if (matchIds.length > 0) {
+    const { data: history } = await supabase
+      .from('ladder_rank_history')
+      .select('match_id, player_profile_id, old_rank')
+      .in('match_id', matchIds)
+    matchRankHistory = history || []
+  }
+
   const allMatches = ((data || []) as any[]).map((m) => ({
     ...m,
     sport_name: (m.sports && (m.sports as any).name) || null,
+    player1_old_rank: matchRankHistory.find((h: any) => h.match_id === m.id && h.player_profile_id === m.player1_id)?.old_rank,
+    player2_old_rank: matchRankHistory.find((h: any) => h.match_id === m.id && h.player_profile_id === m.player2_id)?.old_rank,
   }))
 
   // Create lookup map from cached players
@@ -178,9 +191,15 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className={cn("font-medium", m.winner_id === m.player1_id && "text-emerald-600")}>{p1?.full_name ?? 'Player 1'}</span>
+                          <span className={cn("font-medium", m.winner_id === m.player1_id && "text-emerald-600")}>
+                            {p1?.full_name ?? 'Player 1'}
+                            {(m.player1_old_rank ?? p1?.ladder_rank) && <span className="text-muted-foreground ml-1 font-normal text-xs">(#{(m.player1_old_rank ?? p1?.ladder_rank)})</span>}
+                          </span>
                           <span className="text-muted-foreground text-xs">vs</span>
-                          <span className={cn("font-medium", m.winner_id === m.player2_id && "text-emerald-600")}>{p2?.full_name ?? 'Player 2'}</span>
+                          <span className={cn("font-medium", m.winner_id === m.player2_id && "text-emerald-600")}>
+                            {p2?.full_name ?? 'Player 2'}
+                            {(m.player2_old_rank ?? p2?.ladder_rank) && <span className="text-muted-foreground ml-1 font-normal text-xs">(#{(m.player2_old_rank ?? p2?.ladder_rank)})</span>}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -252,6 +271,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                           <div className="flex flex-col min-w-0">
                             <span className={cn("text-sm font-semibold truncate", m.winner_id === p1?.id && "text-emerald-600")}>
                               {p1?.full_name}
+                              {(m.player1_old_rank ?? p1?.ladder_rank) && <span className="text-muted-foreground ml-1 font-normal text-xs">#{m.player1_old_rank ?? p1?.ladder_rank}</span>}
                             </span>
                           </div>
                         </div>
@@ -262,6 +282,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                           <div className="flex flex-col min-w-0">
                             <span className={cn("text-sm font-semibold truncate", m.winner_id === p2?.id && "text-emerald-600")}>
                               {p2?.full_name}
+                              {(m.player2_old_rank ?? p2?.ladder_rank) && <span className="text-muted-foreground ml-1 font-normal text-xs">#{m.player2_old_rank ?? p2?.ladder_rank}</span>}
                             </span>
                           </div>
                           <Avatar className="h-8 w-8 border">

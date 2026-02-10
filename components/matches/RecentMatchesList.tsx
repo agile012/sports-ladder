@@ -95,7 +95,7 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                                     <div className={cn("font-bold text-sm truncate", isWinnerP1 && "text-amber-600 dark:text-amber-400")}>
                                                         {m.player1?.full_name?.split(' ')[0]}
                                                     </div>
-                                                    {m.player1?.ladder_rank && <div className="text-[10px] text-muted-foreground">#{m.player1.ladder_rank}</div>}
+                                                    {(m.player1_old_rank ?? m.player1?.ladder_rank) && <div className="text-[10px] text-muted-foreground">#{(m.player1_old_rank ?? m.player1?.ladder_rank)}</div>}
                                                 </div>
                                             </div>
 
@@ -137,7 +137,7 @@ export default function RecentMatchesList({ matches, sport }: RecentMatchesListP
                                                     <div className={cn("font-bold text-sm truncate", isWinnerP2 && "text-amber-600 dark:text-amber-400")}>
                                                         {m.player2?.full_name?.split(' ')[0]}
                                                     </div>
-                                                    {m.player2?.ladder_rank && <div className="text-[10px] text-muted-foreground">#{m.player2.ladder_rank}</div>}
+                                                    {(m.player2_old_rank ?? m.player2?.ladder_rank) && <div className="text-[10px] text-muted-foreground">#{(m.player2_old_rank ?? m.player2?.ladder_rank)}</div>}
                                                 </div>
                                             </div>
                                         </div>

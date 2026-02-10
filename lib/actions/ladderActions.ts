@@ -18,6 +18,7 @@ export async function leaveLadder(sportId: string, userId: string) {
 
     revalidatePath('/dashboard')
     revalidatePath('/ladder')
+    revalidatePath('/profile')
     return { success: true }
 }
 
@@ -36,5 +37,6 @@ export async function rejoinLadder(sportId: string, userId: string) {
 
     revalidatePath('/dashboard')
     revalidatePath('/ladder')
+    revalidatePath('/profile')
     return { success: true, newRank: data }
 }

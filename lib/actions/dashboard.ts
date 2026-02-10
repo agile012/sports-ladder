@@ -57,6 +57,17 @@ async function getPublicDashboardData() {
     const playerMap = new Map<string, PlayerProfile>()
     allPlayers.forEach(p => playerMap.set(p.id, p))
 
+    // 1b. Fetch Rank History for these matches
+    // We need rank history where match_id IN (recentMatches.ids)
+    const matchIds = recentMatchesRaw.map((m: any) => m.id)
+
+    // Create new client for this query
+    const supabase = createDirectClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    const { data: matchRankHistory } = await supabase
+        .from('ladder_rank_history')
+        .select('match_id, player_profile_id, old_rank')
+        .in('match_id', matchIds)
+
     // Resolve global matches
     const recentMatches: MatchWithPlayers[] = recentMatchesRaw.map((m: any) => {
         const p1 = m.player1_id ? playerMap.get(m.player1_id) : null
@@ -74,6 +85,8 @@ async function getPublicDashboardData() {
             status: m.status,
             created_at: m.created_at,
             scores: m.scores,
+            player1_old_rank: matchRankHistory?.find((h: any) => h.match_id === m.id && h.player_profile_id === m.player1_id)?.old_rank,
+            player2_old_rank: matchRankHistory?.find((h: any) => h.match_id === m.id && h.player_profile_id === m.player2_id)?.old_rank,
         }
     })
 

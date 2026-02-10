@@ -82,6 +82,8 @@ export type MatchWithPlayers = Omit<Match, 'player1_id' | 'player2_id' | 'report
   player1: PlayerBasic | null
   player2: PlayerBasic | null
   reported_by: PlayerBasic | null
+  player1_old_rank?: number | null
+  player2_old_rank?: number | null
 }
 
 export type RankedPlayerProfile = PlayerProfile & {
@@ -102,6 +104,8 @@ export type MatchHistoryItem = {
   player2_id?: string | null
   winner_id?: string | null
   opponent?: PlayerBasic | null
+  opponent_rank_at_match?: number | null
+  user_rank_at_match?: number | null
   scores?: any
 }
 

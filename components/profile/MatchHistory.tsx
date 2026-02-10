@@ -39,8 +39,14 @@ export default function MatchHistory({ matches }: { matches: MatchHistoryItem[] 
                       <AvatarFallback className="text-[10px] bg-muted font-bold">{(m.opponent?.full_name ?? '').toString()[0]?.toUpperCase() ?? '?'}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col min-w-0">
-                      <span className="font-medium truncate pr-2">{m.opponent?.full_name ?? 'Unknown'}</span>
-                      <span className="text-[10px] text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</span>
+                      <span className="font-medium truncate pr-2">
+                        {m.opponent?.full_name ?? 'Unknown'}
+                        {(m.opponent_rank_at_match ?? m.opponent?.ladder_rank) && <span className="text-muted-foreground ml-1 font-normal text-xs">(#{(m.opponent_rank_at_match ?? m.opponent?.ladder_rank)})</span>}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground">{new Date(m.created_at).toLocaleDateString()}</span>
+                        {m.user_rank_at_match && <span className="text-[10px] text-muted-foreground">You (#{m.user_rank_at_match})</span>}
+                      </div>
                     </div>
                   </div>
 

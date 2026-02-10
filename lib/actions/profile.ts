@@ -58,7 +58,7 @@ export async function getProfilePageData(userId: string) {
             .in('player_profile_id', profileIds)
             .order('created_at', { ascending: false }),
 
-        // Rank History
+        // Rank History (Profile specific)
         supabase
             .from('ladder_rank_history')
             .select('player_profile_id, match_id, old_rank, new_rank, reason, created_at')
@@ -67,6 +67,15 @@ export async function getProfilePageData(userId: string) {
     ])
 
     const matchesRaw = matchesRes.data || []
+
+    // 2b. Fetch Rank History for specific matches (to show opponent rank at that time)
+    // We need rank history where match_id IN (matchesRaw.ids)
+    // AND player_profile_id NOT IN (profileIds) -- i.e. the opponents
+    const matchIds = matchesRaw.map(m => m.id)
+    const { data: matchRankHistory } = await supabase
+        .from('ladder_rank_history')
+        .select('match_id, player_profile_id, old_rank')
+        .in('match_id', matchIds)
     const pendingRaw = pendingRes.data || []
     const historyRaw = historyRes.data || []
     const rankHistoryRaw = rankHistoryRes.data || []
@@ -79,7 +88,7 @@ export async function getProfilePageData(userId: string) {
     const resolvePlayer = (id: string | null): PlayerBasic | null => {
         if (!id) return null
         const p = playerMap.get(id)
-        return p ? { id: p.id, full_name: p.full_name, avatar_url: p.avatar_url } : { id }
+        return p ? { id: p.id, full_name: p.full_name, avatar_url: p.avatar_url, ladder_rank: p.ladder_rank } : { id }
     }
 
     // 3. Assemble Extended Profiles
@@ -118,7 +127,9 @@ export async function getProfilePageData(userId: string) {
                 player2_id: m.player2_id,
                 winner_id: m.winner_id,
                 scores: m.scores,
-                opponent: resolvePlayer(opponentId)
+                opponent: resolvePlayer(opponentId),
+                opponent_rank_at_match: matchRankHistory?.find(h => h.match_id === m.id && h.player_profile_id === opponentId)?.old_rank,
+                user_rank_at_match: matchRankHistory?.find(h => h.match_id === m.id && h.player_profile_id === pId)?.old_rank
             }
         })
 

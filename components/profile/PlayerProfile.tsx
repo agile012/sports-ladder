@@ -29,7 +29,7 @@ export default function PlayerProfile({ player, isPublic = false }: { player: Pl
     try {
       await leaveLadder(player.sport_id, player.user_id)
       toast.success('Left the ladder.')
-      window.location.reload()
+      router.refresh()
     } catch (e: any) {
       toast.error(e.message || 'Failed to leave')
     } finally {

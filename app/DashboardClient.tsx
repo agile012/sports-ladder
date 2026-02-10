@@ -81,16 +81,34 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
     const { createChallenge, getUserProfileForSport } = useLadders()
 
     // Initialize sportId if we have data
+    // Sync state with initialData (e.g. after router.refresh())
     useEffect(() => {
-        if (initialData && !sportId) {
+        if (initialData) {
+            setTopLists(initialData.topLists)
+            setChallengeLists(initialData.challengeLists)
+            setPendingChallenges(initialData.pendingChallenges)
+            setUserProfileIds(initialData.userProfileIds)
+            setUnjoinedSports(initialData.unjoinedSports)
+            setRecentMatches(initialData.recentMatches)
+            setMyProfiles(initialData.myProfiles)
+            setVerificationStatus(initialData.verificationStatus)
+
             const activeS: Sport[] = []
+            const inactiveS: Sport[] = []
             initialData.sports.forEach(s => {
                 const profile = initialData.myProfiles.find(p => p.sport_id === s.id)
-                if (!(profile && profile.deactivated)) activeS.push(s)
+                if (profile && profile.deactivated) inactiveS.push(s)
+                else activeS.push(s)
             })
-            if (activeS.length > 0) setSportId(activeS[0].id)
+            setActiveSports(activeS)
+            setInactiveSports(inactiveS)
+
+            // If we have active sports and none selected, select the first one
+            if (activeS.length > 0 && (!sportId || !activeS.find(s => s.id === sportId))) {
+                setSportId(activeS[0].id)
+            }
         }
-    }, [initialData]) // On mount/update if initialData is provided
+    }, [initialData])
 
     // Sync App Badge
     useAppBadge(pendingChallenges.length)
@@ -143,7 +161,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
     const loading = (userLoading && !initialUser) || loadingData
 
     // Actions
-    async function join() {
+    async function join(overrideSportId?: string) {
         if (!user) { router.push('/login'); return }
 
         if (verificationStatus !== 'verified') {
@@ -151,9 +169,10 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
             return
         }
 
-        if (!sportId) { toast.error('Please select a sport.'); return }
+        const targetSportId = overrideSportId || sportId
+        if (!targetSportId) { toast.error('Please select a sport.'); return }
         setSubmitting(true)
-        const { error } = await (await import('@/lib/supabase/client')).supabase.from('player_profiles').insert({ user_id: user.id, sport_id: sportId })
+        const { error } = await (await import('@/lib/supabase/client')).supabase.from('player_profiles').insert({ user_id: user.id, sport_id: targetSportId, rating: 1000, matches_played: 0 })
         if (error) {
             setSubmitting(false)
             if (error.code === '23505' || /duplicate|unique/.test(error.message || '')) toast.info('Already joined.')
@@ -179,7 +198,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
     async function refreshData() {
         try {
             // Re-fetch logic (simplified for brevity)
-            window.location.reload() // Easiest for full refresh for now, or copy fetchData logic
+            router.refresh()
         } catch (e) {
             console.error(e)
         }
@@ -441,7 +460,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                         <p className="text-xs text-muted-foreground">Join the ladder</p>
                                     </div>
                                 </div>
-                                <Button size="sm" onClick={() => { setSportId(s.id); join(); }}>Join</Button>
+                                <Button size="sm" onClick={() => { setSportId(s.id); join(s.id); }}>Join</Button>
                             </CardContent>
                         </Card>
                     ))}
