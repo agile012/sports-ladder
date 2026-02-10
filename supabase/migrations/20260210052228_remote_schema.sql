@@ -293,6 +293,51 @@ $$;
 
 ALTER FUNCTION "public"."check_sport_paused"() OWNER TO "postgres";
 
+SET default_tablespace = '';
+
+SET default_table_access_method = "heap";
+
+
+CREATE TABLE IF NOT EXISTS "public"."matches" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "sport_id" "uuid",
+    "player1_id" "uuid",
+    "player2_id" "uuid",
+    "winner_id" "uuid",
+    "created_at" timestamp without time zone DEFAULT "now"(),
+    "status" "public"."match_status" DEFAULT 'PENDING'::"public"."match_status",
+    "action_token" "uuid" DEFAULT "gen_random_uuid"(),
+    "message" "text",
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "reported_by" "uuid",
+    "scores" "jsonb"
+);
+
+
+ALTER TABLE "public"."matches" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."matches"."scores" IS 'Actual match scores in JSON format';
+
+
+
+CREATE OR REPLACE FUNCTION "public"."get_recent_diverse_matches"("p_limit_per_sport" integer) RETURNS SETOF "public"."matches"
+    LANGUAGE "sql" STABLE
+    AS $$
+  WITH ranked AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY sport_id ORDER BY created_at DESC) as rn
+    FROM matches
+  )
+  SELECT m.*
+  FROM public.matches m
+  JOIN ranked r ON m.id = r.id
+  WHERE r.rn <= p_limit_per_sport
+  ORDER BY m.created_at DESC;
+$$;
+
+
+ALTER FUNCTION "public"."get_recent_diverse_matches"("p_limit_per_sport" integer) OWNER TO "postgres";
+
 
 CREATE OR REPLACE FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") RETURNS json
     LANGUAGE "plpgsql" SECURITY DEFINER
@@ -662,6 +707,15 @@ BEGIN
         RAISE EXCEPTION 'Profile not found';
     END IF;
 
+    -- Update pending matches to CANCELLED
+    UPDATE matches
+    SET status = 'CANCELLED',
+        message = 'Left ladder',
+        updated_at = NOW()
+    WHERE sport_id = p_sport_id
+      AND (player1_id = v_profile_id OR player2_id = v_profile_id)
+      AND status NOT IN ('CONFIRMED', 'PROCESSED', 'CANCELLED');
+
     IF v_current_rank IS NULL THEN
          -- Already not ranked, update status only
          UPDATE player_profiles
@@ -692,10 +746,7 @@ BEGIN
     SELECT p_sport_id, id, NULL, old_rank, ladder_rank, 'Rank Shift (Player Left Ladder: ' || COALESCE(v_full_name, 'Unknown') || ')'
     FROM shifted;
 
-    -- Log for leaving player explicitly? 
-    -- "add an entry in the ladder rank history table for all of those players as well"
-    -- The leaving player goes to NULL. History table usually tracks shifts.
-    -- Let's add an entry for the leaver too for completeness.
+    -- Log for leaving player explicitly
     INSERT INTO ladder_rank_history (sport_id, player_profile_id, match_id, old_rank, new_rank, reason)
     VALUES (p_sport_id, v_profile_id, NULL, v_current_rank, NULL, 'Left Ladder');
 
@@ -1688,10 +1739,6 @@ $$;
 
 ALTER FUNCTION "public"."update_updated_at_column"() OWNER TO "postgres";
 
-SET default_tablespace = '';
-
-SET default_table_access_method = "heap";
-
 
 CREATE TABLE IF NOT EXISTS "public"."cohorts" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
@@ -1716,29 +1763,6 @@ CREATE TABLE IF NOT EXISTS "public"."ladder_rank_history" (
 
 
 ALTER TABLE "public"."ladder_rank_history" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."matches" (
-    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
-    "sport_id" "uuid",
-    "player1_id" "uuid",
-    "player2_id" "uuid",
-    "winner_id" "uuid",
-    "created_at" timestamp without time zone DEFAULT "now"(),
-    "status" "public"."match_status" DEFAULT 'PENDING'::"public"."match_status",
-    "action_token" "uuid" DEFAULT "gen_random_uuid"(),
-    "message" "text",
-    "updated_at" timestamp with time zone DEFAULT "now"(),
-    "reported_by" "uuid",
-    "scores" "jsonb"
-);
-
-
-ALTER TABLE "public"."matches" OWNER TO "postgres";
-
-
-COMMENT ON COLUMN "public"."matches"."scores" IS 'Actual match scores in JSON format';
-
 
 
 CREATE TABLE IF NOT EXISTS "public"."player_profiles" (
@@ -1767,7 +1791,8 @@ CREATE TABLE IF NOT EXISTS "public"."profiles" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "cohort_id" "uuid",
-    "contact_number" "text"
+    "contact_number" "text",
+    "superuser" boolean DEFAULT false
 );
 
 
@@ -1791,10 +1816,12 @@ CREATE OR REPLACE VIEW "public"."player_profiles_view" AS
     COALESCE(("au"."raw_user_meta_data" ->> 'full_name'::"text"), ("au"."raw_user_meta_data" ->> 'name'::"text"), ("au"."email")::"text") AS "full_name",
     ("au"."raw_user_meta_data" ->> 'avatar_url'::"text") AS "avatar_url",
     "p"."contact_number",
-    "p"."cohort_id"
-   FROM (("public"."player_profiles" "pp"
+    "p"."cohort_id",
+    "c"."name" AS "cohort_name"
+   FROM ((("public"."player_profiles" "pp"
      JOIN "auth"."users" "au" ON (("pp"."user_id" = "au"."id")))
      LEFT JOIN "public"."profiles" "p" ON (("pp"."user_id" = "p"."id")))
+     LEFT JOIN "public"."cohorts" "c" ON (("p"."cohort_id" = "c"."id")))
   WHERE ("pp"."deactivated" = false);
 
 
@@ -2278,6 +2305,18 @@ GRANT ALL ON FUNCTION "public"."check_sport_paused"() TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."matches" TO "anon";
+GRANT ALL ON TABLE "public"."matches" TO "authenticated";
+GRANT ALL ON TABLE "public"."matches" TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."get_recent_diverse_matches"("p_limit_per_sport" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_recent_diverse_matches"("p_limit_per_sport" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_recent_diverse_matches"("p_limit_per_sport" integer) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."get_sport_analytics"("p_sport_id" "uuid") TO "service_role";
@@ -2414,12 +2453,6 @@ GRANT ALL ON TABLE "public"."ladder_rank_history" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."matches" TO "anon";
-GRANT ALL ON TABLE "public"."matches" TO "authenticated";
-GRANT ALL ON TABLE "public"."matches" TO "service_role";
-
-
-
 GRANT ALL ON TABLE "public"."player_profiles" TO "anon";
 GRANT ALL ON TABLE "public"."player_profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."player_profiles" TO "service_role";
@@ -2518,5 +2551,15 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 
 
 CREATE TRIGGER on_auth_user_created_profile AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_verification();
+
+CREATE TRIGGER objects_delete_delete_prefix AFTER DELETE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.delete_prefix_hierarchy_trigger();
+
+CREATE TRIGGER objects_insert_create_prefix BEFORE INSERT ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.objects_insert_prefix_trigger();
+
+CREATE TRIGGER objects_update_create_prefix BEFORE UPDATE ON storage.objects FOR EACH ROW WHEN (((new.name <> old.name) OR (new.bucket_id <> old.bucket_id))) EXECUTE FUNCTION storage.objects_update_prefix_trigger();
+
+CREATE TRIGGER prefixes_create_hierarchy BEFORE INSERT ON storage.prefixes FOR EACH ROW WHEN ((pg_trigger_depth() < 1)) EXECUTE FUNCTION storage.prefixes_insert_trigger();
+
+CREATE TRIGGER prefixes_delete_hierarchy AFTER DELETE ON storage.prefixes FOR EACH ROW EXECUTE FUNCTION storage.delete_prefix_hierarchy_trigger();
 
 
