@@ -218,7 +218,7 @@ export default function MatchDetailsView({
                     if (!res.ok) throw new Error(await res.text())
                     setIsReportOpen(false)
                     toast.success('Result submitted!')
-                    window.location.reload()
+                    router.refresh()
                 } catch (err: any) {
                     toast.error(`Failed to submit: ${err.message}`)
                 } finally {
@@ -301,7 +301,7 @@ export default function MatchDetailsView({
                     if (!res.ok) throw new Error(await res.text())
                     setIsReportOpen(false)
                     toast.success('Result submitted!')
-                    window.location.reload()
+                    router.refresh()
                 } catch (err: any) {
                     toast.error(`Failed to submit: ${err.message}`)
                 } finally {

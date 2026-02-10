@@ -4,7 +4,7 @@ import UserProfile from '@/components/profile/UserProfile'
 import { getProfilePageData } from '@/lib/actions/profile'
 import { PlayerProfileExtended } from '@/lib/types'
 
-
+export const revalidate = 0
 
 export default async function ProfilePage() {
   const supabase = await createClient()

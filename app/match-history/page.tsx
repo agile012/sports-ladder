@@ -23,6 +23,8 @@ type Props = {
 
 const ITEMS_PER_PAGE = 20
 
+export const revalidate = 0
+
 export default async function MatchHistoryPage({ searchParams }: Props) {
   const supabase = await createClient()
   const resolvedSearchParams = await searchParams

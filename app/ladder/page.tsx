@@ -3,6 +3,8 @@ import LadderPage from './LadderPage'
 import { getCachedSports, getCachedLadder, getCachedRecentMatches } from '@/lib/cached-data'
 import { calculateRanks } from '@/lib/ladderUtils'
 
+export const revalidate = 0
+
 export default async function Page({ searchParams }: { searchParams: Promise<{ sport?: string }> }) {
   const resolvedParams = await searchParams
   const sports = await getCachedSports()

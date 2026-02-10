@@ -51,14 +51,14 @@ export default function LadderHeader({
 
                 <div className="ml-auto flex gap-2 items-center">
                     {children}
-                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" asChild>
+                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" asChild>
                         <Link href={`/analytics/${selectedSport.id}`}>
                             <TrendingUp className="h-4 w-4" />
                         </Link>
                     </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-9 w-9 rounded-full">
+                            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full">
                                 <ArrowUpDown className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -72,7 +72,7 @@ export default function LadderHeader({
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" asChild title="View Rules">
+                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" asChild title="View Rules">
                         <Link href="/rules"><BookOpen className="h-4 w-4" /></Link>
                     </Button>
                 </div>

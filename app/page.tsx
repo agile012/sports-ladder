@@ -3,6 +3,8 @@ import DashboardClient from './DashboardClient'
 import { createClient } from '@/lib/supabase/server'
 import { getDashboardData } from '@/lib/actions/dashboard'
 
+export const revalidate = 0
+
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
