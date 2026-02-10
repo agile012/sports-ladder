@@ -27,13 +27,14 @@ export default async function ProfilePage() {
   const { profiles, isAdmin } = await getProfilePageData(user.id)
 
   // Fetch global profile data (cohort, contact)
-  const { data: profile } = await supabase.from('profiles').select('contact_number, cohort_id, name').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('contact_number, cohort_id, name, avatar_url').eq('id', user.id).single()
   const { data: cohorts } = await supabase.from('cohorts').select('*').order('name')
 
   const userInfo = {
     id: user.id,
     email: user.email,
-    avatar_url: user.user_metadata.avatar_url,
+    avatar_url: profile?.avatar_url || user.user_metadata.avatar_url,
+    custom_avatar_url: profile?.avatar_url || undefined,
     contact_number: profile?.contact_number,
     cohort_id: profile?.cohort_id,
     name: profile?.name

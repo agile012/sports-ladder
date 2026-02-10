@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 
 import PlayerProfile from './PlayerProfile'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -7,13 +8,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
-import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor, Bell, BellOff, Users } from 'lucide-react'
+import { Shield, Mail, User as UserIcon, Phone, Pencil, Loader2, Sparkles, LogOut, Sun, Moon, Monitor, Bell, BellOff, Users, Camera } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useState, useEffect } from 'react'
-import { updateContactInfo, updateCohort, updateName } from '@/lib/actions/profileActions'
+import { updateContactInfo, updateCohort, updateName, updateAvatar, removeAvatar } from '@/lib/actions/profileActions'
 import { toast } from 'sonner'
 import { useRouter } from 'nextjs-toploader/app';
 import { supabase } from '@/lib/supabase/client'
@@ -23,6 +24,7 @@ export interface UserInfo {
   id: string
   email?: string
   avatar_url?: string
+  custom_avatar_url?: string
   contact_number?: string
   cohort_id?: string
   name?: string
@@ -76,6 +78,61 @@ export default function UserProfile({
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(userInfo.name || '')
   const [savingName, setSavingName] = useState(false)
+
+  // Avatar State
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(userInfo.custom_avatar_url || userInfo.avatar_url)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      toast.error('Please select a valid image (JPEG, PNG, WebP, or GIF)')
+      return
+    }
+
+    // Validate file size (2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be smaller than 2MB')
+      return
+    }
+
+    setUploadingAvatar(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const filePath = `${userInfo.id}/avatar.${ext}`
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      // Add cache-busting param
+      const urlWithTimestamp = `${publicUrl}?t=${Date.now()}`
+
+      // Save to profiles table
+      await updateAvatar(urlWithTimestamp)
+      setAvatarUrl(urlWithTimestamp)
+      toast.success('Profile photo updated!')
+      router.refresh()
+    } catch (err: any) {
+      toast.error('Upload failed: ' + err.message)
+    } finally {
+      setUploadingAvatar(false)
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   // Superuser State
   const [isSuperuser, setIsSuperuser] = useState(false)
@@ -157,12 +214,37 @@ export default function UserProfile({
             {/* Glowing ring behind avatar */}
             <div className="absolute -inset-4 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-full blur-xl opacity-40 animate-pulse"></div>
 
-            <Avatar className="h-32 w-32 md:h-40 md:w-40 ring-4 ring-background/80 backdrop-blur shadow-2xl relative z-10 border-4 border-white/10">
-              <AvatarImage src={userInfo.avatar_url} alt="avatar" className="object-cover" />
-              <AvatarFallback className="text-5xl font-black bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-700 dark:from-indigo-900 dark:to-purple-900 dark:text-indigo-300">
-                {fullName[0]?.toUpperCase() ?? 'U'}
-              </AvatarFallback>
-            </Avatar>
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+
+            <div
+              className={`relative group ${isOwnProfile ? 'cursor-pointer' : ''}`}
+              onClick={() => isOwnProfile && !uploadingAvatar && fileInputRef.current?.click()}
+            >
+              <Avatar className="h-32 w-32 md:h-40 md:w-40 ring-4 ring-background/80 backdrop-blur shadow-2xl relative z-10 border-4 border-white/10">
+                <AvatarImage src={avatarUrl} alt="avatar" className="object-cover" />
+                <AvatarFallback className="text-5xl font-black bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-700 dark:from-indigo-900 dark:to-purple-900 dark:text-indigo-300">
+                  {fullName[0]?.toUpperCase() ?? 'U'}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Upload overlay - only on own profile */}
+              {isOwnProfile && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/40 transition-all duration-200">
+                  {uploadingAvatar ? (
+                    <Loader2 className="h-8 w-8 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 drop-shadow-lg" />
+                  )}
+                </div>
+              )}
+            </div>
 
             {isAdmin && (
               <div className="absolute bottom-0 right-0 z-20 bg-gradient-to-r from-amber-400 to-orange-500 text-white p-2 rounded-full shadow-lg border-2 border-background" title="Admin">

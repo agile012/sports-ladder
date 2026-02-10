@@ -67,3 +67,51 @@ export async function updateName(name: string) {
 
     return { success: true }
 }
+
+export async function updateAvatar(avatarUrl: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) throw new Error('Unauthorized')
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id)
+
+    if (error) {
+        throw new Error(error.message)
+    }
+
+    revalidatePath('/')
+    revalidatePath('/dashboard')
+    revalidatePath('/ladder')
+    revalidatePath('/profile')
+    revalidatePath('/match-history')
+
+    return { success: true }
+}
+
+export async function removeAvatar() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) throw new Error('Unauthorized')
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: null })
+        .eq('id', user.id)
+
+    if (error) {
+        throw new Error(error.message)
+    }
+
+    revalidatePath('/')
+    revalidatePath('/dashboard')
+    revalidatePath('/ladder')
+    revalidatePath('/profile')
+    revalidatePath('/match-history')
+
+    return { success: true }
+}
