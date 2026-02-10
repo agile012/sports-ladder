@@ -31,20 +31,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "default",
     title: "Sports Ladder",
-    startupImage: [
-      {
-        url: "/web-app-manifest-512x512.png",
-        media: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/web-app-manifest-512x512.png",
-        media: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)",
-      },
-      {
-        url: "/web-app-manifest-512x512.png",
-        media: "screen",
-      },
-    ],
   },
   formatDetection: {
     telephone: false,
@@ -74,7 +60,48 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="apple-mobile-web-app-capable" content="yes"/>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+        {/* Apple Touch Startup Images for all device sizes */}
+        {/* iPhone 14 Pro Max, 15 Pro Max */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 14 Pro, 15 Pro */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 14 Plus, 15 Plus */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 14, 13, 12, 15 */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 13 mini, 12 mini */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 11 Pro Max, XS Max */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" />
+
+        {/* iPhone 11, XR */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* iPhone SE (3rd gen, 2nd gen), 8, 7, 6s */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* iPad Pro 12.9" */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* iPad Pro 11" */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* iPad Pro 10.5", iPad Air */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* iPad, iPad Mini */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" />
+
+        {/* Fallback for any other iOS device */}
+        <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" />
       </head>
       <body className={`${instrumentSans.variable} ${inter.variable}`}>
         <NextLoader />
