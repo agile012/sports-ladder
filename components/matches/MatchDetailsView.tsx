@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -77,6 +78,7 @@ export default function MatchDetailsView({
     initialReporterId
 }: MatchDetailsProps) {
     const winnerId = match.winner_id
+    const router = useRouter()
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -98,7 +100,8 @@ export default function MatchDetailsView({
             if (!res.ok) throw new Error(await res.text())
             toast.success(decision === 'yes' ? 'Match Verified!' : 'Match Disputed')
             setIsVerifyOpen(false)
-            window.location.href = `/matches/${match.id}`
+            router.push(`/matches/${match.id}`)
+            router.refresh()
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -138,7 +141,8 @@ export default function MatchDetailsView({
 
             if (type === 'play') {
                 toast.success('Challenge Accepted!')
-                window.location.href = `/matches/${match.id}`
+                router.push(`/matches/${match.id}`)
+                router.refresh()
                 return
             }
 
@@ -164,7 +168,8 @@ export default function MatchDetailsView({
             if (!resultRes.ok) throw new Error(await resultRes.text())
 
             toast.success('Result submitted!')
-            window.location.href = `/matches/${match.id}`
+            router.push(`/matches/${match.id}`)
+            router.refresh()
 
         } catch (e: any) {
             toast.error(e.message)

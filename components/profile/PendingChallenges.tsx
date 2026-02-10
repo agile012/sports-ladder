@@ -8,10 +8,12 @@ import { cn } from '@/lib/utils'
 import PendingChallengeCard from './PendingChallengeCard'
 import { motion, AnimatePresence } from 'framer-motion'
 
+import { useRouter } from 'next/navigation'
+
 export default function PendingChallenges({
   challenges,
   currentUserIds,
-  onAction = () => window.location.reload(),
+  onAction,
   isReadOnly = false,
 }: {
   challenges: PendingChallengeItem[] | undefined
@@ -19,6 +21,9 @@ export default function PendingChallenges({
   onAction?: () => void
   isReadOnly?: boolean
 }) {
+  const router = useRouter()
+  const handleAction = onAction || (() => router.refresh())
+
   if (!challenges || challenges.length === 0) return null
 
   return (
@@ -56,7 +61,7 @@ export default function PendingChallenges({
                   <PendingChallengeCard
                     challenge={c}
                     currentUserId={myProfileId}
-                    onAction={onAction}
+                    onAction={handleAction}
                     isReadOnly={isReadOnly}
                   />
                 </div>

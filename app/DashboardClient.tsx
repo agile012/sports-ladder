@@ -317,7 +317,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                 </span>
                                 <h3 className="font-bold text-sm uppercase tracking-wide text-amber-600 dark:text-amber-400">Action Required</h3>
                             </div>
-                            <PendingChallenges challenges={pendingChallenges} currentUserIds={userProfileIds} />
+                            <PendingChallenges challenges={pendingChallenges} currentUserIds={userProfileIds} onAction={refreshData} />
                         </div>
                     )}
 
