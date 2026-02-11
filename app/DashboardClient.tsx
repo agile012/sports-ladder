@@ -55,6 +55,9 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
             const profile = initialData.myProfiles.find(p => p.sport_id === s.id)
             if (!(profile && profile.deactivated)) activeS.push(s)
         })
+        // Sort: joined sports first, then unjoined
+        const joinedIds = new Set(initialData.myProfiles.filter(p => !p.deactivated).map(p => p.sport_id))
+        activeS.sort((a, b) => (joinedIds.has(b.id) ? 1 : 0) - (joinedIds.has(a.id) ? 1 : 0))
         return activeS
     })
 
@@ -100,6 +103,9 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                 if (profile && profile.deactivated) inactiveS.push(s)
                 else activeS.push(s)
             })
+            // Sort: joined sports first, then unjoined
+            const joinedIds = new Set(initialData.myProfiles.filter(p => !p.deactivated).map(p => p.sport_id))
+            activeS.sort((a, b) => (joinedIds.has(b.id) ? 1 : 0) - (joinedIds.has(a.id) ? 1 : 0))
             setActiveSports(activeS)
             setInactiveSports(inactiveS)
 
