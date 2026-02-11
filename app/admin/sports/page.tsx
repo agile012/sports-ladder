@@ -19,6 +19,7 @@ export default function AdminSportsPage() {
 
     // Form State
     const [name, setName] = useState('')
+    const [rules, setRules] = useState('')
     const [isPaused, setIsPaused] = useState(false)
     const [scoringType, setScoringType] = useState<'simple' | 'sets'>('simple')
     // Scoring Rules
@@ -61,6 +62,7 @@ export default function AdminSportsPage() {
     function resetForm() {
         setEditingId(null)
         setName('')
+        setRules('')
         setScoringType('simple')
         setTotalSets(3)
         setPointsPerSet(21)
@@ -85,6 +87,7 @@ export default function AdminSportsPage() {
     function handleEdit(sport: Sport) {
         setEditingId(sport.id)
         setName(sport.name)
+        setRules(sport.rules || '')
         setIsPaused(sport.is_paused || false)
         const config = sport.scoring_config || { type: 'simple' }
         setScoringType(config.type || 'simple')
@@ -143,10 +146,10 @@ export default function AdminSportsPage() {
 
         try {
             if (editingId) {
-                await updateSport(editingId, { name, scoring_config: config, is_paused: isPaused })
+                await updateSport(editingId, { name, scoring_config: config, is_paused: isPaused, rules })
                 setMessage('Sport updated successfully!')
             } else {
-                await addSport(name, config)
+                await addSport(name, config, rules)
                 setMessage('Sport added successfully!')
             }
             fetchSports()
@@ -186,6 +189,22 @@ export default function AdminSportsPage() {
                                     onChange={e => setName(e.target.value)}
                                     placeholder="e.g. Badminton"
                                 />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="rules">Official Rules (Markdown)</Label>
+                                <div className="relative">
+                                    <textarea
+                                        id="rules"
+                                        value={rules}
+                                        onChange={e => setRules(e.target.value)}
+                                        className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+                                        placeholder="# How to Play&#10;&#10;- Rule 1&#10;- Rule 2"
+                                    />
+                                    <div className="absolute bottom-2 right-2 text-[10px] text-muted-foreground bg-background/80 px-1 rounded pointer-events-none">
+                                        Markdown Supported
+                                    </div>
+                                </div>
                             </div>
 
                             {editingId && (

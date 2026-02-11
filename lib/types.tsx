@@ -32,6 +32,7 @@ export type Sport = {
   scoring_config?: ScoringConfig
   is_paused?: boolean
   last_resumed_at?: string
+  rules?: string // Markdown content
 }
 
 export type PlayerProfile = {

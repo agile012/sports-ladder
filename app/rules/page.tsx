@@ -21,6 +21,7 @@ import {
     Gavel
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ReactMarkdown from 'react-markdown'
 
 export default function RulesPage() {
     const [sports, setSports] = useState<Sport[]>([])
@@ -150,24 +151,34 @@ function SportRules({ sport }: { sport: Sport }) {
 
     return (
         <div className="space-y-8">
-            <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-3xl p-8 text-center space-y-4 shadow-xl">
-                <h2 className="text-2xl font-bold flex items-center justify-center gap-3">
+            <div className="bg-card/40 backdrop-blur-md border border-white/5 rounded-3xl p-8 shadow-xl text-left">
+                <h2 className="text-2xl font-bold flex items-center justify-center gap-3 mb-6">
                     <Trophy className="w-8 h-8 text-yellow-500" />
-                    How to Win at {sport.name}
+                    Official Rules: {sport.name}
                 </h2>
-                <p className="text-muted-foreground">
-                    Matches are decided by
-                    <strong className="text-foreground"> {config.type === 'sets' ? 'Sets' : 'overall Score'}</strong>.
-                </p>
 
-                <div className="flex flex-wrap justify-center gap-4 pt-4">
-                    {config.type === 'sets' && (
-                        <>
-                            <StatBadge label="Total Sets" value={config.total_sets || 3} icon={<FileText className="w-4 h-4" />} />
-                            <StatBadge label="Points / Set" value={config.points_per_set || 21} icon={<Target className="w-4 h-4" />} />
-                        </>
-                    )}
-                </div>
+                {sport.rules ? (
+                    <div className="prose dark:prose-invert max-w-none prose-sm md:prose-base prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary prose-strong:text-foreground">
+                        <ReactMarkdown>{sport.rules}</ReactMarkdown>
+                    </div>
+                ) : (
+                    <div className="text-center space-y-4">
+                        <p className="text-muted-foreground">
+                            Matches are decided by
+                            <strong className="text-foreground"> {config.type === 'sets' ? 'Sets' : 'overall Score'}</strong>.
+                        </p>
+
+                        <div className="flex flex-wrap justify-center gap-4 pt-4">
+                            {config.type === 'sets' && (
+                                <>
+                                    <StatBadge label="Total Sets" value={config.total_sets || 3} icon={<FileText className="w-4 h-4" />} />
+                                    <StatBadge label="Points / Set" value={config.points_per_set || 21} icon={<Target className="w-4 h-4" />} />
+                                </>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground pt-4 italic">No detailed rules added yet.</p>
+                    </div>
+                )}
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
