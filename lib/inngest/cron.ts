@@ -4,7 +4,7 @@ import { sendPushToUser } from "@/lib/push";
 
 export const staleChallengeReminder = inngest.createFunction(
     { id: "stale-challenge-reminder" },
-    { cron: "0 9 * * *" }, // Daily at 9 AM
+    { cron: "0 8 * * *" }, // Daily at 1:30 PM
     async ({ step }) => {
         // 1. Fetch stale PROPOSED matches (CHALLENGED status) (> 48h)
         const { data: matches } = await supabase
@@ -41,7 +41,7 @@ export const staleChallengeReminder = inngest.createFunction(
 
 export const schedulingNudge = inngest.createFunction(
     { id: "scheduling-nudge" },
-    { cron: "0 9 * * *" },
+    { cron: "0 8 * * *" },
     async ({ step }) => {
         // 1. Fetch stale ACCEPTED matches (PENDING status) (> 72h from update/create)
         const { data: matches } = await supabase
@@ -80,7 +80,7 @@ export const schedulingNudge = inngest.createFunction(
 
 export const forfeitWarning = inngest.createFunction(
     { id: "forfeit-warning" },
-    { cron: "0 9 * * *" },
+    { cron: "0 8 * * *" },
     async ({ step }) => {
         // Fetch active matches (PENDING) with sport config
         const { data: matches } = await supabase
@@ -131,7 +131,7 @@ export const forfeitWarning = inngest.createFunction(
 
 export const ladderInactivityWarning = inngest.createFunction(
     { id: "ladder-inactivity-warning" },
-    { cron: "0 9 * * *" },
+    { cron: "0 8 * * *" },
     async ({ step }) => {
         // Fetch keys for all active players
         const { data: players } = await supabase
