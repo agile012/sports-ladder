@@ -68,7 +68,12 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
           query = query.eq('status', 'PROCESSED').eq('scores->>reason', 'forfeit')
           break
         case 'DONE':
-          query = query.eq('status', 'PROCESSED').or('scores.is.null,scores->>reason.neq.forfeit')
+          // Include matches that are PROCESSED and NOT forfeits.
+          // This includes:
+          // 1. scores is null
+          // 2. scores->>reason is null (normal matches, arrays)
+          // 3. scores->>reason is NOT 'forfeit'
+          query = query.eq('status', 'PROCESSED').or('scores.is.null,scores->>reason.neq.forfeit,scores->>reason.is.null')
           break
         case 'PLAYED':
           query = query.eq('status', 'PROCESSING')
