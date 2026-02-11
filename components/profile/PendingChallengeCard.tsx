@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { PendingChallengeItem } from '@/lib/types'
-import { Check, AlertCircle, Clock } from 'lucide-react'
+import { Check, AlertCircle, Clock, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
@@ -57,6 +57,7 @@ export default function PendingChallengeCard({
 }) {
     const [scores, setScores] = useState<ScoreSet[]>([])
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [alertConfig, setAlertConfig] = useState<{
         open: boolean
         title: string
@@ -80,11 +81,13 @@ export default function PendingChallengeCard({
     }
 
     const handleAcceptChallenge = async () => {
+        setActionLoading('accept')
         const promise = fetch(`/api/matches/${c.id}/action?action=accept&token=${c.action_token}`, { method: 'POST' })
             .then(async (res) => {
                 if (!res.ok) throw new Error(await res.text())
                 onAction()
             })
+            .finally(() => setActionLoading(null))
 
         toast.promise(promise, {
             loading: 'Accepting challenge...',
@@ -94,11 +97,13 @@ export default function PendingChallengeCard({
     }
 
     const handleVerifyAction = async (verify: 'yes' | 'no') => {
+        setActionLoading(verify === 'yes' ? 'confirm' : 'dispute')
         const promise = fetch(`/api/matches/${c.id}/verify?verify=${verify}&token=${c.action_token}`, { method: 'POST' })
             .then(async (res) => {
                 if (!res.ok) throw new Error(await res.text())
                 onAction()
             })
+            .finally(() => setActionLoading(null))
 
         toast.promise(promise, {
             loading: verify === 'yes' ? 'Confirming result...' : 'Disputing result...',
@@ -304,11 +309,11 @@ export default function PendingChallengeCard({
                             {/* Challenged - Receive */}
                             {c.status === 'CHALLENGED' && c.player2?.id === currentUserId && (
                                 <div className="grid grid-cols-2 gap-2">
-                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAcceptChallenge}>
-                                        Accept
+                                    <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700" onClick={handleAcceptChallenge} disabled={!!actionLoading}>
+                                        {actionLoading === 'accept' ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Accept'}
                                     </Button>
-                                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600 hover:bg-red-50" onClick={() => setAlertConfig({
-                                        open: true, title: "Forfeit", description: "Confirm forfeit?", action: async () => { await forfeitMatch(c.id); onAction() }
+                                    <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600 hover:bg-red-50" disabled={!!actionLoading} onClick={() => setAlertConfig({
+                                        open: true, title: "Forfeit", description: "Confirm forfeit?", action: async () => { setActionLoading('decline'); try { await forfeitMatch(c.id); onAction() } finally { setActionLoading(null) } }
                                     })}>
                                         Decline
                                     </Button>
@@ -317,10 +322,10 @@ export default function PendingChallengeCard({
 
                             {/* Challenged - Sent */}
                             {c.status === 'CHALLENGED' && c.player1?.id === currentUserId && (
-                                <Button size="sm" variant="outline" className="w-full h-7 text-xs" onClick={() => setAlertConfig({
-                                    open: true, title: "Withdraw", description: "Withdraw this challenge?", action: async () => { await withdrawChallenge(c.id); onAction() }
+                                <Button size="sm" variant="outline" className="w-full h-7 text-xs" disabled={!!actionLoading} onClick={() => setAlertConfig({
+                                    open: true, title: "Withdraw", description: "Withdraw this challenge?", action: async () => { setActionLoading('withdraw'); try { await withdrawChallenge(c.id); onAction() } finally { setActionLoading(null) } }
                                 })}>
-                                    Withdraw Request
+                                    {actionLoading === 'withdraw' ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Withdrawing...</> : 'Withdraw Request'}
                                 </Button>
                             )}
 
@@ -328,8 +333,8 @@ export default function PendingChallengeCard({
                             {c.status === 'PENDING' && (
                                 c.sports?.scoring_config?.type === 'simple' ? (
                                     <div className="grid grid-cols-2 gap-2">
-                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player1.id : c.player2.id, 'You')}>I Won</Button>
-                                        <Button size="sm" variant="outline" className="h-7 text-xs hover:bg-red-50 text-red-600 border-red-200" onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player2.id : c.player1.id, 'Opponent')}>I Lost</Button>
+                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player1.id : c.player2.id, 'You')}>I Won</Button>
+                                        <Button size="sm" variant="outline" className="h-7 text-xs hover:bg-red-50 text-red-600 border-red-200" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player2.id : c.player1.id, 'Opponent')}>I Lost</Button>
                                     </div>
                                 ) : (
                                     <form onSubmit={handleReport} className="space-y-2">
@@ -347,8 +352,12 @@ export default function PendingChallengeCard({
                             {c.status === 'PROCESSING' && (
                                 c.reported_by?.id !== currentUserId ? (
                                     <div className="grid grid-cols-2 gap-2">
-                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" onClick={() => handleVerifyAction('yes')}>Confirm</Button>
-                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600" onClick={confirmDispute}>Dispute</Button>
+                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" disabled={!!actionLoading} onClick={() => handleVerifyAction('yes')}>
+                                            {actionLoading === 'confirm' ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="h-7 text-xs text-red-600" disabled={!!actionLoading} onClick={confirmDispute}>
+                                            {actionLoading === 'dispute' ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Dispute'}
+                                        </Button>
                                     </div>
                                 ) : (
                                     <div className="text-center text-[10px] text-muted-foreground animate-pulse">

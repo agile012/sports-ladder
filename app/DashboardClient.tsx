@@ -180,6 +180,7 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
             return
         }
         await refreshData()
+        setSubmitting(false)
     }
 
     async function handleRejoinLadder(sId: string) {
@@ -460,7 +461,9 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                         <p className="text-xs text-muted-foreground">Join the ladder</p>
                                     </div>
                                 </div>
-                                <Button size="sm" onClick={() => { setSportId(s.id); join(s.id); }}>Join</Button>
+                                <Button size="sm" disabled={submitting} onClick={() => { setSportId(s.id); join(s.id); }}>
+                                    {submitting ? 'Joining...' : 'Join'}
+                                </Button>
                             </CardContent>
                         </Card>
                     ))}
@@ -476,7 +479,9 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                                         <p className="text-xs text-muted-foreground">Rejoin this ladder</p>
                                     </div>
                                 </div>
-                                <Button size="sm" variant="outline" onClick={() => handleRejoinLadder(s.id)}>Rejoin</Button>
+                                <Button size="sm" variant="outline" disabled={submitting} onClick={() => handleRejoinLadder(s.id)}>
+                                    {submitting ? 'Rejoining...' : 'Rejoin'}
+                                </Button>
                             </CardContent>
                         </Card>
                     ))}

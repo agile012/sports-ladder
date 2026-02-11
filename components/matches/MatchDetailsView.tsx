@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight, Share2 } from 'lucide-react'
+import { Calendar, Trophy, Medal, ArrowLeft, Swords, Clock, Hash, TrendingUp, ArrowRight, Share2, Loader2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { cn, formatMatchDate } from '@/lib/utils'
 import {
@@ -99,8 +99,7 @@ export default function MatchDetailsView({
             if (!res.ok) throw new Error(await res.text())
             toast.success(decision === 'yes' ? 'Match Verified!' : 'Match Disputed')
             setIsVerifyOpen(false)
-            router.push(`/matches/${match.id}`)
-            router.refresh()
+            router.push('/')
         } catch (e: any) {
             toast.error(e.message)
         } finally {
@@ -140,8 +139,7 @@ export default function MatchDetailsView({
 
             if (type === 'play') {
                 toast.success('Challenge Accepted!')
-                router.push(`/matches/${match.id}`)
-                router.refresh()
+                router.push('/')
                 return
             }
 
@@ -167,8 +165,7 @@ export default function MatchDetailsView({
             if (!resultRes.ok) throw new Error(await resultRes.text())
 
             toast.success('Result submitted!')
-            router.push(`/matches/${match.id}`)
-            router.refresh()
+            router.push('/')
 
         } catch (e: any) {
             toast.error(e.message)
@@ -217,7 +214,7 @@ export default function MatchDetailsView({
                     if (!res.ok) throw new Error(await res.text())
                     setIsReportOpen(false)
                     toast.success('Result submitted!')
-                    router.refresh()
+                    router.push('/')
                 } catch (err: any) {
                     toast.error(`Failed to submit: ${err.message}`)
                 } finally {
@@ -300,7 +297,7 @@ export default function MatchDetailsView({
                     if (!res.ok) throw new Error(await res.text())
                     setIsReportOpen(false)
                     toast.success('Result submitted!')
-                    router.refresh()
+                    router.push('/')
                 } catch (err: any) {
                     toast.error(`Failed to submit: ${err.message}`)
                 } finally {
@@ -644,12 +641,14 @@ export default function MatchDetailsView({
                                 <>
                                     <Button
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg font-bold"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'You')}
                                     >
                                         I Won
                                     </Button>
                                     <Button
                                         className="w-full bg-red-600 hover:bg-red-700 h-12 text-lg font-bold"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'Opponent')}
                                     >
                                         I Lost
@@ -659,12 +658,14 @@ export default function MatchDetailsView({
                                 <>
                                     <Button
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg font-bold"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'You')}
                                     >
                                         I Won
                                     </Button>
                                     <Button
                                         className="w-full bg-red-600 hover:bg-red-700 h-12 text-lg font-bold"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'Opponent')}
                                     >
                                         I Lost
@@ -675,6 +676,7 @@ export default function MatchDetailsView({
                                     <Button
                                         variant="outline"
                                         className="w-full justify-between h-12"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player1.id, player1.full_name || 'Player 1')}
                                     >
                                         <span>{player1.full_name || 'Player 1'} Won</span>
@@ -683,6 +685,7 @@ export default function MatchDetailsView({
                                     <Button
                                         variant="outline"
                                         className="w-full justify-between h-12"
+                                        disabled={isSubmitting}
                                         onClick={() => handleSimpleWinner(player2.id, player2.full_name || 'Player 2')}
                                     >
                                         <span>{player2.full_name || 'Player 2'} Won</span>
@@ -724,10 +727,10 @@ export default function MatchDetailsView({
                     </DialogHeader>
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button variant="destructive" onClick={() => handleVerify('no')} disabled={isSubmitting}>
-                            Dispute Result
+                            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</> : 'Dispute Result'}
                         </Button>
                         <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleVerify('yes')} disabled={isSubmitting}>
-                            Confirm Result
+                            {isSubmitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Processing...</> : 'Confirm Result'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -747,7 +750,7 @@ export default function MatchDetailsView({
                             onClick={() => handleAcceptAction('play')}
                             disabled={isSubmitting}
                         >
-                            Accept & Play
+                            {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin mr-2" /> Accepting...</> : 'Accept & Play'}
                         </Button>
                         <div className="relative flex py-2 items-center">
                             <div className="flex-grow border-t border-muted"></div>
