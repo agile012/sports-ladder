@@ -181,10 +181,6 @@ function SportRules({ sport }: { sport: Sport }) {
                             <div className="text-4xl font-black">{config.max_challenge_range || 3}</div>
                             <div className="text-xs text-muted-foreground uppercase font-semibold mt-1">Ranks Above</div>
                         </div>
-                        <div className="text-center pt-2 border-t border-dashed border-white/10">
-                            <div className="text-xl font-bold">{config.max_challenge_below || 1}</div>
-                            <div className="text-xs text-muted-foreground uppercase font-semibold">Rank Below</div>
-                        </div>
                     </CardContent>
                 </Card>
 
