@@ -171,7 +171,8 @@ function SportRules({ sport }: { sport: Sport }) {
                         <div className="flex flex-wrap justify-center gap-4 pt-4">
                             {config.type === 'sets' && (
                                 <>
-                                    <StatBadge label="Total Sets" value={config.total_sets || 3} icon={<FileText className="w-4 h-4" />} />
+                                    <StatBadge label="Max Sets" value={config.total_sets || 3} icon={<FileText className="w-4 h-4" />} />
+                                    <StatBadge label="Min Sets" value={config.min_sets || 2} icon={<FileText className="w-4 h-4" />} />
                                     <StatBadge label="Points / Set" value={config.points_per_set || 21} icon={<Target className="w-4 h-4" />} />
                                 </>
                             )}
