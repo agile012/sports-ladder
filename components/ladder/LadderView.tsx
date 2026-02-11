@@ -162,9 +162,10 @@ export default function LadderView({
                                                 <span className="hidden md:inline">Challenge</span>
                                             </Button>
                                         ) : (
-                                            <Button size="icon" variant="ghost" className="h-8 w-8 opacity-50 cursor-not-allowed" disabled>
-                                                <Shield className="h-4 w-4" />
-                                            </Button>
+                                            <Badge variant="outline" className="text-[10px] h-6 px-2 text-muted-foreground/60 border-muted/50 gap-1 cursor-default" title="This player is protected from challenges (too far apart in rank or on cooldown)">
+                                                <Shield className="h-3 w-3" />
+                                                <span className="hidden sm:inline">Protected</span>
+                                            </Badge>
                                         )}
                                     </>
                                 )}

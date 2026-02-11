@@ -1,9 +1,9 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardHeader } from '@/components/ui/card'
 import Link from 'next/link'
-import { ArrowLeft, UserPlus, ArrowUpDown, TrendingUp, BookOpen } from 'lucide-react'
+import { ArrowLeft, TrendingUp, BookOpen, ChevronDown, Check } from 'lucide-react'
 import { Sport } from '@/lib/types'
 import {
     DropdownMenu,
@@ -40,40 +40,54 @@ export default function LadderHeader({
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                 )}
-                <div>
-                    <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <h1 className="text-2xl font-black tracking-tight">
                         {selectedSport.name} Ladder
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        {sortBy === 'ladder' ? 'Ranked by Position' : 'Ranked by Elo Rating'}
+                        {sortBy === 'ladder' ? 'Sorted by Ladder Position' : 'Sorted by Elo Rating'}
                     </p>
                 </div>
 
-                <div className="ml-auto flex gap-2 items-center">
+                <div className="flex gap-2 items-center flex-shrink-0">
                     {children}
-                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" asChild>
-                        <Link href={`/analytics/${selectedSport.id}`}>
-                            <TrendingUp className="h-4 w-4" />
-                        </Link>
-                    </Button>
+
+                    {/* Sort Dropdown — clear label */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-11 w-11 rounded-full">
-                                <ArrowUpDown className="h-4 w-4" />
+                            <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3">
+                                <span className="text-xs font-semibold">
+                                    {sortBy === 'ladder' ? 'Rank' : 'Rating'}
+                                </span>
+                                <ChevronDown className="h-3 w-3 opacity-50" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSortBy('ladder')}>
-                                Sort by Rank {sortBy === 'ladder' && '✓'}
+                            <DropdownMenuItem onClick={() => setSortBy('ladder')} className="gap-2">
+                                {sortBy === 'ladder' && <Check className="h-3 w-3" />}
+                                <span className={sortBy !== 'ladder' ? 'pl-5' : ''}>Sort by Rank</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setSortBy('rating')}>
-                                Sort by Rating {sortBy === 'rating' && '✓'}
+                            <DropdownMenuItem onClick={() => setSortBy('rating')} className="gap-2">
+                                {sortBy === 'rating' && <Check className="h-3 w-3" />}
+                                <span className={sortBy !== 'rating' ? 'pl-5' : ''}>Sort by Rating</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Button variant="outline" size="icon" className="h-11 w-11 rounded-full" asChild title="View Rules">
-                        <Link href="/rules"><BookOpen className="h-4 w-4" /></Link>
+                    {/* Analytics — labeled */}
+                    <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" asChild>
+                        <Link href={`/analytics/${selectedSport.id}`}>
+                            <TrendingUp className="h-3.5 w-3.5" />
+                            <span className="text-xs font-semibold hidden sm:inline">Stats</span>
+                        </Link>
+                    </Button>
+
+                    {/* Rules — labeled */}
+                    <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full px-3" asChild>
+                        <Link href="/rules">
+                            <BookOpen className="h-3.5 w-3.5" />
+                            <span className="text-xs font-semibold hidden sm:inline">Rules</span>
+                        </Link>
                     </Button>
                 </div>
             </div>
