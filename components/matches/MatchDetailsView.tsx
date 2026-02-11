@@ -38,6 +38,7 @@ import {
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
 import { useState, useEffect } from 'react'
+import { withdrawChallenge, forfeitMatch } from '@/lib/actions/matchActions'
 
 import { RatingHistoryEntry, RankHistoryItem } from '@/lib/types'
 
@@ -115,6 +116,46 @@ export default function MatchDetailsView({
         } finally {
             closeAlert()
         }
+    }
+
+    const handleWithdraw = () => {
+        setAlertConfig({
+            open: true,
+            title: "Withdraw Match",
+            description: "Are you sure you want to withdraw this match? It will be cancelled.",
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    await withdrawChallenge(match.id)
+                    toast.success('Match withdrawn')
+                    router.push('/')
+                } catch (e: any) {
+                    toast.error(e.message)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
+        })
+    }
+
+    const handleForfeit = () => {
+        setAlertConfig({
+            open: true,
+            title: "Forfeit Match",
+            description: "Are you sure you want to forfeit? This will count as a loss.",
+            action: async () => {
+                setIsSubmitting(true)
+                try {
+                    await forfeitMatch(match.id)
+                    toast.success('Match forfeited')
+                    router.push('/')
+                } catch (e: any) {
+                    toast.error(e.message)
+                } finally {
+                    setIsSubmitting(false)
+                }
+            }
+        })
     }
 
     // Effect to open dialog if action indicates report, accept, or verify
@@ -432,9 +473,21 @@ export default function MatchDetailsView({
                             <Share2 className="w-4 h-4" />
                         </Button>
                         {allowedToSubmit && match.status === 'PENDING' && (
-                            <Button size="sm" onClick={() => setIsReportOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
-                                Report Result
-                            </Button>
+                            <>
+                                <Button size="sm" onClick={() => setIsReportOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
+                                    Report Result
+                                </Button>
+                                {currentUser?.id === player1.id && (
+                                    <Button size="sm" variant="outline" onClick={handleWithdraw} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 border-red-200/20">
+                                        Withdraw
+                                    </Button>
+                                )}
+                                {currentUser?.id === player2.id && (
+                                    <Button size="sm" variant="outline" onClick={handleForfeit} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 border-red-200/20">
+                                        Forfeit
+                                    </Button>
+                                )}
+                            </>
                         )}
                         <Badge variant="outline" className={cn("px-4 py-1.5 text-xs font-bold uppercase tracking-widest backdrop-blur-md bg-background/30", getStatusColor(match.status))}>
                             {match.status}

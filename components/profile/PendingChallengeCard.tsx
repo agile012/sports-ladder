@@ -331,21 +331,41 @@ export default function PendingChallengeCard({
 
                             {/* Pending - Report */}
                             {c.status === 'PENDING' && (
-                                c.sports?.scoring_config?.type === 'simple' ? (
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Button size="sm" className="h-7 text-xs bg-emerald-600" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player1.id : c.player2.id, 'You')}>I Won</Button>
-                                        <Button size="sm" variant="outline" className="h-7 text-xs hover:bg-red-50 text-red-600 border-red-200" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player2.id : c.player1.id, 'Opponent')}>I Lost</Button>
-                                    </div>
-                                ) : (
-                                    <form onSubmit={handleReport} className="space-y-2">
-                                        <div className="bg-muted/30 p-2 rounded-lg">
-                                            <ScoreInput config={c.sports.scoring_config} player1Name={c.player1.full_name ?? 'P1'} player2Name={c.player2.full_name ?? 'P2'} onChange={setScores} />
+                                <>
+                                    {c.sports?.scoring_config?.type === 'simple' ? (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button size="sm" className="h-7 text-xs bg-emerald-600" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player1.id : c.player2.id, 'You')}>I Won</Button>
+                                            <Button size="sm" variant="outline" className="h-7 text-xs hover:bg-red-50 text-red-600 border-red-200" disabled={!!actionLoading} onClick={() => handleSimpleWinner(currentUserId === c.player1.id ? c.player2.id : c.player1.id, 'Opponent')}>I Lost</Button>
                                         </div>
-                                        <Button type="submit" size="sm" disabled={isSubmitting} className="w-full h-7 text-xs font-bold">
-                                            {isSubmitting ? '...' : 'Submit Score'}
-                                        </Button>
-                                    </form>
-                                )
+                                    ) : (
+                                        <form onSubmit={handleReport} className="space-y-2">
+                                            <div className="bg-muted/30 p-2 rounded-lg">
+                                                <ScoreInput config={c.sports.scoring_config} player1Name={c.player1.full_name ?? 'P1'} player2Name={c.player2.full_name ?? 'P2'} onChange={setScores} />
+                                            </div>
+                                            <Button type="submit" size="sm" disabled={isSubmitting} className="w-full h-7 text-xs font-bold">
+                                                {isSubmitting ? '...' : 'Submit Score'}
+                                            </Button>
+                                        </form>
+                                    )}
+
+                                    {/* Withdraw / Forfeit Actions for Pending Matches */}
+                                    <div className="pt-2 mt-2 border-t border-border/30 grid grid-cols-1">
+                                        {c.player1.id === currentUserId && (
+                                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600" disabled={!!actionLoading} onClick={() => setAlertConfig({
+                                                open: true, title: "Withdraw Match", description: "Are you sure you want to withdraw this match? It will be cancelled.", action: async () => { setActionLoading('withdraw'); try { await withdrawChallenge(c.id); onAction() } finally { setActionLoading(null) } }
+                                            })}>
+                                                {actionLoading === 'withdraw' ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Withdrawing...</> : 'Withdraw Match'}
+                                            </Button>
+                                        )}
+                                        {c.player2.id === currentUserId && (
+                                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground hover:bg-red-50 hover:text-red-600" disabled={!!actionLoading} onClick={() => setAlertConfig({
+                                                open: true, title: "Forfeit Match", description: "Are you sure you want to forfeit? This will count as a loss.", action: async () => { setActionLoading('forfeit'); try { await forfeitMatch(c.id); onAction() } finally { setActionLoading(null) } }
+                                            })}>
+                                                {actionLoading === 'forfeit' ? <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Forfeiting...</> : 'Forfeit Match'}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </>
                             )}
 
                             {/* Processing */}
