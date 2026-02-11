@@ -51,6 +51,7 @@ import { getCachedSports } from '@/lib/cached-data'
 import { createClient } from '@/lib/supabase/server'
 
 import NextLoader from '@/components/NextLoader'
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -110,6 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
       </head>
       <body className={`${instrumentSans.variable} ${inter.variable}`}>
+        <GoogleAnalytics gaId="G-CL4C3SGRSM" />
         <NextLoader />
         <ThemeProvider
           attribute="class"
