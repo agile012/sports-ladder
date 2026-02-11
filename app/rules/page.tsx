@@ -187,12 +187,27 @@ function SportRules({ sport }: { sport: Sport }) {
                     <CardContent className="p-6 space-y-4">
                         <div className="flex items-center gap-3 text-primary justify-center">
                             <Swords className="w-6 h-6" />
-                            <h3 className="font-bold uppercase tracking-wider text-sm">Challenge Range</h3>
+                            <h3 className="font-bold uppercase tracking-wider text-sm">
+                                {config.max_challenge_below ? 'Challenge Limits' : 'Challenge Range'}
+                            </h3>
                         </div>
-                        <div className="text-center">
-                            <div className="text-4xl font-black">{config.max_challenge_range || 3}</div>
-                            <div className="text-xs text-muted-foreground uppercase font-semibold mt-1">Ranks Above</div>
-                        </div>
+                        {config.max_challenge_below && config.max_challenge_below > 0 ? (
+                            <div className="grid grid-cols-2 gap-4 divide-x divide-white/10">
+                                <div className="text-center">
+                                    <div className="text-3xl font-black">{config.max_challenge_range || 3}</div>
+                                    <div className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Ranks Above</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-3xl font-black">{config.max_challenge_below}</div>
+                                    <div className="text-[10px] text-muted-foreground uppercase font-bold mt-1">Ranks Below</div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-center">
+                                <div className="text-4xl font-black">{config.max_challenge_range || 3}</div>
+                                <div className="text-xs text-muted-foreground uppercase font-semibold mt-1">Ranks Above</div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

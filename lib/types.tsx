@@ -7,9 +7,8 @@ export type Cohort = {
 export type ScoringConfig = {
   type: 'simple' | 'sets'
   total_sets?: number
+  min_sets?: number
   points_per_set?: number
-  win_by?: number
-  cap?: number
   max_challenge_range?: number
   max_challenge_below?: number
   challenge_window_days?: number
