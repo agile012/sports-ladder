@@ -24,7 +24,16 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     }
 });
 
-const SPORT = 'Tennis';
+const SPORT = 'Badminton';
+
+function normalizeName(name: string): string {
+    return name
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Remove accents
+        .replace(/\s+/g, " ") // Normalize spaces
+        .trim();
+}
 
 const EXCEL_FILE = `scripts/data/IIMA ${SPORT} Ladder.xlsx`;
 
@@ -258,15 +267,7 @@ async function backfill() {
             _is_women: sportId === sportsMap.get('Women')
         };
 
-        // V6: Collect Inactive Correction
-        if (!isActive) {
-            inactiveCorrections.push({
-                user_id: user.id,
-                sport_id: sportId,
-                last_active_rank: rawExcelRank || null,
-                deactivated_at: payload.deactivated_at // Use the one we just set (now)
-            });
-        }
+        // V6: Collect Inactive Correction logic moved to after history loop
 
         // playerProfileUpserts.push(payload); // We will push after ranking adjustment
         if (payload._is_women) womenPlayers.push(payload);
@@ -274,8 +275,7 @@ async function backfill() {
 
         // 4. Collect Weekly History
         const joinedDateObj = new Date(joinedAt);
-        // Reset time part to ensure pure date comparison? Or just use raw timestamp. 
-        // Excel dates are noon-ish usually. Let's just compare.
+        let lastHistoricalRank = rawExcelRank; // Track last known rank
 
         for (const { idx, date } of weeklyIndices) {
             const rank = row[idx];
@@ -283,6 +283,7 @@ async function backfill() {
             // Check if this week is "active" for the player (after they joined)
             if (date >= joinedDateObj) {
                 if (rank) {
+                    lastHistoricalRank = rank; // Update last known rank
                     playerWeeklyHistory.push({
                         user_id: user.id,
                         sport_id: sportId,
@@ -299,6 +300,19 @@ async function backfill() {
                     });
                 }
             }
+        }
+
+        // V6: Collect Inactive Correction (Moved here to use lastHistoricalRank)
+        if (!isActive) {
+            // Update payload reference as well
+            payload.last_active_rank = lastHistoricalRank || null;
+
+            inactiveCorrections.push({
+                user_id: user.id,
+                sport_id: sportId,
+                last_active_rank: lastHistoricalRank || null,
+                deactivated_at: payload.deactivated_at // Use the one we just set (now)
+            });
         }
     }
 
@@ -386,15 +400,17 @@ async function backfill() {
     console.log(`Loaded ${matches.length} match rows.`);
 
     const matchesToInsert: any[] = [];
+    const skippedMatches: any[] = [];
 
     // Helper to find ID by Name
     const nameToProfileId = new Map<string, any>();
     for (const [email, user] of userMap.entries()) {
-        const name = user.user_metadata?.full_name?.toLowerCase().trim();
+        const name = user.user_metadata?.full_name;
         if (name) {
+            const normalizedName = normalizeName(name);
             const profiles = freshProfiles?.filter(p => p.user_id === user.id);
             profiles?.forEach(p => {
-                nameToProfileId.set(`${name}-${p.sport_id}`, p.id);
+                nameToProfileId.set(`${normalizedName}-${p.sport_id}`, p.id);
             });
         }
     }
@@ -403,8 +419,14 @@ async function backfill() {
         // Valid?
         if (row['Valid?'] === false || row['Valid?'] === 'No') continue;
 
-        const p1Name = row['Challenger Name']?.toString().toLowerCase().trim();
-        const p2Name = row['Defender Name']?.toString().toLowerCase().trim();
+        const p1NameRaw = row['Challenger Name']?.toString();
+        const p2NameRaw = row['Defender Name']?.toString();
+
+        if (!p1NameRaw || !p2NameRaw) continue;
+
+        const p1Name = normalizeName(p1NameRaw);
+        const p2Name = normalizeName(p2NameRaw);
+
         let bracket = row['Bracket']?.toString();
 
         let sportId = sportsMap.get(bracket);
@@ -418,7 +440,15 @@ async function backfill() {
         const p2Id = nameToProfileId.get(`${p2Name}-${sportId}`);
 
         if (!p1Id || !p2Id) {
-            console.warn(`Skipping match: Players not found. ${p1Name} vs ${p2Name} in ${bracket}`);
+            console.warn(`Skipping match: Players not found. ${p1NameRaw} vs ${p2NameRaw} in ${bracket}`);
+            skippedMatches.push({
+                Challenger: p1NameRaw,
+                Defender: p2NameRaw,
+                Bracket: bracket,
+                Date: row['Date'],
+                Winner: row['Winner'],
+                Scoreline: row['Scoreline']
+            });
             continue;
         }
 
@@ -452,6 +482,23 @@ async function backfill() {
         const chunk = matchesToInsert.slice(i, i + 100);
         const { error } = await supabase.from('matches').insert(chunk);
         if (error) console.error('Error inserting matches chunk:', error.message);
+    }
+
+    if (skippedMatches.length > 0) {
+        console.log(`Writing ${skippedMatches.length} skipped matches to scripts/data/skipped_matches.csv...`);
+        const header = ['Challenger', 'Defender', 'Bracket', 'Date', 'Winner', 'Scoreline'];
+        const csvContent = [
+            header.join(','),
+            ...skippedMatches.map(m => [
+                `"${m.Challenger}"`,
+                `"${m.Defender}"`,
+                `"${m.Bracket}"`,
+                m.Date,
+                `"${m.Winner}"`,
+                `"${m.Scoreline}"`
+            ].join(','))
+        ].join('\n');
+        fs.writeFileSync('scripts/data/skipped_matches.csv', csvContent);
     }
 
     // ------------------------------------------------------------------

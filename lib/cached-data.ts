@@ -32,6 +32,7 @@ export const getCachedLadder = async (sportId: string) => {
         .from('player_profiles_view')
         .select('id, user_id, sport_id, rating, matches_played, user_email, user_metadata, full_name, avatar_url, ladder_rank, is_admin, contact_number, cohort_name')
         .eq('sport_id', sportId)
+        .eq('deactivated', false)
         .order('ladder_rank', { ascending: true, nullsFirst: false })
         .order('rating', { ascending: false })
 
