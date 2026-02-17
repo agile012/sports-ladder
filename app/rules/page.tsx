@@ -125,7 +125,7 @@ function GeneralRules() {
             <RuleCard
                 icon={<ArrowUpCircle className="w-6 h-6 text-emerald-500" />}
                 title="The Ladder Logic"
-                description="Climb by defeating opponents ranked higher than you. If you win, you take their spot, and everyone shifts down. If you lose to a lower rank, you drop."
+                description="New players join at the bottom. Climb by defeating opponents ranked higher than you. If you win, you take their spot, and everyone shifts down. If you lose to a lower rank, you drop."
             />
             <RuleCard
                 icon={<Target className="w-6 h-6 text-amber-500" />}
@@ -140,7 +140,12 @@ function GeneralRules() {
             <RuleCard
                 icon={<ShieldAlert className="w-6 h-6 text-red-500" />}
                 title="Fair Play"
-                description="Matches must be played in good spirit. Reporting false scores or manipulating ranks will lead to disqualification."
+                description="Matches must be played in good spirit. Reporting false scores or manipulating ranks will lead to disqualification. Ladder administrators' decisions are final and binding. For queries/complaints, contact the administrators or SportsComm."
+            />
+            <RuleCard
+                icon={<Clock className="w-6 h-6 text-blue-500" />}
+                title="Rejoin Clause"
+                description="Players who rejoin the ladder join n places below their earlier rank where n = weeks of absence."
             />
         </div>
     )
@@ -219,7 +224,7 @@ function SportRules({ sport }: { sport: Sport }) {
                         </div>
                         <div className="space-y-3">
                             <div className="flex justify-between items-center text-sm">
-                                <span className="text-muted-foreground">To Accept</span>
+                                <span className="text-muted-foreground">To Accept, Play and Report</span>
                                 <span className="font-bold">{config.challenge_window_days || 3} Days</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
