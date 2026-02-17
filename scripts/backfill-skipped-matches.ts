@@ -81,7 +81,7 @@ async function backfillSkipped() {
     while (true) {
         const { data: { users }, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
         if (error || !users || users.length === 0) break;
-        users.forEach(u => {
+        users.forEach((u: any) => {
             if (u.email) userMap.set(u.email.toLowerCase(), u.id);
         });
         if (users.length < 1000) break;
