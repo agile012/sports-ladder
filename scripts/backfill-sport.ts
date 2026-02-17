@@ -126,8 +126,10 @@ async function backfill() {
     // NEW: Cohort and Phone
     const cohortIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('cohort'));
     const phoneIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('phone')); // 'Phone Number'
+    const lastPenaltyIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('last penalty'));
+    const upcomingPenaltyIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('upcoming penalty?'));
 
-    console.log(`Indices - Email: ${emailIdx}, Cohort: ${cohortIdx}, Phone: ${phoneIdx}`);
+    console.log(`Indices - Email: ${emailIdx}, Cohort: ${cohortIdx}, Phone: ${phoneIdx}, LastPenalty: ${lastPenaltyIdx}, UpcomingPenalty: ${upcomingPenaltyIdx}`);
 
     // Identify Weekly Columns
     const weeklyIndices: { idx: number, serial: string, date: Date }[] = [];
@@ -248,6 +250,30 @@ async function backfill() {
             }
         }
 
+        // Calculate Last Penalty At
+        let lastPenaltyAt = null;
+        if (lastPenaltyIdx >= 0 && row[lastPenaltyIdx]) {
+            const rawDate = row[lastPenaltyIdx];
+            if (typeof rawDate === 'number') {
+                lastPenaltyAt = new Date(Math.round((rawDate - 25569) * 864e5)).toISOString();
+            } else {
+                const parsed = new Date(rawDate);
+                if (!isNaN(parsed.getTime())) lastPenaltyAt = parsed.toISOString();
+            }
+        } else if (upcomingPenaltyIdx >= 0) {
+            const upcomingVal = row[upcomingPenaltyIdx]?.toString().toLowerCase().trim();
+            const date = new Date();
+
+            if (upcomingVal === 'yes') {
+                // Set to 3 weeks back (21 days)
+                date.setDate(date.getDate() - 21);
+            } else {
+                // Set to 2 weeks back (14 days)
+                date.setDate(date.getDate() - 14);
+            }
+            lastPenaltyAt = date.toISOString();
+        }
+
         // 3. Player Profile
         const status = row[statusIdx];
         const isActive = status === 'Active';
@@ -262,6 +288,7 @@ async function backfill() {
             deactivated: !isActive,
             deactivated_at: !isActive ? new Date().toISOString() : null,
             last_active_rank: !isActive ? rawExcelRank : null,
+            last_penalty_at: lastPenaltyAt,
             created_at: joinedAt, // NEW: Set creation date from Excel
             _raw_row: row, // Keep ref for sort if needed? Actually we process sequentially.
             _is_women: sportId === sportsMap.get('Women')
