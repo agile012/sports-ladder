@@ -168,8 +168,52 @@ export default function MatchDetailsView({
             setIsAcceptOpen(true)
         } else if (initialAction === 'verify' && match.status === 'PROCESSING') {
             setIsVerifyOpen(true)
+        } else if (initialAction === 'withdraw' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
+            // Trigger withdraw directly if user is capable
+            if (currentUser?.id === player1.id) {
+                // We can't call handleWithdraw directly because it relies on state 
+                // that might not be ready or it sets state. 
+                // Ideally we just set the alert config here.
+                setAlertConfig({
+                    open: true,
+                    title: "Withdraw Match",
+                    description: "Are you sure you want to withdraw this match? It will be cancelled.",
+                    action: async () => {
+                        setIsSubmitting(true)
+                        try {
+                            await withdrawChallenge(match.id)
+                            toast.success('Match withdrawn')
+                            router.push('/')
+                        } catch (e: any) {
+                            toast.error(e.message)
+                        } finally {
+                            setIsSubmitting(false)
+                        }
+                    }
+                })
+            }
+        } else if (initialAction === 'forfeit' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
+            if (currentUser?.id === player2.id) {
+                setAlertConfig({
+                    open: true,
+                    title: "Forfeit Match",
+                    description: "Are you sure you want to forfeit? This will count as a loss.",
+                    action: async () => {
+                        setIsSubmitting(true)
+                        try {
+                            await forfeitMatch(match.id)
+                            toast.success('Match forfeited')
+                            router.push('/')
+                        } catch (e: any) {
+                            toast.error(e.message)
+                        } finally {
+                            setIsSubmitting(false)
+                        }
+                    }
+                })
+            }
         }
-    }, [allowedToSubmit, initialAction, match.status, match.id, initialToken])
+    }, [allowedToSubmit, initialAction, match.status, match.id, initialToken, currentUser, player1.id, player2.id, router])
 
     const handleAcceptAction = async (type: 'play' | 'forfeit') => {
         setIsSubmitting(true)

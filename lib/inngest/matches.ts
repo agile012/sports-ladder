@@ -58,6 +58,11 @@ export const handleMatchAction = inngest.createFunction(
                     <p>
                       <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
                       <a href="${matchPageUrl}?action=report&winner=${opponent?.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                      <a href="${matchPageUrl}?action=report&winner=${challenger.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger.full_name} won</a>
+                      <a href="${matchPageUrl}?action=report&winner=${opponent?.id}&token=${match.action_token}&reported_by=${challenger.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                    </p>
+                    <p>
+                      <a href="${matchPageUrl}?action=withdraw&token=${match.action_token}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Withdraw Challenge</a>
                     </p>
                     <p>
                       Or view the match details:
@@ -89,6 +94,11 @@ export const handleMatchAction = inngest.createFunction(
                   <p>
                     <a href="${matchPageUrl}?action=report&winner=${challenger?.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger?.full_name} won</a>
                     <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                    <a href="${matchPageUrl}?action=report&winner=${challenger?.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">${challenger?.full_name} won</a>
+                    <a href="${matchPageUrl}?action=report&winner=${opponent.id}&token=${match.action_token}&reported_by=${opponent.id}" style="background-color: #008CBA; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">${opponent?.full_name} won</a>
+                  </p>
+                  <p>
+                    <a href="${matchPageUrl}?action=forfeit&token=${match.action_token}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Walkover / Forfeit</a>
                   </p>
                   <p>
                     Or view the match details:

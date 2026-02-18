@@ -50,7 +50,9 @@ export const sendChallengeEmail = inngest.createFunction(
 
         if (opponent.user_email) {
             await step.run("send-email-notification", async () => {
-                const acceptUrl = `${PUBLIC_SITE_URL}/api/matches/${match.id}/action?action=accept&token=${match.action_token}`;
+                const matchPageUrl = `${PUBLIC_SITE_URL}/matches/${match.id}`;
+                const acceptActionUrl = `${matchPageUrl}?action=accept&token=${match.action_token}`;
+                const forfeitActionUrl = `${matchPageUrl}?action=forfeit&token=${match.action_token}`;
                 const sportName = match.sport?.name || match.sport_id;
                 const msg = {
                     to: opponent.user_email,
@@ -61,7 +63,8 @@ export const sendChallengeEmail = inngest.createFunction(
               <p>${match.message ?? ""}</p>
               <p>You were challenged in ${sportName}.</p>
               <p>
-                <a href="${acceptUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept Challenge</a>
+                 <a href="${acceptActionUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">Accept & Play</a>
+                <a href="${forfeitActionUrl}" style="background-color: #f44336; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; margin-left: 10px;">Walkover / Forfeit</a>
               </p>
             `,
                 };
