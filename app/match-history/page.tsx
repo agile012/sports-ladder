@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Calendar, Trophy, ArrowRight, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LocalDateBlock, LocalDate } from '@/components/ui/local-date'
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
@@ -190,8 +191,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                   return (
                     <TableRow key={m.id} className="hover:bg-muted/30">
                       <TableCell className="whitespace-nowrap">
-                        <div className="font-medium">{new Date(m.created_at).toLocaleDateString()}</div>
-                        <div className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        <LocalDateBlock date={m.created_at} showTime dateClassName="font-medium" timeClassName="text-xs text-muted-foreground" />
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-normal">{m.sport_name}</Badge>
@@ -261,7 +261,7 @@ export default async function MatchHistoryPage({ searchParams }: Props) {
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-muted-foreground uppercase">{m.sport_name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {new Date(m.created_at).toLocaleDateString()}
+                            <LocalDate date={m.created_at} />
                           </span>
                         </div>
                         <Badge variant={statusInfo.variant} className={cn("text-[10px] uppercase", statusInfo.className)}>

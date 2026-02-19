@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { cancelMatch, recalculateElo, updateMatchResult } from '@/lib/actions/admin'
 import Link from 'next/link'
 import AdminMatchActions from '@/components/admin/AdminMatchActions'
+import { LocalDate } from '@/components/ui/local-date'
 
 import RecalculateEloButton from '@/components/admin/RecalculateEloButton'
 import CreateMatchButton from '@/components/admin/CreateMatchButton'
@@ -138,7 +139,7 @@ export default async function AdminMatchesPage({ searchParams }: Props) {
                         {allMatches.map((m) => (
                             <TableRow key={m.id}>
                                 <TableCell className="whitespace-nowrap">
-                                    {new Date(m.created_at).toLocaleDateString()}
+                                    <LocalDate date={m.created_at} />
                                 </TableCell>
                                 <TableCell>{m.sport_name}</TableCell>
                                 <TableCell>
