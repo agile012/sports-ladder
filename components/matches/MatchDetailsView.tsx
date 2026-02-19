@@ -126,9 +126,18 @@ export default function MatchDetailsView({
             action: async () => {
                 setIsSubmitting(true)
                 try {
-                    await withdrawChallenge(match.id)
-                    toast.success('Match withdrawn')
-                    router.push('/')
+                    if (initialToken) {
+                        // Use API for token-based withdraw
+                        const res = await fetch(`/api/matches/${match.id}/action?action=withdraw&token=${initialToken}`, { method: 'POST' })
+                        if (!res.ok) throw new Error(await res.text())
+                        // Redirect handled by API usually, but if fetch assumes JSON error or redirect follow
+                        // Next.js router.push might be needed if the API returns 200/303 but we are in client
+                        window.location.href = '/' // Force reload/nav
+                    } else {
+                        await withdrawChallenge(match.id)
+                        toast.success('Match withdrawn')
+                        router.push('/')
+                    }
                 } catch (e: any) {
                     toast.error(e.message)
                 } finally {
@@ -146,9 +155,16 @@ export default function MatchDetailsView({
             action: async () => {
                 setIsSubmitting(true)
                 try {
-                    await forfeitMatch(match.id)
-                    toast.success('Match forfeited')
-                    router.push('/')
+                    if (initialToken) {
+                        // Use API for token-based forfeit
+                        const res = await fetch(`/api/matches/${match.id}/action?action=forfeit&token=${initialToken}`, { method: 'POST' })
+                        if (!res.ok) throw new Error(await res.text())
+                        window.location.href = '/'
+                    } else {
+                        await forfeitMatch(match.id)
+                        toast.success('Match forfeited')
+                        router.push('/')
+                    }
                 } catch (e: any) {
                     toast.error(e.message)
                 } finally {
@@ -169,11 +185,8 @@ export default function MatchDetailsView({
         } else if (initialAction === 'verify' && match.status === 'PROCESSING') {
             setIsVerifyOpen(true)
         } else if (initialAction === 'withdraw' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
-            // Trigger withdraw directly if user is capable
-            if (currentUser?.id === player1.id) {
-                // We can't call handleWithdraw directly because it relies on state 
-                // that might not be ready or it sets state. 
-                // Ideally we just set the alert config here.
+            // Trigger withdraw dialog. Check if user is player1 OR if using token
+            if (initialToken || currentUser?.id === player1.id) {
                 setAlertConfig({
                     open: true,
                     title: "Withdraw Match",
@@ -181,9 +194,16 @@ export default function MatchDetailsView({
                     action: async () => {
                         setIsSubmitting(true)
                         try {
-                            await withdrawChallenge(match.id)
-                            toast.success('Match withdrawn')
-                            router.push('/')
+                            if (initialToken) {
+                                // Use API for token-based withdraw
+                                const res = await fetch(`/api/matches/${match.id}/action?action=withdraw&token=${initialToken}`, { method: 'POST' })
+                                if (!res.ok) throw new Error(await res.text())
+                                window.location.href = '/'
+                            } else {
+                                await withdrawChallenge(match.id)
+                                toast.success('Match withdrawn')
+                                router.push('/')
+                            }
                         } catch (e: any) {
                             toast.error(e.message)
                         } finally {
@@ -193,7 +213,8 @@ export default function MatchDetailsView({
                 })
             }
         } else if (initialAction === 'forfeit' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
-            if (currentUser?.id === player2.id) {
+            // Forfeit: Defender (player2) OR token
+            if (initialToken || currentUser?.id === player2.id) {
                 setAlertConfig({
                     open: true,
                     title: "Forfeit Match",
@@ -201,9 +222,16 @@ export default function MatchDetailsView({
                     action: async () => {
                         setIsSubmitting(true)
                         try {
-                            await forfeitMatch(match.id)
-                            toast.success('Match forfeited')
-                            router.push('/')
+                            if (initialToken) {
+                                // Use API for token-based forfeit
+                                const res = await fetch(`/api/matches/${match.id}/action?action=forfeit&token=${initialToken}`, { method: 'POST' })
+                                if (!res.ok) throw new Error(await res.text())
+                                window.location.href = '/'
+                            } else {
+                                await forfeitMatch(match.id)
+                                toast.success('Match forfeited')
+                                router.push('/')
+                            }
                         } catch (e: any) {
                             toast.error(e.message)
                         } finally {
@@ -218,38 +246,28 @@ export default function MatchDetailsView({
     const handleAcceptAction = async (type: 'play' | 'forfeit') => {
         setIsSubmitting(true)
         try {
-            // 1. Accept Challenge
-            const acceptRes = await fetch(`/api/matches/${match.id}/action?action=accept&token=${initialToken}`, { method: 'POST' })
-            if (!acceptRes.ok) throw new Error(await acceptRes.text())
+            if (type === 'forfeit') {
+                // If forfeiting from accept dialog
+                if (initialToken) {
+                    // Single step forfeit via API
+                    const res = await fetch(`/api/matches/${match.id}/action?action=forfeit&token=${initialToken}`, { method: 'POST' })
+                    if (!res.ok) throw new Error(await res.text())
+                    window.location.href = '/'
+                    return
+                }
 
-            if (type === 'play') {
-                toast.success('Challenge Accepted!')
+                // Fallback for logged in user without token (should be covered by token usually in this flow)
+                await forfeitMatch(match.id)
+                toast.success('Match forfeited')
                 router.push('/')
                 return
             }
 
-            // 2. Submit Result for Forfeit
-            const winnerId = player1.id
-            const scores = {
-                reason: 'forfeit',
-                forfeited_by: player2.id
-            }
+            // 1. Accept Challenge (Play)
+            const acceptRes = await fetch(`/api/matches/${match.id}/action?action=accept&token=${initialToken}`, { method: 'POST' })
+            if (!acceptRes.ok) throw new Error(await acceptRes.text())
 
-            const reporter = currentUser?.id ?? initialReporterId ?? player2.id
-
-            const resultRes = await fetch(`/api/matches/${match.id}/submit-result`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    winner_profile_id: winnerId,
-                    reported_by: reporter,
-                    token: initialToken,
-                    scores
-                }),
-            })
-            if (!resultRes.ok) throw new Error(await resultRes.text())
-
-            toast.success('Result submitted!')
+            toast.success('Challenge Accepted!')
             router.push('/')
 
         } catch (e: any) {
