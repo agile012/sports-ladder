@@ -219,7 +219,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
       const { error } = await supabase.from('player_profiles').insert({
         user_id: user.id,
         sport_id: selectedSport.id,
-        rating: 1200,
+        rating: 1000,
         matches_played: 0
       })
 
