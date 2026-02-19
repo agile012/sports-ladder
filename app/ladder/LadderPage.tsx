@@ -11,6 +11,7 @@ import { Sport, RankedPlayerProfile } from '@/lib/types'
 import { toast } from "sonner"
 import { calculateRanks, getChallengablePlayers, getCooldownOpponents } from '@/lib/ladderUtils'
 import { supabase } from '@/lib/supabase/client'
+import { rejoinLadder } from '@/lib/actions/ladderActions'
 import LadderHeader from '@/components/ladder/LadderHeader'
 import LadderView from '@/components/ladder/LadderView'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
   const [recentMap, setRecentMap] = useState<Record<string, any[]>>(initialRecentMap || {})
   const [challengables, setChallengables] = useState<Set<string>>(new Set())
   const [submittingChallenge, setSubmittingChallenge] = useState<string | null>(null)
+  const [isDeactivated, setIsDeactivated] = useState(false)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -61,6 +63,30 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
   useEffect(() => {
     if (initialRecentMap) setRecentMap(initialRecentMap)
   }, [initialRecentMap])
+
+  // Check if user has a deactivated profile for this sport
+  useEffect(() => {
+    if (!user || !selectedSport) {
+      setIsDeactivated(false)
+      return
+    }
+    // If user is already in the active players list, they're not deactivated
+    if (players.find(p => p.user_id === user.id)) {
+      setIsDeactivated(false)
+      return
+    }
+    // Check if there's a deactivated profile
+    const checkDeactivated = async () => {
+      const { data } = await supabase
+        .from('player_profiles')
+        .select('id, deactivated')
+        .eq('user_id', user.id)
+        .eq('sport_id', selectedSport.id)
+        .single()
+      setIsDeactivated(!!data?.deactivated)
+    }
+    checkDeactivated()
+  }, [user, selectedSport, players])
 
 
   const handleSportSelect = (sport: Sport) => {
@@ -235,6 +261,21 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
     }
   }
 
+  async function handleRejoin() {
+    if (!selectedSport || !user) return
+    setLoading(true)
+    try {
+      await rejoinLadder(selectedSport.id, user.id)
+      toast.success(`Welcome back to the ${selectedSport.name} ladder!`)
+      setIsDeactivated(false)
+      router.refresh()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to rejoin ladder')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (loading) return <div className="p-8 text-center">Loading...</div>
 
   return (
@@ -262,9 +303,15 @@ export default function LadderPage({ initialSports, initialPlayers, initialSelec
         setSortBy={setSortBy}
       >
         {user && selectedSport && !players.find(p => p.user_id === user.id) && (
-          <Button onClick={joinLadder} disabled={loading}>
-            Join Ladder
-          </Button>
+          isDeactivated ? (
+            <Button onClick={handleRejoin} disabled={loading}>
+              Rejoin Ladder
+            </Button>
+          ) : (
+            <Button onClick={joinLadder} disabled={loading}>
+              Join Ladder
+            </Button>
+          )
         )}
       </LadderHeader>
 
