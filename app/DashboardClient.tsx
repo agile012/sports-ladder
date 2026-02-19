@@ -337,6 +337,9 @@ export default function DashboardClient({ initialData, initialUser }: DashboardC
                             transition={{ duration: 0.3 }}
                             className="space-y-6"
                         >
+                            {/* Sport Name Heading */}
+                            <h2 className="text-xl font-bold tracking-tight">{currentSport.name}</h2>
+
                             {/* Actions (Moved Top for Desktop) */}
                             <div className="hidden md:grid grid-cols-2 gap-4">
                                 <Button asChild className="w-full font-bold shadow-lg shadow-primary/10">
