@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ScoreInput, ScoreSet } from '@/components/matches/ScoreInput'
 import { toast } from "sonner"
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { withdrawChallenge, forfeitMatch } from '@/lib/actions/matchActions'
 
 import { RatingHistoryEntry, RankHistoryItem } from '@/lib/types'
@@ -90,6 +90,8 @@ export default function MatchDetailsView({
         description: string
         action: () => Promise<void>
     }>({ open: false, title: '', description: '', action: async () => { } })
+
+    const actionProcessedRef = useRef<string | null>(null)
 
     const closeAlert = () => setAlertConfig(prev => ({ ...prev, open: false }))
 
@@ -177,13 +179,19 @@ export default function MatchDetailsView({
     // Effect to open dialog if action indicates report, accept, or verify
     useEffect(() => {
         if (!allowedToSubmit) return
+        if (initialAction === actionProcessedRef.current) return
+
+        let processed = false
 
         if (initialAction === 'report' && match.status === 'PENDING') {
             setIsReportOpen(true)
+            processed = true
         } else if (initialAction === 'accept' && match.status === 'CHALLENGED') {
             setIsAcceptOpen(true)
+            processed = true
         } else if (initialAction === 'verify' && match.status === 'PROCESSING') {
             setIsVerifyOpen(true)
+            processed = true
         } else if (initialAction === 'withdraw' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
             // Trigger withdraw dialog. Check if user is player1 OR if using token
             if (initialToken || currentUser?.id === player1.id) {
@@ -211,6 +219,7 @@ export default function MatchDetailsView({
                         }
                     }
                 })
+                processed = true
             }
         } else if (initialAction === 'forfeit' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
             // Forfeit: Defender (player2) OR token
@@ -239,7 +248,12 @@ export default function MatchDetailsView({
                         }
                     }
                 })
+                processed = true
             }
+        }
+
+        if (processed && initialAction) {
+            actionProcessedRef.current = initialAction
         }
     }, [allowedToSubmit, initialAction, match.status, match.id, initialToken, currentUser, player1.id, player2.id, router])
 
