@@ -8,6 +8,12 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        path: '/',
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll()
@@ -20,6 +26,7 @@ export async function createClient() {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') || 'lax',
+                path: '/',
               })
             )
           } catch {
