@@ -12,12 +12,15 @@ export const supabase = createBrowserClient(
     },
     cookies: {
       getAll() {
+        // Parse cookies the same way @supabase/ssr does internally — no URI decoding
         return document.cookie
           .split('; ')
           .filter(Boolean)
           .map((cookie) => {
-            const [name, ...rest] = cookie.split('=')
-            return { name, value: decodeURIComponent(rest.join('=')) }
+            const eqIndex = cookie.indexOf('=')
+            const name = cookie.substring(0, eqIndex)
+            const value = cookie.substring(eqIndex + 1)
+            return { name, value }
           })
       },
       setAll(cookiesToSet) {
@@ -27,17 +30,17 @@ export const supabase = createBrowserClient(
           const path = options?.path ?? '/'
           const sameSite = options?.sameSite ?? 'lax'
           const securePart = process.env.NODE_ENV === 'production' ? '; secure' : ''
-          document.cookie = `${name}=${encodeURIComponent(value)}; path=${path}; max-age=${maxAge}; samesite=${sameSite}${securePart}`
+          document.cookie = `${name}=${value}; path=${path}; max-age=${maxAge}; samesite=${sameSite}${securePart}`
         }
 
-        // Persist via server API to get httpOnly (overwrites the above)
+        // Persist via server API to overwrite with httpOnly
         fetch('/api/auth/cookies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cookies: cookiesToSet }),
           credentials: 'same-origin',
         }).catch(() => {
-          // Silent fail - middleware will also set httpOnly on next request
+          // Silent fail - middleware will also set httpOnly on next navigation
         })
       },
     },
