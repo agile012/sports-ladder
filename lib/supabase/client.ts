@@ -10,5 +10,21 @@ export const supabase = createBrowserClient(
       sameSite: 'lax' as const,
       path: '/',
     },
+    cookies: {
+      getAll() {
+        // Read cookies from the browser normally
+        return document.cookie
+          .split('; ')
+          .filter(Boolean)
+          .map((cookie) => {
+            const [name, ...rest] = cookie.split('=')
+            return { name, value: decodeURIComponent(rest.join('=')) }
+          })
+      },
+      setAll() {
+        // No-op: the middleware handles all cookie writes with httpOnly.
+        // The browser client keeps refreshed tokens in memory via isSingleton.
+      },
+    },
   }
 )
