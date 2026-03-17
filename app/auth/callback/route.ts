@@ -22,9 +22,8 @@ export async function GET(request: NextRequest) {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
                 ...options,
-                httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
-                sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') || 'lax',
+                sameSite: 'lax' as const,
                 path: '/',
               })
             )
