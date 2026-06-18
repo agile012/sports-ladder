@@ -8,8 +8,6 @@ type Props = {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-const ITEMS_PER_PAGE = 20
-
 export default async function AdminUsersPage({ searchParams }: Props) {
     const supabase = await createClient()
     const resolvedSearchParams = await searchParams
@@ -17,6 +15,8 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     const sportId = typeof resolvedSearchParams.sport === 'string' ? resolvedSearchParams.sport : 'all'
     const query = typeof resolvedSearchParams.q === 'string' ? resolvedSearchParams.q : ''
     const cohortId = typeof resolvedSearchParams.cohort === 'string' ? resolvedSearchParams.cohort : 'all'
+    const limitParam = typeof resolvedSearchParams.limit === 'string' ? parseInt(resolvedSearchParams.limit) : 20
+    const limit = [20, 50, 100, 200].includes(limitParam) ? limitParam : 20
 
     // Get current user and their admin sports
     const { data: { user } } = await supabase.auth.getUser()
@@ -59,7 +59,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         .from('player_profiles_view')
         .select('id, full_name, user_email, sport_id, is_admin, user_id, contact_number, cohort_id', { count: 'exact' })
         .order('full_name')
-        .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1)
+        .range((page - 1) * limit, page * limit - 1)
 
     // Filter by methods
     if (sportId !== 'all') {
@@ -90,7 +90,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
     }
 
     const { data: profiles, count } = await dbQuery
-    const totalPages = count ? Math.ceil(count / ITEMS_PER_PAGE) : 0
+    const totalPages = count ? Math.ceil(count / limit) : 0
 
     return (
         <div className="space-y-6">
@@ -103,6 +103,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                 initialSport={sportId}
                 initialSearch={query}
                 initialCohort={cohortId}
+                initialLimit={limit}
             />
 
             <UserManagementTable
@@ -115,11 +116,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
             {totalPages > 1 && (
                 <div className="flex items-center justify-end space-x-2 py-4">
                     <Button variant="outline" size="sm" disabled={page <= 1} asChild>
-                        <Link href={`/admin/users?page=${page - 1}&sport=${sportId}&q=${query}&cohort=${cohortId}`}>Previous</Link>
+                        <Link href={`/admin/users?page=${page - 1}&sport=${sportId}&q=${query}&cohort=${cohortId}&limit=${limit}`}>Previous</Link>
                     </Button>
                     <span className="text-sm">Page {page} of {totalPages}</span>
                     <Button variant="outline" size="sm" disabled={page >= totalPages} asChild>
-                        <Link href={`/admin/users?page=${page + 1}&sport=${sportId}&q=${query}&cohort=${cohortId}`}>Next</Link>
+                        <Link href={`/admin/users?page=${page + 1}&sport=${sportId}&q=${query}&cohort=${cohortId}&limit=${limit}`}>Next</Link>
                     </Button>
                 </div>
             )}

@@ -14,21 +14,24 @@ type Props = {
     initialSport: string
     initialSearch: string
     initialCohort?: string
+    initialLimit?: number
 }
 
-export default function UserFilters({ sports, cohorts = [], initialSport, initialSearch, initialCohort = 'all' }: Props) {
+export default function UserFilters({ sports, cohorts = [], initialSport, initialSearch, initialCohort = 'all', initialLimit = 20 }: Props) {
     const router = useRouter()
     const pathname = usePathname()
     const [search, setSearch] = useState(initialSearch)
     const [debouncedSearch] = useDebounce(search, 500)
     const [sportId, setSportId] = useState(initialSport)
     const [cohortId, setCohortId] = useState(initialCohort)
+    const [limit, setLimit] = useState(String(initialLimit))
 
-    function updateFilters(newSport: string, newSearch: string, newCohort: string) {
+    function updateFilters(newSport: string, newSearch: string, newCohort: string, newLimit: string) {
         const params = new URLSearchParams()
         if (newSport && newSport !== 'all') params.set('sport', newSport)
         if (newSearch) params.set('q', newSearch)
         if (newCohort && newCohort !== 'all') params.set('cohort', newCohort)
+        if (newLimit && newLimit !== '20') params.set('limit', newLimit)
 
         // Reset page on filter change
         params.set('page', '1')
@@ -37,26 +40,31 @@ export default function UserFilters({ sports, cohorts = [], initialSport, initia
     }
 
     useEffect(() => {
-
         if (debouncedSearch !== initialSearch) {
-            updateFilters(sportId, debouncedSearch, cohortId)
+            updateFilters(sportId, debouncedSearch, cohortId, limit)
         }
     }, [debouncedSearch]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSportChange = (val: string) => {
         setSportId(val)
-        updateFilters(val, search, cohortId)
+        updateFilters(val, search, cohortId, limit)
     }
 
     const handleCohortChange = (val: string) => {
         setCohortId(val)
-        updateFilters(sportId, search, val)
+        updateFilters(sportId, search, val, limit)
+    }
+
+    const handleLimitChange = (val: string) => {
+        setLimit(val)
+        updateFilters(sportId, search, cohortId, val)
     }
 
     const handleReset = () => {
         setSearch('')
         setSportId('all')
         setCohortId('all')
+        setLimit('20')
         router.push(pathname)
     }
 
@@ -99,6 +107,18 @@ export default function UserFilters({ sports, cohorts = [], initialSport, initia
                     </SelectContent>
                 </Select>
             )}
+
+            <Select value={limit} onValueChange={handleLimitChange}>
+                <SelectTrigger className="w-full sm:w-[150px]">
+                    <SelectValue placeholder="Page Size" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="20">20 per page</SelectItem>
+                    <SelectItem value="50">50 per page</SelectItem>
+                    <SelectItem value="100">100 per page</SelectItem>
+                    <SelectItem value="200">200 per page</SelectItem>
+                </SelectContent>
+            </Select>
 
             <Button variant="ghost" onClick={handleReset}>
                 Reset
