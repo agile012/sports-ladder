@@ -6,6 +6,7 @@ module.exports = {
       args: "start -p 3001",
       instances: 2,
       exec_mode: "cluster",
+      cron_restart: "0 3 * * *", // Restart nightly at 3:00 AM
       env: {
         NODE_ENV: "production",
       },
