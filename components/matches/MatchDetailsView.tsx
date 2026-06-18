@@ -675,9 +675,14 @@ export default function MatchDetailsView({
                                     <div className="p-3 rounded-full bg-primary/10 text-primary mb-2 shadow-inner ring-1 ring-primary/20">
                                         <Calendar className="w-6 h-6" />
                                     </div>
-                                    <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Played On</span>
+                                    <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                                        {['CONFIRMED', 'PROCESSED', 'PROCESSING'].includes(match.status) ? "Played On" : "Challenged On"}
+                                    </span>
                                     <span className="text-lg md:text-xl font-bold">
-                                        {formatMatchDate(match.updated_at, { dateStyle: 'full', timeStyle: 'short' })}
+                                        {formatMatchDate(
+                                            ['CONFIRMED', 'PROCESSED', 'PROCESSING'].includes(match.status) ? match.updated_at : match.created_at,
+                                            { dateStyle: 'full', timeStyle: 'short' }
+                                        )}
                                     </span>
                                 </div>
                                 {match.reported_by && (
