@@ -77,7 +77,11 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
     // Filter by Cohort if selected
     if (cohortId !== 'all') {
-        dbQuery = dbQuery.eq('cohort_id', cohortId)
+        if (cohortId === 'none') {
+            dbQuery = dbQuery.is('cohort_id', null)
+        } else {
+            dbQuery = dbQuery.eq('cohort_id', cohortId)
+        }
     }
 
     // Search filter

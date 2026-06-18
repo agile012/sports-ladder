@@ -90,6 +90,7 @@ export default function UserFilters({ sports, cohorts = [], initialSport, initia
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Cohorts</SelectItem>
+                        <SelectItem value="none">No Cohort</SelectItem>
                         {cohorts.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
                                 {c.name}
