@@ -11,14 +11,16 @@ async function handleResultSubmission(
   reported_by: string | null,
   scores?: any
 ) {
-  // recorded reporter defaults to the winner if not provided (useful for token-based submissions)
-  // We will determine reporter after auth checks
-  let reporter = reported_by
-
   const supabase = await createClient()
   const matchRes = await supabase.from('matches').select('*').eq('id', id).limit(1).single()
   if (!matchRes.data) return NextResponse.json({ error: 'Match not found' }, { status: 404 })
   const match = matchRes.data as Match
+
+  // Fetch player profile user_ids to resolve/check auth ownership
+  const { data: p1 } = await supabase.from('player_profiles').select('user_id').eq('id', match.player1_id).maybeSingle()
+  const { data: p2 } = await supabase.from('player_profiles').select('user_id').eq('id', match.player2_id).maybeSingle()
+
+  let reporter = reported_by
 
   if (token) {
     // If a token is provided, it must match the match's action_token
@@ -32,9 +34,6 @@ async function handleResultSubmission(
 
     // Resolve user's auth ID to a profile ID for this match
     // We check if the user owns either player1 or player2 profile
-    const { data: p1 } = await supabase.from('player_profiles').select('user_id').eq('id', match.player1_id).single()
-    const { data: p2 } = await supabase.from('player_profiles').select('user_id').eq('id', match.player2_id).single()
-
     let userProfileId = null
     if (p1 && p1.user_id === user.id) userProfileId = match.player1_id
     if (p2 && p2.user_id === user.id) userProfileId = match.player2_id
@@ -54,12 +53,6 @@ async function handleResultSubmission(
         .single()
 
       if (adminProfile) {
-        // If admin, we can default reporter to the winner or keep explicitly provided reported_by if it's a profile ID
-        // But lines 43-45 strictly enforce reporter MUST be p1 or p2 logic:
-        // "if (![match.player1_id, match.player2_id].includes(reporter))"
-        // So even admin usage implies we must attribute the report to one of the players (usually the winner).
-        // Or we relax the check.
-
         // If admin is reporting, let's assume they are reporting ON BEHALF of the winner.
         userProfileId = winner_profile_id
       } else {
@@ -73,6 +66,15 @@ async function handleResultSubmission(
 
   // If reported_by was still null (e.g. token flow without explicit reporter), default to winner
   reporter = reported_by ?? winner_profile_id
+
+  // If reporter is an auth user ID (user.id), resolve it to the corresponding player profile ID
+  if (reporter) {
+    if (p1 && p1.user_id === reporter) {
+      reporter = match.player1_id
+    } else if (p2 && p2.user_id === reporter) {
+      reporter = match.player2_id
+    }
+  }
 
   // validate reporter is one of the match participants
   if (![match.player1_id, match.player2_id].includes(reporter)) {

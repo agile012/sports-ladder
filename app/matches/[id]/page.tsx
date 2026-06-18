@@ -41,6 +41,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
   const { data: userData } = await supabase.auth.getUser()
   const user = userData?.user
   let allowedToSubmit = false
+  let currentUserProfileId: string | undefined = undefined
 
   // Token validation
   const isValidToken = typeof token === 'string' && token === match.action_token
@@ -48,7 +49,11 @@ export default async function MatchPage({ params, searchParams }: Props) {
   if (user) {
     const { data: userProfiles } = await supabase.from('player_profiles').select('id').eq('user_id', user.id)
     const pids = (userProfiles || []).map((p: any) => p.id)
-    if (pids.find((pid: string) => pid === match.player1_id || pid === match.player2_id)) allowedToSubmit = true
+    const matchedPid = pids.find((pid: string) => pid === match.player1_id || pid === match.player2_id)
+    if (matchedPid) {
+      allowedToSubmit = true
+      currentUserProfileId = matchedPid
+    }
   }
 
   // Allow submission if token is valid
@@ -87,6 +92,7 @@ export default async function MatchPage({ params, searchParams }: Props) {
       initialAction={typeof action === 'string' ? action : undefined}
       initialWinnerId={typeof winner === 'string' ? winner : undefined}
       initialReporterId={typeof reported_by === 'string' ? reported_by : undefined}
+      currentUserProfileId={currentUserProfileId}
     />
   )
 }

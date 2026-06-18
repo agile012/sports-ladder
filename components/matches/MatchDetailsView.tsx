@@ -61,6 +61,7 @@ type MatchDetailsProps = {
     initialAction?: string
     initialWinnerId?: string
     initialReporterId?: string
+    currentUserProfileId?: string
 }
 
 export default function MatchDetailsView({
@@ -75,7 +76,8 @@ export default function MatchDetailsView({
     initialToken,
     initialAction,
     initialWinnerId,
-    initialReporterId
+    initialReporterId,
+    currentUserProfileId
 }: MatchDetailsProps) {
     const winnerId = match.winner_id
     const router = useRouter()
@@ -194,7 +196,7 @@ export default function MatchDetailsView({
             processed = true
         } else if (initialAction === 'withdraw' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
             // Trigger withdraw dialog. Check if user is player1 OR if using token
-            if (initialToken || currentUser?.id === player1.id) {
+            if (initialToken || currentUserProfileId === player1.id) {
                 setAlertConfig({
                     open: true,
                     title: "Withdraw Match",
@@ -223,7 +225,7 @@ export default function MatchDetailsView({
             }
         } else if (initialAction === 'forfeit' && ['PENDING', 'CHALLENGED'].includes(match.status)) {
             // Forfeit: Defender (player2) OR token
-            if (initialToken || currentUser?.id === player2.id) {
+            if (initialToken || currentUserProfileId === player2.id) {
                 setAlertConfig({
                     open: true,
                     title: "Forfeit Match",
@@ -317,7 +319,7 @@ export default function MatchDetailsView({
             action: async () => {
                 setIsSubmitting(true)
                 try {
-                    const reporter = currentUser?.id ?? initialReporterId
+                    const reporter = currentUserProfileId ?? initialReporterId
                     const res = await fetch(`/api/matches/${match.id}/submit-result`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -389,7 +391,7 @@ export default function MatchDetailsView({
         }
 
         // Determine reporter
-        const reporter = currentUser?.id ?? initialReporterId
+        const reporter = currentUserProfileId ?? initialReporterId
 
         // Show Confirmation
         setAlertConfig({
@@ -553,12 +555,12 @@ export default function MatchDetailsView({
                                 <Button size="sm" onClick={() => setIsReportOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20">
                                     Report Result
                                 </Button>
-                                {currentUser?.id === player1.id && (
+                                {currentUserProfileId === player1.id && (
                                     <Button size="sm" variant="outline" onClick={handleWithdraw} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 border-red-200/20">
                                         Withdraw
                                     </Button>
                                 )}
-                                {currentUser?.id === player2.id && (
+                                {currentUserProfileId === player2.id && (
                                     <Button size="sm" variant="outline" onClick={handleForfeit} className="text-muted-foreground hover:text-red-600 hover:bg-red-50 border-red-200/20">
                                         Forfeit
                                     </Button>
@@ -678,19 +680,23 @@ export default function MatchDetailsView({
                                         {formatMatchDate(match.updated_at, { dateStyle: 'full', timeStyle: 'short' })}
                                     </span>
                                 </div>
-                                <Separator className="bg-border/50 w-1/2" />
-                                <div className="flex flex-col items-center gap-2">
-                                    <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Reporter</span>
-                                    <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
-                                        <Avatar className="w-5 h-5">
-                                            <AvatarImage src="#" /> {/* Could fetch reporter avatar if needed */}
-                                            <AvatarFallback className="text-[10px]">R</AvatarFallback>
-                                        </Avatar>
-                                        <span className="text-sm font-medium">
-                                            {match.reported_by === player1.id ? player1.full_name : match.reported_by === player2.id ? player2.full_name : 'Admin/System'}
-                                        </span>
-                                    </div>
-                                </div>
+                                {match.reported_by && (
+                                    <>
+                                        <Separator className="bg-border/50 w-1/2" />
+                                        <div className="flex flex-col items-center gap-2">
+                                            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Reporter</span>
+                                            <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full">
+                                                <Avatar className="w-5 h-5">
+                                                    <AvatarImage src="#" /> {/* Could fetch reporter avatar if needed */}
+                                                    <AvatarFallback className="text-[10px]">R</AvatarFallback>
+                                                </Avatar>
+                                                <span className="text-sm font-medium">
+                                                    {match.reported_by === player1.id ? player1.full_name : match.reported_by === player2.id ? player2.full_name : 'Admin/System'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -766,7 +772,7 @@ export default function MatchDetailsView({
 
                     {match.sport?.scoring_config?.type === 'simple' ? (
                         <div className="flex flex-col gap-3 py-4">
-                            {currentUser?.id === player1.id ? (
+                            {currentUserProfileId === player1.id ? (
                                 <>
                                     <Button
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg font-bold"
@@ -783,7 +789,7 @@ export default function MatchDetailsView({
                                         I Lost
                                     </Button>
                                 </>
-                            ) : currentUser?.id === player2.id ? (
+                            ) : currentUserProfileId === player2.id ? (
                                 <>
                                     <Button
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 h-12 text-lg font-bold"
